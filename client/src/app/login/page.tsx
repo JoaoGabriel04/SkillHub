@@ -36,7 +36,6 @@ export default function Login() {
   });
 
   const onSubmit = async (data: FormData) => {
-    console.log(data);
     mutate(data, {
       onSuccess: () => {
         toast.success("Login realizado com sucesso!");

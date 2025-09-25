@@ -26,7 +26,9 @@ export default function Header() {
           />
           <span>0,00</span>
         </div>
-        <Settings className="cursor-pointer"/>
+        <Link href={"/u/configuracoes"}>
+          <Settings className="cursor-pointer" />
+        </Link>
       </div>
     </header>
   );
