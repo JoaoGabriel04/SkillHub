@@ -16,6 +16,8 @@ import api, { setAuthToken } from "@/services/api";
 import { useRouter } from "next/navigation";
 
 export default function Login() {
+  const [vh, setVh] = useState("100vh");
+
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -40,6 +42,11 @@ export default function Login() {
       { x: 0, opacity: 1, duration: 0.5 },
       "-=0.2"
     );
+
+    const updateVh = () => setVh(`${window.innerHeight}px`);
+    updateVh();
+    window.addEventListener("resize", updateVh);
+    return () => window.removeEventListener("resize", updateVh);
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -91,7 +98,7 @@ export default function Login() {
   }
 
   return (
-    <main className="w-full h-screen relative flex flex-col items-center">
+    <main style={{height: vh}} className="w-full relative flex flex-col items-center">
       <LogoSkillHub ref={logoRef} />
       <div
         ref={bodyRef}

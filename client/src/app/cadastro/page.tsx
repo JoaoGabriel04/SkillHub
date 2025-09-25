@@ -68,7 +68,7 @@ export default function Cadastro() {
   }
 
   return (
-    <main className="w-full h-screen relative flex flex-col items-center px-10">
+    <main className="w-full max-h-screen relative flex flex-col items-center px-10">
       <LogoSkillHub ref={logoRef} />
       <div className="w-full flex flex-col items-center mt-30 lg:mt-50">
         <h1
