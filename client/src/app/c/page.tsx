@@ -24,11 +24,16 @@ export default function Dashboard() {
   const { fetchUser, fullName } = useUserStore();
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     fetchUser().catch(() => {
-      toast.error("Erro de autenticação.")
+      toast.error("Erro de autenticação.");
       router.push("/login");
     });
-  }, []);
+  }, [fetchUser, router]);
 
   return (
     <main>
@@ -36,7 +41,7 @@ export default function Dashboard() {
       <MenuBar />
       <section className="px-5 md:px-20 lg:px-40 py-3">
         <h3 className="text-md lg:text-xl text-zinc-200/40 font-medium mt-4">
-          Seja Bem Vindo, {fullName} ao
+          Seja Bem Vindo, ao
         </h3>
         <h1 className="text-4xl lg:text-6xl text-zinc-200 font-bold">
           Skillhub
