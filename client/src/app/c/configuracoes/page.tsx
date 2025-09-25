@@ -20,11 +20,11 @@ import api from "@/services/api";
 
 const options = [
   { title: "Perfil", icon: faUser, url: "/c/perfil" },
-  { title: "Compras e Assinaturas", icon: faTag, url: "/c/dashboard" },
-  { title: "Temas", icon: faPalette, url: "/c/dashboard" },
-  { title: "Feedback", icon: faCommentDots, url: "/c/dashboard" },
-  { title: "Notificações", icon: faBell, url: "/c/dashboard" },
-  { title: "Central de Segurança", icon: faShieldHalved, url: "/c/dashboard" },
+  { title: "Compras e Assinaturas", icon: faTag, url: "/c" },
+  { title: "Temas", icon: faPalette, url: "/c" },
+  { title: "Feedback", icon: faCommentDots, url: "/c" },
+  { title: "Notificações", icon: faBell, url: "/c" },
+  { title: "Central de Segurança", icon: faShieldHalved, url: "/c" },
 ];
 
 export default function Configuracoes() {

@@ -21,11 +21,11 @@ import { toast } from "react-toastify";
 
 const options = [
   { title: "Perfil", icon: faUser, url: "/u/perfil" },
-  { title: "Compras e Assinaturas", icon: faTag, url: "/u/dashboard" },
-  { title: "Temas", icon: faPalette, url: "/u/dashboard" },
-  { title: "Feedback", icon: faCommentDots, url: "/u/dashboard" },
-  { title: "Notificações", icon: faBell, url: "/u/dashboard" },
-  { title: "Central de Segurança", icon: faShieldHalved, url: "/u/dashboard" },
+  { title: "Compras e Assinaturas", icon: faTag, url: "/u" },
+  { title: "Temas", icon: faPalette, url: "/u" },
+  { title: "Feedback", icon: faCommentDots, url: "/u" },
+  { title: "Notificações", icon: faBell, url: "/u" },
+  { title: "Central de Segurança", icon: faShieldHalved, url: "/u" },
 ];
 
 export default function Configuracoes() {

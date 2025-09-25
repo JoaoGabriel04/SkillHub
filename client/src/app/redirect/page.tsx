@@ -14,8 +14,8 @@ export default function Redirect() {
   }, []);
 
   useEffect(() => {
-    if (perfil === "Cliente") router.push("/u/dashboard");
-    if (perfil === "Colaborador") router.push("/c/dashboard");
+    if (perfil === "Cliente") router.push("/u");
+    if (perfil === "Colaborador") router.push("/c");
   }, [perfil]);
 
   return <main></main>;
