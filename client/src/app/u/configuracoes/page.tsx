@@ -55,7 +55,7 @@ export default function Configuracoes() {
   return (
     <main ref={bodyRef} className="p-3 lg:px-40 opacity-0">
       <header className="w-full flex items-center gap-4">
-        <Link href={"/u/dashboard"}>
+        <Link href={"/u"}>
           <FontAwesomeIcon
             icon={faChevronLeft}
             className="text-2xl text-zinc-200/60"
