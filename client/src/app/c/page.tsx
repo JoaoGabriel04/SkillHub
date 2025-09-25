@@ -9,6 +9,7 @@ import MenuBar from "./_components/Menu";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/stores/userInfo";
+import { toast } from "react-toastify";
 
 const perfisRelevantes = [
   { url: "/foto-perfil-01.jpeg" },
@@ -24,6 +25,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchUser().catch(() => {
+      toast.error("Erro de autenticação.")
       router.push("/login");
     });
   }, []);

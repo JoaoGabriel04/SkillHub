@@ -21,7 +21,7 @@ export default function MenuBar() {
     },
     {
       title: "Início",
-      url: "/c/dashboard",
+      url: "/c",
       icon: faHouse,
     },
     {
