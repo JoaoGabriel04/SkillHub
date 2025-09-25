@@ -1,3 +1,4 @@
+"use client";
 import Image from "next/image";
 import BannerCarousel from "../_components/Carousel";
 import Header from "../_components/Header";
@@ -5,19 +6,32 @@ import ServicesCarousel from "../_components/ServicesCarousel";
 import { MoveRight } from "lucide-react";
 import Link from "next/link";
 import MenuBar from "../_components/Menu";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useUserStore } from "@/stores/userInfo";
+
+const perfisRelevantes = [
+  { url: "/foto-perfil-01.jpeg" },
+  { url: "/foto-perfil-02.jpeg" },
+  { url: "/foto-perfil-03.jpg" },
+  { url: "/foto-perfil-04.jpg" },
+];
 
 export default function Dashboard() {
-  const perfisRelevantes = [
-    { url: "/foto-perfil-01.jpeg" },
-    { url: "/foto-perfil-02.jpeg" },
-    { url: "/foto-perfil-03.jpg" },
-    { url: "/foto-perfil-04.jpg" },
-  ];
+  const router = useRouter();
+
+  const { fetchUser } = useUserStore();
+
+  useEffect(() => {
+    fetchUser().catch(() => {
+      router.push("/login");
+    });
+  }, [fetchUser, router]);
 
   return (
     <main>
       <Header />
-      <MenuBar/>
+      <MenuBar />
       <section className="px-5 md:px-20 lg:px-40 py-3">
         <h3 className="text-md lg:text-xl text-zinc-200/40 font-medium mt-4">
           Seja Bem Vindo ao

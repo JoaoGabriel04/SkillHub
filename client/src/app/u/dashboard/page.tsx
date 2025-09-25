@@ -1,3 +1,4 @@
+'use client'
 import Image from "next/image";
 import BannerCarousel from "../_components/Carousel";
 import Header from "../_components/Header";
@@ -5,14 +6,28 @@ import ServicesCarousel from "../_components/ServicesCarousel";
 import { MoveRight } from "lucide-react";
 import Link from "next/link";
 import MenuBar from "../_components/Menu";
+import { useUserStore } from "@/stores/userInfo";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function Dashboard() {
-  const perfisRelevantes = [
+const perfisRelevantes = [
     { url: "/foto-perfil-01.jpeg" },
     { url: "/foto-perfil-02.jpeg" },
     { url: "/foto-perfil-03.jpg" },
     { url: "/foto-perfil-04.jpg" },
   ];
+
+export default function Dashboard() {
+
+  const router = useRouter();
+
+  const {fetchUser} = useUserStore();
+
+  useEffect(() => {
+    fetchUser().catch(() => {
+      router.push("/login");
+    });
+  }, [fetchUser, router]);
 
   return (
     <main>

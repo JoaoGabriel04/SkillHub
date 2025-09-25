@@ -14,11 +14,11 @@ export default function OptionLink({ title, icon, url }: Props) {
     <li className="w-full">
       <Link href={url} className="w-full flex justify-between">
         <div className="flex justify-center items-center gap-2">
-          <FontAwesomeIcon icon={icon} className="text-xl lg:text-4xl text-zinc-200/80"/>
-          <h1 className="text-lg lg:text-2xl text-zinc-200/80">{title}</h1>
+          <FontAwesomeIcon icon={icon} className="text-xl text-zinc-200/80"/>
+          <h1 className="text-lg text-zinc-200/80">{title}</h1>
         </div>
         <div>
-          <FontAwesomeIcon icon={faChevronRight} className="text-lg lg:text-2xl text-zinc-200/80"/>
+          <FontAwesomeIcon icon={faChevronRight} className="text-zinc-200/80"/>
         </div>
       </Link>
     </li>

@@ -19,12 +19,12 @@ import { useRouter } from "next/navigation";
 import api from "@/services/api";
 
 const options = [
-  { title: "Perfil", icon: faUser, url: "/u/perfil" },
-  { title: "Compras e Assinaturas", icon: faTag, url: "/u/dashboard" },
-  { title: "Temas", icon: faPalette, url: "/u/dashboard" },
-  { title: "Feedback", icon: faCommentDots, url: "/u/dashboard" },
-  { title: "Notificações", icon: faBell, url: "/u/dashboard" },
-  { title: "Central de Segurança", icon: faShieldHalved, url: "/u/dashboard" },
+  { title: "Perfil", icon: faUser, url: "/c/perfil" },
+  { title: "Compras e Assinaturas", icon: faTag, url: "/c/dashboard" },
+  { title: "Temas", icon: faPalette, url: "/c/dashboard" },
+  { title: "Feedback", icon: faCommentDots, url: "/c/dashboard" },
+  { title: "Notificações", icon: faBell, url: "/c/dashboard" },
+  { title: "Central de Segurança", icon: faShieldHalved, url: "/c/dashboard" },
 ];
 
 export default function Configuracoes() {
@@ -53,9 +53,9 @@ export default function Configuracoes() {
   };
 
   return (
-    <main ref={bodyRef} className="p-3 lg:px-40 opacity-0">
+    <main ref={bodyRef} className="p-3 opacity-0">
       <header className="w-full flex items-center gap-4">
-        <Link href={"/u/dashboard"}>
+        <Link href={"/c/dashboard"}>
           <FontAwesomeIcon
             icon={faChevronLeft}
             className="text-2xl text-zinc-200/60"
@@ -67,7 +67,7 @@ export default function Configuracoes() {
       </header>
       <SearchInput />
       <div className="mt-8">
-        <ul className="flex flex-col gap-4 lg:gap-12">
+        <ul className="flex flex-col gap-4">
           {options.map((option, index) => (
             <OptionLink
               key={index}
@@ -76,13 +76,13 @@ export default function Configuracoes() {
               url={option.url}
             />
           ))}
-          <button onClick={logout} className="w-full flex justify-between cursor-pointer">
+          <button onClick={logout} className="w-full flex justify-between">
             <div className="flex justify-center items-center gap-2">
               <FontAwesomeIcon
                 icon={faDoorOpen}
-                className="text-xl lg:text-4xl text-red-500/80"
+                className="text-xl text-red-500/80"
               />
-              <h1 className="text-lg lg:text-2xl text-red-500/80">Sair</h1>
+              <h1 className="text-lg text-red-500/80">Sair</h1>
             </div>
           </button>
         </ul>
