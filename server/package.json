@@ -11,17 +11,17 @@
     "multer": "^2.0.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
-    "uuid": "^13.0.0"
-  },
-  "devDependencies": {
+    "uuid": "^13.0.0",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/hapi__joi": "^17.1.15",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
+    "@types/node": "^24.5.2",
     "nodemon": "^3.1.10"
   },
+  "devDependencies": {},
   "name": "server",
   "version": "1.0.0",
   "description": "",
