@@ -17,11 +17,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormData, loginFormSchema } from "@/schemas/loginSchema";
 import { useLoginCliente } from "@/hooks/loginUser";
+import { useUserStore } from "@/stores/userInfo";
 
 export default function Login() {
   const [vh, setVh] = useState("100vh");
 
   const router = useRouter();
+  const { fetchUser } = useUserStore();
 
   const { mutate, isPending } = useLoginCliente();
 
@@ -72,56 +74,19 @@ export default function Login() {
     return () => window.removeEventListener("resize", updateVh);
   }, []);
 
-  {
-    /*async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      if (email.trim() === "" || password.trim() === "") {
-        toast.error("Por favor, preencha todos os campos.");
-        return;
-      }
-
-      try {
-        const response = await api.post(
-          "/api/auth/login",
-          { email, password },
-          {
-            withCredentials: true,
-          }
-        );
-
-        setAuthToken(response.data.accessToken);
-
-        console.log(
-          "Token definido após login:",
-          api.defaults.headers.common["Authorization"]
-        );
-
-        console.log(response.data);
-        toast.success(response.data.message);
-        setEmail("");
-        setPassword("");
-        setTimeout(() => {
-          router.push("/redirect");
-        }, 2000);
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          console.log(error);
-          toast.error("Erro ao fazer login");
-        } else {
-          console.log("Erro desconhecido:", error);
-        }
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Erro ao fazer login:", error.message);
-      } else {
-        console.error("Erro desconhecido ao fazer login.");
-      }
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      // opcional: você pode até chamar fetchUser pra carregar dados do usuário
+      fetchUser().then(() => {
+        router.push("/redirect"); // redireciona se o token existe
+      }).catch(() => {
+        // se o token estiver inválido, permanece na tela de login
+        localStorage.removeItem("access_token");
+      });
     }
-  }*/
-  }
-
+  }, [fetchUser, router]);
+  
   return (
     <main
       style={{ height: vh }}
@@ -195,8 +160,8 @@ export default function Login() {
         </div>
       </div>
       {isPending && (
-        <div className="absolute w-full h-screen bg-black/60">
-
+        <div className="absolute w-full h-screen flex justify-center items-center bg-black/60">
+          <div className="w-10 h-10 border-4 border-t-blue-500 border-gray-300 rounded-full animate-spin"></div>
         </div>
       )}
     </main>

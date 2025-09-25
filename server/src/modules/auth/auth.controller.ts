@@ -223,10 +223,42 @@ const authController = {
   },
   registerEmpresa: async (req: Request, res: Response) => {},
   refreshToken: async (req: Request, res: Response) => {
-    res.send("Refresh");
+    try {
+      const refreshToken = req.cookies.refresh_token;
+
+      if (!refreshToken) {
+        return res.status(401).json({ message: 'Refresh token não encontrado' });
+      }
+
+      // Verificar o refresh token
+      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_TOKEN!) as any;
+
+      // Verificar se é realmente um refresh token
+      if (decoded.tokenType !== 'refresh') {
+        return res.status(401).json({ message: 'Token inválido' });
+      }
+
+      // Buscar dados atualizados do usuário
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ message: 'Usuário não encontrado' });
+      }
+
+      // Gerar novo access token
+      const newAccessToken = generateAccessToken(user);
+
+      res.json({
+        accessToken: newAccessToken,
+        message: 'Token renovado com sucesso'
+      });
+
+    } catch (error) {
+      res.status(401).json({ message: 'Refresh token inválido' });
+    }
   },
   logout: async (req: Request, res: Response) => {
-    res.send("Logout");
+    res.clearCookie('refresh_token');
+    res.json({ message: 'Logout realizado com sucesso' });
   },
 };
 

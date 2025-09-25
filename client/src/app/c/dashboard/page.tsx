@@ -4,7 +4,7 @@ import Header from "../_components/Header";
 import ServicesCarousel from "../_components/ServicesCarousel";
 import { MoveRight } from "lucide-react";
 import Link from "next/link";
-import MenuBar from "@/components/Menu";
+import MenuBar from "../_components/Menu";
 
 export default function Dashboard() {
   const perfisRelevantes = [
