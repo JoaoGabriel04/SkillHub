@@ -25,12 +25,16 @@ export default function Dashboard() {
   const {fetchUser, fullName} = useUserStore();
 
   useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     fetchUser().catch(() => {
-      toast.error("Erro de autenticação.")
+      toast.error("Erro de autenticação.");
       router.push("/login");
     });
-    console.log(fullName)
-  }, []);
+  }, [fetchUser, router]);
 
   return (
     <main>
