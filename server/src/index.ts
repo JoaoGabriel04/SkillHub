@@ -8,7 +8,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5000",
+    origin: "https://uiskillhub.netlify.app",
     credentials: true,
   })
 );
