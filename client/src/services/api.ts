@@ -78,7 +78,7 @@ api.interceptors.response.use(
     ) {
       console.log('🔄 Token expirado (401), tentando refresh...');
 
-      if (originalRequest.url && originalRequest.url.includes('/auth/refresh')) {
+      if (originalRequest.url && originalRequest.url.includes('/api/auth/refresh')) {
         console.log('❌ Refresh falhou, redirecionando...');
         localStorage.removeItem('access_token');
         delete api.defaults.headers.common['Authorization'];
@@ -106,8 +106,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        console.log('🔄 Fazendo POST /auth/refresh...');
-        const response: AxiosResponse<RefreshTokenResponse> = await api.post('/auth/refresh');
+        console.log('🔄 Fazendo POST /api/auth/refresh...');
+        const response: AxiosResponse<RefreshTokenResponse> = await api.post('/api/auth/refresh');
         const newAccessToken = response.data.accessToken;
 
         console.log('✅ Novo token recebido!');

@@ -12,16 +12,39 @@ import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import LogoSkillHub from "@/components/LogoSkillHub";
 import { toast } from "react-toastify";
-import api, { setAuthToken } from "@/services/api";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FormData, loginFormSchema } from "@/schemas/loginSchema";
+import { useLoginCliente } from "@/hooks/loginUser";
 
 export default function Login() {
   const [vh, setVh] = useState("100vh");
 
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { mutate, isPending } = useLoginCliente();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(loginFormSchema),
+  });
+
+  const onSubmit = async (data: FormData) => {
+    console.log(data);
+    mutate(data, {
+      onSuccess: () => {
+        toast.success("Login realizado com sucesso!");
+        router.push("/redirect");
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message ?? "Erro no login");
+      },
+    });
+  };
 
   const logoRef = useRef(null);
   const bodyRef = useRef(null);
@@ -49,7 +72,8 @@ export default function Login() {
     return () => window.removeEventListener("resize", updateVh);
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  {
+    /*async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
       if (email.trim() === "" || password.trim() === "") {
@@ -95,10 +119,14 @@ export default function Login() {
         console.error("Erro desconhecido ao fazer login.");
       }
     }
+  }*/
   }
 
   return (
-    <main style={{height: vh}} className="w-full relative flex flex-col items-center">
+    <main
+      style={{ height: vh }}
+      className="w-full relative flex flex-col items-center"
+    >
       <LogoSkillHub ref={logoRef} />
       <div
         ref={bodyRef}
@@ -108,24 +136,22 @@ export default function Login() {
           Faça parte da nossa comunidade
         </h1>
         <form
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmit(onSubmit)}
           className="w-full lg:w-100 mt-8 space-y-6 flex flex-col justify-center items-start"
         >
           <InputField
             id="email"
-            name="email"
             label="Email"
             type="text"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            {...register("email")}
+            error={errors.email?.message}
           />
           <InputField
             id="senha"
-            name="senha"
             label="Senha"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            {...register("password")}
+            error={errors.password?.message}
           />
           <button
             type="submit"
@@ -168,6 +194,11 @@ export default function Login() {
           </div>
         </div>
       </div>
+      {isPending && (
+        <div className="absolute w-full h-screen bg-black/60">
+
+        </div>
+      )}
     </main>
   );
 }

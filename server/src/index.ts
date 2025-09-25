@@ -6,9 +6,20 @@ import cookieParser from "cookie-parser";
 import apiRouter from "./api/routes/index.js";
 const app = express();
 
+const allowedOrigins = [
+  "https://uiskillhub.netlify.app",
+  "http://localhost:3000", // para dev local
+];
+
 app.use(
   cors({
-    origin: "https://uiskillhub.netlify.app",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
