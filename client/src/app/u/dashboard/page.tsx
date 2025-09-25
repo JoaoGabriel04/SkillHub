@@ -27,7 +27,7 @@ export default function Dashboard() {
     fetchUser().catch(() => {
       router.push("/login");
     });
-  }, [fetchUser, router]);
+  }, []);
 
   return (
     <main>

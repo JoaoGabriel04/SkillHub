@@ -17,6 +17,7 @@ import { useEffect, useRef } from "react";
 import OptionLink from "./_components/OptionLink";
 import { useRouter } from "next/navigation";
 import api from "@/services/api";
+import { toast } from "react-toastify";
 
 const options = [
   { title: "Perfil", icon: faUser, url: "/u/perfil" },
@@ -28,7 +29,6 @@ const options = [
 ];
 
 export default function Configuracoes() {
-
   const router = useRouter();
 
   const bodyRef = useRef(null);
@@ -40,16 +40,16 @@ export default function Configuracoes() {
   }, []);
 
   const logout = async () => {
-    console.log("Clicou!")
+    console.log("Clicou!");
     try {
-      await api.post('/api/auth/logout'); // remove cookie
+      await api.post("/api/auth/logout"); // remove cookie
+      toast.success("Você foi deslogado com sucesso!");
+      localStorage.removeItem("access_token");
+      delete api.defaults.headers.common["Authorization"];
+      router.push("/"); // redireciona
     } catch (error) {
-      console.error('Erro ao fazer logout no servidor', error);
+      console.error("Erro ao fazer logout no servidor", error);
     }
-
-    localStorage.removeItem('access_token');
-    delete api.defaults.headers.common['Authorization'];
-    router.push('/'); // redireciona
   };
 
   return (
@@ -76,7 +76,10 @@ export default function Configuracoes() {
               url={option.url}
             />
           ))}
-          <button onClick={logout} className="w-full flex justify-between cursor-pointer">
+          <button
+            onClick={logout}
+            className="w-full flex justify-between cursor-pointer"
+          >
             <div className="flex justify-center items-center gap-2">
               <FontAwesomeIcon
                 icon={faDoorOpen}
