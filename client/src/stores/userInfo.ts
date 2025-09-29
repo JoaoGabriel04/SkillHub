@@ -58,7 +58,7 @@ export const useUserStore = create<UserStore>((set)=>({
 
       set({
         _id: res.data._id,
-        fullName: res.data.fullname,
+        fullName: res.data.fullName,
         phone: res.data.phone,
         cpf: res.data.cpf,
         dataNascimento: res.data.dataNascimento,

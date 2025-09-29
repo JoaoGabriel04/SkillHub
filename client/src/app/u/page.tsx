@@ -34,7 +34,7 @@ export default function Dashboard() {
       toast.error("Erro de autenticação.");
       router.push("/login");
     });
-  }, [fetchUser, router]);
+  }, [router]);
 
   return (
     <main>
@@ -42,7 +42,7 @@ export default function Dashboard() {
       <MenuBar/>
       <section className="px-5 md:px-20 lg:px-40 py-3">
         <h3 className="text-md lg:text-xl text-zinc-200/40 font-medium mt-4">
-          Seja Bem Vindo, ao
+          Seja Bem Vindo, {fullName}, ao
         </h3>
         <h1 className="text-4xl lg:text-6xl text-zinc-200 font-bold">
           Skillhub

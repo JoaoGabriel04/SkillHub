@@ -65,6 +65,10 @@ const userSchema = new Schema({
   perfil: {
     type: String,
     default: "",
+  },
+  refreshTokens: {
+    type: [String],
+    default: [],
   }
 }, {
   timestamps: true,

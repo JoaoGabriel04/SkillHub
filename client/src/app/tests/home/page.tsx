@@ -1,11 +1,10 @@
 "use client";
-import Button1 from "@/components/ButtonType1";
 import gsap from "gsap";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-export default function App() {
+export default function Home() {
   const [vh, setVh] = useState("100vh");
 
   const router = useRouter();
@@ -18,7 +17,7 @@ export default function App() {
         y: -50,
         duration: 0.6,
         ease: "power2.inOut",
-        onComplete: () => router.push("/login"), // desmonta só depois da animação
+        onComplete: () => router.push("/u"), // desmonta só depois da animação
       });
     }
   };
@@ -32,17 +31,19 @@ export default function App() {
         { opacity: 1, y: 0, duration: 1.5, ease: "power2.out" }
       );
     }
+  }, []); // só cuida da animação
 
+  useEffect(() => {
     const updateVh = () => setVh(`${window.innerHeight}px`);
     updateVh();
     window.addEventListener("resize", updateVh);
 
     return () => window.removeEventListener("resize", updateVh);
-  }, []); // só cuida da animação
+  }, []); // só cuida do resize
 
   return (
     <main style={{ height: vh }} className="w-full bg-[url(/Backgrounds-01.png)] bg-cover bg-no-repeat">
-      <div className="w-full h-full absolute top-0 left-0 bg-[#10101040]"></div>
+      <div className="w-full h-full absolute top-0 left-0 bg-[#10101080]"></div>
       <section
         ref={boxRef}
         className="absolute top-0 left-0 z-10 w-full h-full flex flex-col justify-center items-center"
@@ -63,7 +64,17 @@ export default function App() {
         <p className="text-zinc-100/40 font-jersey mt-[-3px]">
           Perto, somos mais rápidos.
         </p>
-        <Button1 handle={() => handleFechar} size="md"/>
+        <div className="w-50 h-10 p-[1px] mt-10 bg-zinc-100">
+          <button
+            onClick={handleFechar}
+            className="relative group w-full h-full overflow-hidden bg-[#101010] text-zinc-100 cursor-pointer"
+          >
+            <span className="font-jersey relative z-10 transition-colors duration-500 group-hover:text-[#101010]">
+              Entre já
+            </span>
+            <span className="absolute inset-0 bg-zinc-100 scale-x-0 origin-center transition-transform duration-500 group-hover:scale-x-100"></span>
+          </button>
+        </div>
       </section>
     </main>
   );
