@@ -63,7 +63,7 @@ export default function App() {
         <p className="text-zinc-100/40 font-jersey mt-[-3px]">
           Perto, somos mais rápidos.
         </p>
-        <Button1 handle={() => handleFechar} size="md"/>
+        <Button1 handle={handleFechar} size="md"/>
       </section>
     </main>
   );

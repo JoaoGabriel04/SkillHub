@@ -34,7 +34,9 @@ const ACCESS_TOKEN_EXPIRES = 60 * 15; // 15 minutes (seconds)
 const REFRESH_TOKEN_EXPIRES = 60 * 60 * 24 * 7; // 7 days (seconds)
 
 if (!process.env.JWT_ACCESS_TOKEN || !process.env.JWT_REFRESH_TOKEN) {
-  console.warn("JWT secret env vars not found: make sure JWT_ACCESS_TOKEN and JWT_REFRESH_TOKEN are set.");
+  console.warn(
+    "JWT secret env vars not found: make sure JWT_ACCESS_TOKEN and JWT_REFRESH_TOKEN are set."
+  );
 }
 
 function generateAccessToken(user: any) {
@@ -52,7 +54,7 @@ function generateAccessToken(user: any) {
 
 function generateRefreshToken(user: any) {
   const jti = uuidv4();
-  const payload: Omit<RefreshTokenPayload, 'jti'> & { jti: string } = {
+  const payload: Omit<RefreshTokenPayload, "jti"> & { jti: string } = {
     sub: user._id.toString(),
     userId: user._id.toString(),
     tokenType: "refresh",
@@ -60,7 +62,10 @@ function generateRefreshToken(user: any) {
     exp: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_EXPIRES,
     jti,
   };
-  return { token: jwt.sign(payload as any, process.env.JWT_REFRESH_TOKEN!), jti };
+  return {
+    token: jwt.sign(payload as any, process.env.JWT_REFRESH_TOKEN!),
+    jti,
+  };
 }
 
 const authController = {
@@ -77,10 +82,15 @@ const authController = {
 
     const email = (req.body.email || "").toLowerCase();
     const selectedUser = await User.findOne({ email });
-    if (!selectedUser) return res.status(400).json({ message: "E-mail ou senha incorretos" });
+    if (!selectedUser)
+      return res.status(400).json({ message: "E-mail ou senha incorretos" });
 
-    const passwordAndUserMatch = bcrypt.compareSync(req.body.password, selectedUser.password);
-    if (!passwordAndUserMatch) return res.status(400).json({ message: "E-mail ou senha incorretos" });
+    const passwordAndUserMatch = bcrypt.compareSync(
+      req.body.password,
+      selectedUser.password
+    );
+    if (!passwordAndUserMatch)
+      return res.status(400).json({ message: "E-mail ou senha incorretos" });
 
     try {
       const accessToken = generateAccessToken(selectedUser);
@@ -157,7 +167,8 @@ const authController = {
     }
     if (!selectedUser) {
       const matchCPF = await User.findOne({ cpf: req.body.cpf });
-      if (matchCPF) return res.status(409).json({ message: "CPF já cadastrado!" });
+      if (matchCPF)
+        return res.status(409).json({ message: "CPF já cadastrado!" });
     }
 
     try {
@@ -172,7 +183,8 @@ const authController = {
 
       // Persist refresh token JTI
       try {
-        if (!Array.isArray(user.refreshTokens)) user.refreshTokens = [] as string[];
+        if (!Array.isArray(user.refreshTokens))
+          user.refreshTokens = [] as string[];
         user.refreshTokens.push(jti);
         await user.save();
       } catch (err) {
@@ -182,7 +194,7 @@ const authController = {
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: "none",
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -228,7 +240,8 @@ const authController = {
     }
     if (!selectedUser) {
       const matchCPF = await User.findOne({ cpf: req.body.cpf });
-      if (matchCPF) return res.status(409).json({ message: "CPF já cadastrado!" });
+      if (matchCPF)
+        return res.status(409).json({ message: "CPF já cadastrado!" });
     }
 
     try {
@@ -246,7 +259,8 @@ const authController = {
       const { token: refreshToken, jti } = generateRefreshToken(user);
 
       try {
-        if (!Array.isArray(user.refreshTokens)) user.refreshTokens = [] as string[];
+        if (!Array.isArray(user.refreshTokens))
+          user.refreshTokens = [] as string[];
         user.refreshTokens.push(jti);
         await user.save();
       } catch (err) {
@@ -256,7 +270,7 @@ const authController = {
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: "none",
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -288,11 +302,16 @@ const authController = {
       const refreshToken = req.cookies.refresh_token;
 
       if (!refreshToken) {
-        return res.status(401).json({ message: "Refresh token não encontrado" });
+        return res
+          .status(401)
+          .json({ message: "Refresh token não encontrado" });
       }
 
       // Verify signature first
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_TOKEN!) as RefreshTokenPayload;
+      const decoded = jwt.verify(
+        refreshToken,
+        process.env.JWT_REFRESH_TOKEN!
+      ) as RefreshTokenPayload;
 
       if (decoded.tokenType !== "refresh") {
         return res.status(401).json({ message: "Token inválido" });
@@ -300,23 +319,31 @@ const authController = {
 
       // Ensure the jti exists in user's stored tokens (rotation / revocation protection)
       const user = await User.findById(decoded.userId);
-      if (!user) return res.status(401).json({ message: "Usuário não encontrado" });
+      if (!user)
+        return res.status(401).json({ message: "Usuário não encontrado" });
 
-      const storedTokens = Array.isArray(user.refreshTokens) ? user.refreshTokens : [];
+      const storedTokens = Array.isArray(user.refreshTokens)
+        ? user.refreshTokens
+        : [];
       if (!decoded.jti || !storedTokens.includes(decoded.jti)) {
         // Possible reuse or token not issued by us
         // Clear cookie and reject
         res.clearCookie("refresh_token", { path: "/" });
-        return res.status(401).json({ message: "Refresh token inválido ou reutilizado" });
+        return res
+          .status(401)
+          .json({ message: "Refresh token inválido ou reutilizado" });
       }
 
       // Rotation: remove used jti and issue a new refresh token with new jti
       // Remove old jti
-      user.refreshTokens = storedTokens.filter((t: string) => t !== decoded.jti);
+      user.refreshTokens = storedTokens.filter(
+        (t: string) => t !== decoded.jti
+      );
 
       // Generate new tokens
       const newAccessToken = generateAccessToken(user);
-      const { token: newRefreshToken, jti: newJti } = generateRefreshToken(user);
+      const { token: newRefreshToken, jti: newJti } =
+        generateRefreshToken(user);
 
       // Persist new jti
       user.refreshTokens.push(newJti);
@@ -331,7 +358,10 @@ const authController = {
         path: "/",
       });
 
-      return res.json({ accessToken: newAccessToken, message: "Token renovado com sucesso" });
+      return res.json({
+        accessToken: newAccessToken,
+        message: "Token renovado com sucesso",
+      });
     } catch (error: any) {
       console.warn("Refresh error:", error?.message || error);
       // remove cookie to be safe
@@ -345,11 +375,16 @@ const authController = {
       const refreshToken = req.cookies.refresh_token;
       if (refreshToken) {
         try {
-          const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_TOKEN!) as RefreshTokenPayload;
+          const decoded = jwt.verify(
+            refreshToken,
+            process.env.JWT_REFRESH_TOKEN!
+          ) as RefreshTokenPayload;
           // Remove jti from user stored tokens so it can't be reused
           const user = await User.findById(decoded.userId);
           if (user && Array.isArray(user.refreshTokens)) {
-            user.refreshTokens = user.refreshTokens.filter((t: string) => t !== decoded.jti);
+            user.refreshTokens = user.refreshTokens.filter(
+              (t: string) => t !== decoded.jti
+            );
             await user.save();
           }
         } catch (err) {
@@ -357,7 +392,12 @@ const authController = {
         }
       }
 
-      res.clearCookie("refresh_token", { path: "/" });
+      res.clearCookie("refresh_token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "none",
+        path: "/",
+      });
       return res.json({ message: "Logout realizado com sucesso" });
     } catch (error) {
       console.error("Logout error:", error);

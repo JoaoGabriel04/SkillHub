@@ -84,7 +84,7 @@ export default function Login() {
         localStorage.removeItem("access_token");
       });
     }
-  }, [fetchUser, router]);
+  }, [router]);
   
   return (
     <main
