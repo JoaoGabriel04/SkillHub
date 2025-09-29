@@ -112,7 +112,7 @@ const authController = {
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: 'none',
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -193,8 +193,8 @@ const authController = {
 
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "none",
+        secure: process.env.NODE_ENV === "production" ? true : false,
+        sameSite: 'none',
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -269,8 +269,8 @@ const authController = {
 
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "none",
+        secure: process.env.NODE_ENV === "production" ? true : false,
+        sameSite: 'none',
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -352,8 +352,8 @@ const authController = {
       // Set cookie with new refresh token
       res.cookie("refresh_token", newRefreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production" ? true : false,
+        sameSite: 'none',
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -394,8 +394,8 @@ const authController = {
 
       res.clearCookie("refresh_token", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "none",
+        secure: process.env.NODE_ENV === "production" ? true : false,
+        sameSite: 'none',
         path: "/",
       });
       return res.json({ message: "Logout realizado com sucesso" });
