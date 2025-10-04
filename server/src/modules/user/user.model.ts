@@ -69,6 +69,10 @@ const userSchema = new Schema({
   refreshTokens: {
     type: [String],
     default: [],
+  },
+  credits: {
+    type: Number,
+    default: 0,
   }
 }, {
   timestamps: true,

@@ -53,8 +53,8 @@ export default function Configuracoes() {
   };
 
   return (
-    <main ref={bodyRef} className="p-3 lg:px-40 opacity-0">
-      <header className="w-full flex items-center gap-4">
+    <main ref={bodyRef} className="p-3 lg:px-[500px] opacity-0">
+      <header className="w-full flex items-center gap-4 mb-6">
         <Link href={"/u"}>
           <FontAwesomeIcon
             icon={faChevronLeft}
@@ -66,8 +66,8 @@ export default function Configuracoes() {
         </h1>
       </header>
       <SearchInput />
-      <div className="mt-8">
-        <ul className="flex flex-col gap-4 lg:gap-12">
+      <div className="mt-10">
+        <ul className="flex flex-col gap-y-7 lg:gap-12">
           {options.map((option, index) => (
             <OptionLink
               key={index}

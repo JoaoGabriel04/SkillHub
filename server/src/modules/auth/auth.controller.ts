@@ -112,7 +112,7 @@ const authController = {
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: 'none',
+        sameSite: "none",
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -194,7 +194,7 @@ const authController = {
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production" ? true : false,
-        sameSite: 'none',
+        sameSite: "none",
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -270,7 +270,7 @@ const authController = {
       res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production" ? true : false,
-        sameSite: 'none',
+        sameSite: "none",
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -325,10 +325,16 @@ const authController = {
       const storedTokens = Array.isArray(user.refreshTokens)
         ? user.refreshTokens
         : [];
+      
       if (!decoded.jti || !storedTokens.includes(decoded.jti)) {
-        // Possible reuse or token not issued by us
-        // Clear cookie and reject
-        res.clearCookie("refresh_token", { path: "/" });
+        // Isso pode ser "token roubado" OU apenas "race condition" do StrictMode.
+        console.warn("Refresh token não encontrado no banco:", decoded.jti);
+
+        // Em produção, mantenho o clearCookie por segurança.
+        if (process.env.NODE_ENV === "production") {
+          res.clearCookie("refresh_token", { path: "/" });
+        }
+
         return res
           .status(401)
           .json({ message: "Refresh token inválido ou reutilizado" });
@@ -353,7 +359,7 @@ const authController = {
       res.cookie("refresh_token", newRefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production" ? true : false,
-        sameSite: 'none',
+        sameSite: "none",
         maxAge: REFRESH_TOKEN_EXPIRES * 1000,
         path: "/",
       });
@@ -395,7 +401,7 @@ const authController = {
       res.clearCookie("refresh_token", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production" ? true : false,
-        sameSite: 'none',
+        sameSite: "none",
         path: "/",
       });
       return res.json({ message: "Logout realizado com sucesso" });

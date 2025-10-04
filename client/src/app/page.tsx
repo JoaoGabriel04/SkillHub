@@ -54,16 +54,16 @@ export default function App() {
           height={100}
           className="w-30 drop-shadow-[0px_0px_15px] drop-shadow-[#25B3E480] animate-pulse"
         />
-        <h1 className="font-jersey text-transparent text-5xl tracking-wider mt-4 bg-linear-to-b from-[#25B3E4] via-[#3BD4CC] to-[#ffffff] bg-clip-text">
+        <h1 className="font-jersey25 text-transparent text-5xl tracking-wider mt-4 bg-linear-to-b from-[#25B3E4] via-[#3BD4CC] to-[#ffffff] bg-clip-text">
           SkillHub
         </h1>
-        <p className="text-zinc-100/40 font-jersey mt-2">
+        <p className="text-zinc-100/40 font-jersey25 mt-2">
           Juntos, somos mais fortes.
         </p>
-        <p className="text-zinc-100/40 font-jersey mt-[-3px]">
+        <p className="text-zinc-100/40 font-jersey25 mt-[-3px] mb-10">
           Perto, somos mais rápidos.
         </p>
-        <Button1 handle={handleFechar} size="md"/>
+        <Button1 handle={handleFechar} size="md">Entre já</Button1>
       </section>
     </main>
   );

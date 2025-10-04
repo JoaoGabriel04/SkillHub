@@ -1,11 +1,14 @@
 import { UseFormRegister } from "react-hook-form";
 import { FormData } from "@/schemas/registerFormSchema";
 import { OrgFormData } from "@/schemas/registerOrgSchema";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 type InputFieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
   id: string;
   label: string;
   type: string;
+  icon?: IconDefinition;
   registerationNormal?: ReturnType<UseFormRegister<FormData>>;
   registerationorg?: ReturnType<UseFormRegister<OrgFormData>>;
   error?: string; // mensagem de erro do Zod
@@ -15,6 +18,7 @@ type InputFieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
 export default function InputField({
   id,
   label,
+  icon,
   type,
   registerationNormal,
   registerationorg,
@@ -23,7 +27,7 @@ export default function InputField({
   ...props
 }: InputFieldProps) {
   return (
-    <div className={`w-full h-[80px] flex flex-col ${className}`}>
+    <div className={`w-full flex flex-col ${className}`}>
       <div className="relative w-full">
         <input
           id={id}
@@ -38,10 +42,11 @@ export default function InputField({
         />
         <label
           htmlFor={id}
-          className="absolute -top-4 text-xs text-zinc-200/40 left-0 cursor-text peer-focus:text-xs peer-focus:-top-4 transition-all peer-focus:text-blue-700 peer-placeholder-shown:top-1 peer-placeholder-shown:text-sm"
+          className="absolute -top-4 text-zinc-200/40 text-md font-jersey20 tracking-wider left-0 cursor-text peer-focus:text-sm peer-focus:-top-4 transition-all peer-focus:text-blue-700 peer-placeholder-shown:top-1 peer-placeholder-shown:text-md"
         >
           {label}
         </label>
+        {icon && <label htmlFor={id} className="absolute top-0 right-2"><FontAwesomeIcon icon={icon} className="text-zinc-200/40"/></label>}
       </div>
       {error && <span className="text-red-500 text-xs mt-1">{error}</span>}
     </div>

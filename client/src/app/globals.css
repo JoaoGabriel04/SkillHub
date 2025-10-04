@@ -5,9 +5,11 @@
 
 @theme {
     --font-inter: "Inter", sans-serif;
-    --font-jersey: "Jersey 25", sans-serif;
-    --color-theme: #212121;
-    --color-dark-primary: #1D1D1D;
+    --font-jersey25: "Jersey 25", sans-serif;
+    --font-jersey20: "Jersey 20", sans-serif;
+    --font-jersey15: "Jersey 15", sans-serif;
+    --color-theme: #141414;
+    --color-dark-primary: #101010;
     --color-dark-secundary: #333333;
 }
 
@@ -19,6 +21,16 @@
 @font-face {
   font-family: "Jersey 25";
   src: url("/fonts/Jersey25-Regular.ttf")
+}
+
+@font-face {
+  font-family: "Jersey 20";
+  src: url("/fonts/Jersey20-Regular.ttf")
+}
+
+@font-face {
+  font-family: "Jersey 15";
+  src: url("/fonts/Jersey15-Regular.ttf")
 }
 
 .shadow-primary {

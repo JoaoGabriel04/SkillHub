@@ -1,4 +1,5 @@
 "use client";
+import Button1 from "@/components/ButtonType1";
 import InputField from "@/components/InputField/inputField";
 import { useRegisterCliente } from "@/hooks/registerClient";
 import { FormData, registerFormSchema } from "@/schemas/registerFormSchema";
@@ -27,7 +28,7 @@ export default function CadastroCliente() {
   const { mutate } = useRegisterCliente();
 
   const onSubmit = (data: FormData) => {
-    console.log(data)
+    console.log(data);
     if (
       data.email !== data.confirmEmail ||
       data.password !== data.confirmPassword
@@ -71,21 +72,23 @@ export default function CadastroCliente() {
   }
 
   return (
-    <main className="w-full flex flex-col items-center">
+    <main className="w-full flex flex-col items-center bg-[url(/Backgrounds-01.png)] bg-cover bg-fixed">
       <header
         ref={headerRef}
-        className="w-full h-20 flex justify-between items-center py-2 px-4 lg:px-16 bg-theme shadow-md"
+        className="w-full h-20 flex justify-between items-center py-2 px-4 lg:px-16 bg-dark-primary/30 shadow-md"
       >
         <Link href={"/"}>
           <Image
-            src={"/Skillhub-Logotipo.png"}
+            src={"/Logo-Skillhub-refatored.png"}
             alt="logo-skillhub"
             width={100}
             height={100}
-            className="w-10"
+            className="w-10 animate-pulse"
           />
         </Link>
-        <h1 className="text-md text-zinc-200 font-bold">Cadastro de Cliente</h1>
+        <h1 className="text-2xl font-jersey25 text-zinc-200">
+          Cadastro de Cliente
+        </h1>
       </header>
 
       <section
@@ -108,9 +111,8 @@ export default function CadastroCliente() {
             />
             <label
               htmlFor="photo"
-              className="relative flex w-20 h-20 lg:w-28 lg:h-28 items-center justify-center bg-dark-secundary rounded-full"
+              className="relative flex w-20 h-20 lg:w-28 lg:h-28 items-center justify-center bg-dark-primary border-2 border-zinc-100 rounded-full"
             >
-              {/*Vai ver se tem Conteúdo no Preview e se tiver adiciona a imagem selecionada*/}
               {preview ? (
                 <Image
                   src={preview}
@@ -124,18 +126,18 @@ export default function CadastroCliente() {
                   Escolher foto
                 </span>
               )}
-              <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 absolute bottom-0 right-0 flex justify-center items-center bg-[#0a0a0a] rounded-full cursor-pointer hover:bg-blue-700 transition-colors">
+              <div className="group w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 absolute bottom-0 right-0 flex justify-center items-center bg-[#0a0a0a] border-1 border-zinc-100 rounded-full cursor-pointer hover:bg-zinc-100 transition-colors">
                 <FontAwesomeIcon
                   icon={faPencil}
-                  className="text-zinc-200 text-xs sm:text-sm lg:text-md"
+                  className="text-zinc-200 text-xs sm:text-sm lg:text-md group-hover:text-dark-primary transition-colors"
                 />
               </div>
             </label>
           </div>
 
           {/* Campos de Informação */}
-          <div className="col-span-2 grid grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-4 mt-4">
-            <h1 className="col-span-2 text-lg font-bold text-zinc-200 mb-2">
+          <div className="col-span-2 grid grid-cols-2 gap-y-8 lg:gap-y-8 gap-x-4 mt-4">
+            <h1 className="col-span-2 text-2xl font-jersey25 text-zinc-200 mb-2">
               Informações Pessoais
             </h1>
             <InputField
@@ -144,7 +146,7 @@ export default function CadastroCliente() {
               type="text"
               registerationNormal={register("fullName")}
               error={errors.fullName?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
             <InputField
               id="phone"
@@ -152,7 +154,7 @@ export default function CadastroCliente() {
               type="text"
               registerationNormal={register("phone")}
               error={errors.phone?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
             <InputField
               id="cpf"
@@ -160,7 +162,7 @@ export default function CadastroCliente() {
               type="text"
               registerationNormal={register("cpf")}
               error={errors.cpf?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
             <InputField
               id="dataNascimento"
@@ -168,50 +170,45 @@ export default function CadastroCliente() {
               type="date"
               registerationNormal={register("dataNascimento")}
               error={errors.dataNascimento?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
             <div className="flex flex-col gap-1 text-zinc-200/60">
-              <h2 className="text-md text-zinc-200">Seu Gênero:</h2>
-              <label htmlFor="masc" className="ml-2 mt-2 cursor-pointer">
-                <input
-                  type="radio"
-                  id="masc"
-                  value="masc"
-                  {...register("genero")}
-                />{" "}
-                Masculino
-              </label>
-              <label htmlFor="fem" className="ml-2 cursor-pointer">
-                <input
-                  type="radio"
-                  id="fem"
-                  value="fem"
-                  {...register("genero")}
-                />{" "}
-                Feminino
-              </label>
-              <label htmlFor="naosei" className="ml-2 cursor-pointer">
-                <input
-                  type="radio"
-                  id="naosei"
-                  value="naosei"
-                  {...register("genero")}
-                />{" "}
-                Prefiro não dizer
-              </label>
+              <h2 className="text-lg font-jersey25 text-zinc-200">
+                Seu Gênero:
+              </h2>
+              {["masc", "fem", "naosei"].map((g) => (
+                <label
+                  key={g}
+                  htmlFor={g}
+                  className="ml-2 mt-2 cursor-pointer font-jersey20 text-lg tracking-wide"
+                >
+                  <input
+                    type="radio"
+                    id={g}
+                    value={g}
+                    {...register("genero")}
+                  />{" "}
+                  {g === "masc"
+                    ? "Masculino"
+                    : g === "fem"
+                    ? "Feminino"
+                    : "Prefiro não dizer"}
+                </label>
+              ))}
               {errors.genero && (
-                <span className="text-red-500 text-xs mt-1">
+                <span className="text-red-500 font-jersey20 text-md mt-1">
                   {errors.genero.message}
                 </span>
               )}
             </div>
-            <div className="flex flex-col gap-y-4 lg:gap-y-8 text-zinc-200/60 mt-4 col-span-2 lg:col-span-1">
+            <div className="flex flex-col gap-y-8 lg:gap-y-8 text-zinc-200/60 mt-4 col-span-2 lg:col-span-1">
               <InputField
                 id="cidade"
                 label="Cidade"
                 type="text"
                 registerationNormal={register("cidade")}
                 error={errors.cidade?.message}
+                className="col-span-2 lg:col-span-1 mb-4"
               />
               <InputField
                 id="estado"
@@ -219,6 +216,7 @@ export default function CadastroCliente() {
                 type="text"
                 registerationNormal={register("estado")}
                 error={errors.estado?.message}
+                className="col-span-2 lg:col-span-1 mb-4"
               />
               <InputField
                 id="cep"
@@ -226,11 +224,12 @@ export default function CadastroCliente() {
                 type="text"
                 registerationNormal={register("cep")}
                 error={errors.cep?.message}
+                className="col-span-2 lg:col-span-1 mb-4"
               />
             </div>
           </div>
-          <div className="col-span-2 grid grid-cols-2 gap-y-4 lg:gap-y-8 gap-x-4">
-            <h1 className="col-span-2 text-lg font-bold text-zinc-200 mt-6 mb-2">
+          <div className="col-span-2 grid grid-cols-2 gap-y-8 lg:gap-y-8 gap-x-4">
+            <h1 className="col-span-2 text-2xl font-jersey25 text-zinc-200 mt-6 mb-2">
               Informações da Conta
             </h1>
             <InputField
@@ -239,7 +238,7 @@ export default function CadastroCliente() {
               type="email"
               registerationNormal={register("email")}
               error={errors.email?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
             <InputField
               id="confirmEmail"
@@ -247,7 +246,7 @@ export default function CadastroCliente() {
               type="email"
               registerationNormal={register("confirmEmail")}
               error={errors.confirmEmail?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
             <InputField
               id="password"
@@ -255,7 +254,7 @@ export default function CadastroCliente() {
               type="password"
               registerationNormal={register("password")}
               error={errors.password?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
             <InputField
               id="confirmPassword"
@@ -263,18 +262,15 @@ export default function CadastroCliente() {
               type="password"
               registerationNormal={register("confirmPassword")}
               error={errors.confirmPassword?.message}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:col-span-1 mb-4"
             />
           </div>
 
           {/* Botão de Confirmar */}
           <div className="col-span-2 flex justify-center mt-4">
-            <button
-              type="submit"
-              className="w-full lg:w-80 h-10 bg-blue-600 hover:bg-blue-500 text-md text-zinc-200 font-bold rounded-sm cursor-pointer"
-            >
-              Criar Conta
-            </button>
+            <Button1 size="xl" type="submit">
+              Criar conta
+            </Button1>
           </div>
         </form>
       </section>

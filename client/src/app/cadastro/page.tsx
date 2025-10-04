@@ -9,8 +9,11 @@ import React, { useEffect, useRef, useState } from "react";
 import PerfilBtn from "./_components/perfilBtn";
 import { useRouter } from "next/navigation";
 import LogoSkillHub from "@/components/LogoSkillHub";
+import Button1 from "@/components/ButtonType1";
 
 export default function Cadastro() {
+  const [vh, setVh] = useState("100vh");
+
   const route = useRouter();
   const [cargo, setCargo] = useState("cliente");
 
@@ -19,7 +22,7 @@ export default function Cadastro() {
   const b1Ref = useRef<HTMLLabelElement>(null);
   const b2Ref = useRef<HTMLLabelElement>(null);
   const b3Ref = useRef<HTMLLabelElement>(null);
-  const btnContinuarRef = useRef(null);
+  const btnContinuarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const logo = logoRef.current;
@@ -29,30 +32,26 @@ export default function Cadastro() {
     const b3 = b3Ref.current;
     const btnContinuar = btnContinuarRef.current;
 
-    const tl = gsap.timeline({ defaults: { duration: 0.5, ease: "back.inOut" } });
+    const tl = gsap.timeline({
+      defaults: { duration: 0.5, ease: "back.inOut" },
+    });
 
-    tl.fromTo(logo, 
-      { y: -100, opacity: 0 }, 
-      { y: 0, opacity: 1 })
-    .fromTo(title, 
-      { x: -100, opacity: 0 }, 
-      { x: 0, opacity: 1 })
-    .fromTo(b1, 
-      { scale: 0.5, opacity: 0 }, 
-      { scale: 1, opacity: 1, delay: 0.5 },
-      "-=0.4")
-    .fromTo(b2, 
-      { scale: 0.5, opacity: 0 }, 
-      { scale: 1, opacity: 1},
-      "-=0.4")
-    .fromTo(b3, 
-      { scale: 0.5, opacity: 0 }, 
-      { scale: 1, opacity: 1 },
-      "-=0.4")
-    .fromTo(btnContinuar, 
-      { scale: 0, opacity: 0 }, 
-      { scale: 1, opacity: 1 }
-    );
+    tl.fromTo(logo, { y: -100, opacity: 0 }, { y: 0, opacity: 1 })
+      .fromTo(title, { x: -100, opacity: 0 }, { x: 0, opacity: 1 })
+      .fromTo(
+        b1,
+        { scale: 0.5, opacity: 0 },
+        { scale: 1, opacity: 1, delay: 0.5 },
+        "-=0.4"
+      )
+      .fromTo(b2, { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1 }, "-=0.4")
+      .fromTo(b3, { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1 }, "-=0.4")
+      .fromTo(btnContinuar, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1 });
+
+    const updateVh = () => setVh(`${window.innerHeight}px`);
+    updateVh();
+    window.addEventListener("resize", updateVh);
+    return () => window.removeEventListener("resize", updateVh);
   }, []);
 
   function handleContinuar() {
@@ -68,14 +67,17 @@ export default function Cadastro() {
   }
 
   return (
-    <main className="w-full max-h-screen relative flex flex-col items-center px-10">
+    <main
+      style={{ height: vh }}
+      className="w-full max-h-screen relative flex flex-col items-center px-10 bg-[url(/Backgrounds-01.png)] bg-cover"
+    >
       <LogoSkillHub ref={logoRef} />
       <div className="w-full flex flex-col items-center mt-30 lg:mt-50">
         <h1
-          className="w-80 lg:w-130 text-2xl lg:text-4xl font-semibold text-zinc-200 text-center opacity-0"
+          className="w-80 lg:w-130 text-2xl lg:text-4xl font-jersey15 text-zinc-200 text-center opacity-0"
           ref={titleRef}
         >
-          Como você quer se comportar no Skillhub?
+          Escolha como você quer se comportar dentro do SkillHub
         </h1>
         <div className="w-full flex flex-wrap justify-center gap-8 mt-12">
           <PerfilBtn
@@ -105,13 +107,7 @@ export default function Cadastro() {
         </div>
       </div>
       <div className="w-full flex justify-center items-center mt-12">
-        <button
-          onClick={handleContinuar}
-          ref={btnContinuarRef}
-          className="opacity-0 w-full md:w-[300px] py-3 bg-blue-600 text-zinc-200 font-bold shadow-primary rounded-sm cursor-pointer hover:bg-blue-400                                                                                                    not-even:transition-colors"
-        >
-          Continuar
-        </button>
+        <Button1 type="submit" size="lg" ref={btnContinuarRef} handle={handleContinuar}>Continuar</Button1>
       </div>
     </main>
   );

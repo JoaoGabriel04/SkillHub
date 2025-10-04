@@ -13,8 +13,17 @@ interface QueueItem {
   reject: (reason: AxiosError) => void;
 }
 
+// Determine baseURL: prefer NEXT_PUBLIC_API_URL (set in env),
+// otherwise use localhost in development and the production URL otherwise.
+const resolvedBaseUrl =
+  (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim() !== "")
+    ? process.env.NEXT_PUBLIC_API_URL
+    : process.env.NODE_ENV === 'development'
+    ? 'http://localhost:7000'
+    : 'https://skillhub-server-tfmw.onrender.com';
+
 const api = axios.create({
-  baseURL: 'https://skillhub-server-tfmw.onrender.com',
+  baseURL: resolvedBaseUrl,
   withCredentials: true,
 });
 

@@ -18,6 +18,7 @@ type UserStore = {
   urlPhoto?: string;
   competencias?: string[];
   curriculo?: string;
+  credits?: number;
   loading: boolean;
   error: string | null;
 
@@ -38,6 +39,9 @@ export const useUserStore = create<UserStore>((set)=>({
   email: "",
   perfil: "",
   competencias: [],
+  credits: 0,
+  urlPhoto: "",
+  curriculo: "",
   loading: false,
   error: null,
 
@@ -69,6 +73,9 @@ export const useUserStore = create<UserStore>((set)=>({
         email: res.data.email,
         perfil: res.data.perfil,
         competencias: res.data.competencias,
+        credits: res.data.credits,
+        urlPhoto: res.data.urlPhoto,
+        curriculo: res.data.curriculo,
         loading: false,
       });
     } catch (err: unknown) {

@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/stores/userInfo";
 import { toast } from "react-toastify";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 const perfisRelevantes = [
   { url: "/foto-perfil-01.jpeg" },
@@ -21,7 +22,7 @@ const perfisRelevantes = [
 export default function Dashboard() {
   const router = useRouter();
 
-  const { fetchUser, fullName } = useUserStore();
+  const { fetchUser, perfil, loading } = useUserStore();
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -33,7 +34,19 @@ export default function Dashboard() {
       toast.error("Erro de autenticação.");
       router.push("/login");
     });
-  }, [fetchUser, router]);
+  }, []);
+
+  useEffect(() => {
+    if (perfil === "Cliente") {
+      console.log(perfil);
+      toast.warning(
+        "Você está sendo redirecionado para a área de clientes."
+      );
+      router.push("/u");
+    }
+  }, [perfil, router]);
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <main>
