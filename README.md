@@ -59,31 +59,31 @@ O cadastro de **empresa** já possui formulário, mas ainda está em desenvolvim
 
 ## 🧩 Estrutura do Projeto
 
-skillhub/
-├── client/ # Aplicação Next.js (interface)
-│ └── src/
-│   ├── app/
-│   │ ├── page.tsx
-│   ├── assets/
-│   ├── components/
-│   ├── schemas/
-│   ├── providers/
-│   ├── lib/
-│   ├── hooks/
-│   ├── stores/
-│   ├── services/
-│   └── utils/
-│ 
-│
-├── server/ # Servidor Node.js com Express
-│ ├── src/
-│ │ ├── api/
-│ │ ├── configs/
-│ │ ├── modules/
-│ │ └── utils/
-│ └── index.ts
-│
-└── README.md
+- skillhub/
+- ├── client/ # Aplicação Next.js (interface)
+- │ └── src/
+- │   ├── app/
+- │   │ ├── page.tsx
+- │   ├── assets/
+- │   ├── components/
+- │   ├── schemas/
+- │   ├── providers/
+- │   ├── lib/
+- │   ├── hooks/
+- │   ├── stores/
+- │   ├── services/
+- │   └── utils/
+- │ 
+- │
+- ├── server/ # Servidor Node.js com Express
+- │ ├── src/
+- │ │ ├── api/
+- │ │ ├── configs/
+- │ │ ├── modules/
+- │ │ └── utils/
+- │ └── index.ts
+- │
+- └── README.md
 
 ---
 
