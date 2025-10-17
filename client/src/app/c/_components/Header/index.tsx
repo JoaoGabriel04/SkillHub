@@ -1,8 +1,12 @@
+import { useUserStore } from "@/stores/userInfo";
 import { Settings } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function Header() {
+
+  const {credits} = useUserStore();
+
   return (
     <header className="flex justify-between items-center py-3 px-5 md:px-20 lg:px-40 border-b border-zinc-300/20">
       <Link href={"/"} className="flex justify-center items-center">
@@ -24,9 +28,9 @@ export default function Header() {
             height={50}
             className="absolute top-1/2 transform -translate-1/2 left-0 w-6"
           />
-          <span>0,00</span>
+          <span>{credits?.toFixed(2) ?? 2}</span>
         </div>
-        <Link href={"/c/configuracoes"}>
+        <Link href={"/u/configuracoes"}>
           <Settings className="cursor-pointer" />
         </Link>
       </div>

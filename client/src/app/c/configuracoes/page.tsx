@@ -17,18 +17,18 @@ import { useEffect, useRef } from "react";
 import OptionLink from "./_components/OptionLink";
 import { useRouter } from "next/navigation";
 import api from "@/services/api";
+import { toast } from "react-toastify";
 
 const options = [
-  { title: "Perfil", icon: faUser, url: "/c/perfil" },
-  { title: "Compras e Assinaturas", icon: faTag, url: "/c" },
-  { title: "Temas", icon: faPalette, url: "/c" },
-  { title: "Feedback", icon: faCommentDots, url: "/c" },
-  { title: "Notificações", icon: faBell, url: "/c" },
-  { title: "Central de Segurança", icon: faShieldHalved, url: "/c" },
+  { title: "Perfil", icon: faUser, url: "/u/perfil" },
+  { title: "Compras e Assinaturas", icon: faTag, url: "/u" },
+  { title: "Temas", icon: faPalette, url: "/u" },
+  { title: "Feedback", icon: faCommentDots, url: "/u" },
+  { title: "Notificações", icon: faBell, url: "/u" },
+  { title: "Central de Segurança", icon: faShieldHalved, url: "/u" },
 ];
 
 export default function Configuracoes() {
-
   const router = useRouter();
 
   const bodyRef = useRef(null);
@@ -40,21 +40,21 @@ export default function Configuracoes() {
   }, []);
 
   const logout = async () => {
-    console.log("Clicou!")
+    console.log("Clicou!");
     try {
-      await api.post('/api/auth/logout'); // remove cookie
+      await api.post("/api/auth/logout"); // remove cookie
+      toast.success("Você foi deslogado com sucesso!");
+      localStorage.removeItem("access_token");
+      delete api.defaults.headers.common["Authorization"];
+      router.push("/"); // redireciona
     } catch (error) {
-      console.error('Erro ao fazer logout no servidor', error);
+      console.error("Erro ao fazer logout no servidor", error);
     }
-
-    localStorage.removeItem('access_token');
-    delete api.defaults.headers.common['Authorization'];
-    router.push('/'); // redireciona
   };
 
   return (
-    <main ref={bodyRef} className="p-3 opacity-0">
-      <header className="w-full flex items-center gap-4">
+    <main ref={bodyRef} className="p-3 lg:px-[500px] opacity-0">
+      <header className="w-full flex items-center gap-4 mb-6">
         <Link href={"/c"}>
           <FontAwesomeIcon
             icon={faChevronLeft}
@@ -66,8 +66,8 @@ export default function Configuracoes() {
         </h1>
       </header>
       <SearchInput />
-      <div className="mt-8">
-        <ul className="flex flex-col gap-4">
+      <div className="mt-10">
+        <ul className="flex flex-col gap-y-7 lg:gap-12">
           {options.map((option, index) => (
             <OptionLink
               key={index}
@@ -76,13 +76,16 @@ export default function Configuracoes() {
               url={option.url}
             />
           ))}
-          <button onClick={logout} className="w-full flex justify-between">
+          <button
+            onClick={logout}
+            className="w-full flex justify-between cursor-pointer"
+          >
             <div className="flex justify-center items-center gap-2">
               <FontAwesomeIcon
                 icon={faDoorOpen}
-                className="text-xl text-red-500/80"
+                className="text-xl lg:text-4xl text-red-500/80"
               />
-              <h1 className="text-lg text-red-500/80">Sair</h1>
+              <h1 className="text-lg lg:text-2xl text-red-500/80">Sair</h1>
             </div>
           </button>
         </ul>
