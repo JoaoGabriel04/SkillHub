@@ -1,0 +1,76 @@
+name: skillhub
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: skillhub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: skillhub
+      POSTGRES_PASSWORD: skillhub
+      POSTGRES_DB: skillhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - skillhub_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillhub -d skillhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      # dentro da rede do compose o banco é "postgres", não "localhost"
+      DATABASE_URL: postgresql://skillhub:skillhub@postgres:5432/skillhub
+      # e-mails (recuperação de senha) vão para o Mailpit em dev; em produção, trocar por um SMTP real no .env
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      MAIL_FROM: "SkillHub <nao-responda@skillhub.local>"
+    ports:
+      - "7000:7000"
+    volumes:
+      # código montado para o tsx watch recarregar ao salvar
+      - ./backend:/app
+      # mantém o node_modules da imagem (binários Linux do container)
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: unless-stopped
+    environment:
+      # chamada feita pelo navegador, então é localhost (porta publicada), não "backend"
+      NEXT_PUBLIC_API_URL: http://localhost:7000/api
+    ports:
+      - "3000:3000"
+    volumes:
+      # código montado para o hot reload do next dev
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+
+  # caixa de entrada de dev: captura todo e-mail enviado pelo backend (http://localhost:8025)
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: skillhub-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # interface web e API
+      - "1025:1025" # SMTP
+
+volumes:
+  skillhub_postgres_data:
+    # nome fixo: é o volume criado quando o projeto se chamava skillhub_auth_backend
+    name: skillhub_auth_backend_skillhub_postgres_data

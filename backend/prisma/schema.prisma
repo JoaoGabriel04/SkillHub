@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String?
+  fullName        String
+  phone           String?
+  cpf             String?   @unique
+  cnpj            String?   @unique
+  dataNascimento  DateTime?
+  genero          String?
+  rua             String?
+  numero          String?
+  complemento     String?
+  bairro          String?
+  cidade          String?
+  estado          String?
+  cep             String?
+  perfil          String?
+  urlPhoto        String?
+  competencias    String[]  @default([])
+  curriculo       String?
+  credits         Int       @default(0)
+  googleId        String?   @unique
+  discordId       String?   @unique
+  profileComplete Boolean   @default(true)
+  // refresh tokens emitidos antes disto são recusados (troca de senha encerra as outras sessões)
+  passwordChangedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  passwordResetTokens PasswordResetToken[]
+}
+
+// Link de "esqueci a senha": guarda só o hash SHA-256 do token enviado por e-mail
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
