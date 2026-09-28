@@ -9,6 +9,61 @@
 
 ---
 
+## Fase 15 — Responsividade desktop
+
+**Data:** 2026-09-28
+**Status:** Concluída
+**Branch:** `feat/responsivo-desktop`
+
+### Contexto
+
+As páginas da Fase 14 seguiam os valores do Figma (canvas mobile de 440px) em qualquer largura: no desktop o texto ficava minúsculo e os carrosséis só rolavam por touch/trackpad (com mouse, clicar e arrastar apenas selecionava texto). Seguindo `SKILLHUB_RESPONSIVO_DESKTOP.md`: **abaixo de `sm` (640px) nada muda**; a partir de `sm`/`lg`/`xl` o mesmo layout ganha coluna mais larga, texto maior e cards mais confortáveis. Os carrosséis **continuam carrossel** (não viraram grade) e agora também arrastam com o mouse. Sem mudanças de dados, rotas ou fluxos.
+
+Decisões tomadas na aprovação do plano:
+- O `PageContainer` substitui a `div` do `app/(app)/layout.tsx`, que já envolvia o header e todas as páginas; nenhuma página precisou trocar o próprio container.
+- Padding mobile mantido em `23px` (o doc sugeria `19px`, o que mudaria o mobile).
+- Breakpoint único: o que usava `md:` (Início, Perfil, componentes) passou para `sm:`/`lg:`, para todas as páginas crescerem nos mesmos pontos.
+- O arraste começa inclusive sobre botões e links (o `ProdutoCard` inteiro é um botão); um limiar de 5px separa clique de arraste.
+
+### Componentes
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/components/app/page-container.tsx` | **Novo** — coluna das páginas: `max-w-[440px] px-[23px]` → `sm:max-w-2xl sm:px-8` → `lg:max-w-5xl lg:px-12` → `xl:max-w-6xl`. Usado no `app/(app)/layout.tsx` (antes `max-w-[1200px] px-[23px] md:px-10`). |
+| `frontend/src/hooks/use-drag-scroll.ts` | **Novo** — arrastar com o mouse para rolar na horizontal. Só eventos de mouse (touch/trackpad seguem nativos). Cursor `grab`/`grabbing` apenas quando há o que rolar; durante o arraste, sem seleção de texto e sem scroll-snap (volta ao soltar e alinha no card mais próximo). Movimento acima de 5px descarta o clique do fim (captura), então soltar em cima de um "Saiba Mais" não o aciona; `dragstart` bloqueado para o navegador não "puxar" imagens e links. |
+| `frontend/src/components/app/scroll-row.tsx` | Usa `useDragScroll`; sangramento até a borda só abaixo de `sm` (antes `md`); o "ir para o item" dos dots lê o `scroll-padding` real em vez de `23px` fixo. |
+| `frontend/src/components/app/chip-row.tsx` | **Novo** — fileira de chips com o mesmo sangramento e o arraste; substitui as três `div` repetidas de Serviços (filtros), Produtos (categorias) e Comunidade (tags). |
+| `frontend/src/components/app/page-title.tsx` | 32px → `sm:36px` → `lg:42px`. |
+| `frontend/src/components/app/section-header.tsx` | 15px → `sm:18px` → `lg:20px`; seta 17px → `sm:20px`. |
+| `frontend/src/components/app/search-bar.tsx` | Altura 35px → `sm:44px`; texto 12px → `sm:13px` → `lg:14px`. Visual `GlassCard` inalterado. |
+| `frontend/src/components/app/filter-chip.tsx` | Altura 29px → `sm:34px` → `lg:36px`; texto 15px → `lg:16px`; opções do menu `sm:14px`. |
+| `frontend/src/components/ui/cta-button.tsx` | 10px → `sm:12px` → `lg:13px` (vale também para o `ctaButtonClass`). |
+| `frontend/src/components/app/servico-card.tsx` | 218px → `sm:260px` → `lg:290px`; título, descrição, autor e distância escalam. A partir de `sm` a altura deixa de ser fixa (o texto maior encostava no botão a 768px); numa fileira os cards seguem com a mesma altura. |
+| `frontend/src/components/app/produto-card.tsx` | 180px → `sm:210px` → `lg:240px`, foto na mesma proporção, textos escalam, `sizes` da imagem por breakpoint. |
+| `frontend/src/components/app/bottom-nav.tsx` | Continua fixo na base; `lg:max-w-[520px]`. |
+| `frontend/src/components/app/app-header.tsx` | Sem alteração: o espaçamento lateral vem do `PageContainer`. |
+
+### Páginas
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/app/(app)/inicio/page.tsx` | `md:` → `sm:`/`lg:`. Cards de evento passam de "fração da largura" para largura fixa por breakpoint (`sm:400px`, `lg:440px`), como carrossel; serviços e produtos crescem; "Colaboradores Relevantes" mostra 4 avatares até `lg` e 8 a partir dele (com a coluna nova, 6 avatares não cabiam a 768px). |
+| `frontend/src/app/(app)/servicos/page.tsx`, `produtos/page.tsx` | Espaçamentos e títulos de seção escalam; banners de Produtos com largura fixa por breakpoint (`sm:440px`, `lg:480px`); fileiras de chips via `ChipRow`. As listas de resultados filtrados continuam em grade (já eram desde a Fase 14). |
+| `frontend/src/app/(app)/comunidade/page.tsx` | Feed, dúvidas, eventos e histórias escalam texto, avatar e padding. Feed e histórias ficam em coluna única (antes `md:grid-cols-2`, que com um item só deixava meia tela vazia). |
+| `frontend/src/app/(app)/configuracoes/page.tsx` | Itens 64px → `sm:76px`, textos e chevron maiores. Coluna de 760px mantida. |
+| `frontend/src/app/(app)/perfil/*` | `md:` → `sm:` (inclusive o sangramento da curva do topo, que precisa acompanhar o padding do container) e títulos um pouco maiores em `lg`. Coluna de 760px mantida. |
+
+### Validação
+
+- **Mobile inalterado:** screenshots de página inteira das 6 páginas a 375px e 440px, antes e depois, **idênticos byte a byte** (12 de 12).
+- **Tablet e desktop:** conferência visual das 6 páginas a 768px e 1440px.
+- **Arrastar com o mouse (Playwright, 768px e 1440px):** a fileira rola; soltar em cima de um "Saiba Mais" ou de um produto não o aciona; clique simples continua funcionando; nada é selecionado; o snap realinha ao soltar; as categorias de Produtos arrastam sem ativar filtro; fileira que cabe inteira não mostra cursor de arraste.
+- `./e2e/run.sh`: 73/73 passando.
+- `tsc --noEmit`, `eslint` e `next build` sem erros.
+- Não testado: arraste por touch em aparelho real (o hook não escuta eventos de toque, então a rolagem nativa não é afetada).
+
+---
+
 ## Fase 14 — Páginas Serviços, Produtos, Comunidade e Configurações; Perfil com modais
 
 **Data:** 2026-09-28

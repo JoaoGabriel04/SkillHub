@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
+import { ChipRow } from "@/components/app/chip-row";
 import { FilterChip } from "@/components/app/filter-chip";
 import { PageTitle } from "@/components/app/page-title";
 import { ScrollRow } from "@/components/app/scroll-row";
@@ -92,28 +93,28 @@ export default function ServicosPage() {
   return (
     <main className="pb-4">
       <PageTitle>Serviços</PageTitle>
-      <SearchBar value={busca} onChange={setBusca} placeholder="ex: Aulas de Matemática" label="Buscar serviços" className="mt-[33px]" />
+      <SearchBar value={busca} onChange={setBusca} placeholder="ex: Aulas de Matemática" label="Buscar serviços" className="mt-[33px] sm:mt-8" />
 
-      <div className="-mx-[23px] mt-[15px] flex gap-[5px] overflow-x-auto px-[23px] pb-1 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
+      <ChipRow label="Filtros" className="mt-[15px] gap-[5px] pb-1 sm:mt-5 sm:gap-2">
         <FilterChip label="Organizar" options={ORGANIZAR} value={organizar} onChange={setOrganizar} />
         <FilterChip label="Categoria" options={CATEGORIAS_SERVICO} value={categoria} onChange={setCategoria} />
         <FilterChip label="Remuneração" options={REMUNERACAO} value={remuneracao} onChange={setRemuneracao} />
         <FilterChip label="Prazo" options={PRAZO} value={prazo} onChange={setPrazo} />
-      </div>
+      </ChipRow>
 
       {!servicos ? null : filtrando ? (
-        <section className="mt-[20px]">
+        <section className="mt-[20px] sm:mt-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] text-[#d9d9d9] md:text-[17px]">
+            <h2 className="text-[15px] text-[#d9d9d9] sm:text-[18px] lg:text-[20px]">
               {soNaArea ? "Serviços na sua área" : "Resultados"}{" "}
               <span className="text-[#8a8a8a]">({resultados.length})</span>
             </h2>
-            <button type="button" onClick={limparFiltros} className="font-secondary text-[12px] text-[#3bd4cc] hover:text-white">
+            <button type="button" onClick={limparFiltros} className="font-secondary text-[12px] text-[#3bd4cc] hover:text-white sm:text-[14px]">
               Limpar filtros
             </button>
           </div>
           {resultados.length === 0 ? (
-            <p className="mt-10 text-center font-secondary text-[13px] text-[#8a8a8a]">Nenhum serviço encontrado.</p>
+            <p className="mt-10 text-center font-secondary text-[13px] text-[#8a8a8a] sm:text-[15px]">Nenhum serviço encontrado.</p>
           ) : (
             <ul className="mt-[18px] grid gap-[17px] sm:grid-cols-2 lg:grid-cols-3">
               {resultados.map((s) => (
@@ -126,9 +127,9 @@ export default function ServicosPage() {
         </section>
       ) : (
         linhas.map((linha) => (
-          <section key={linha.titulo} className="mt-[20px] md:mt-8">
+          <section key={linha.titulo} className="mt-[20px] sm:mt-10">
             <SectionHeader title={linha.titulo} onMore={linha.abrir} />
-            <ScrollRow label={linha.titulo} className="mt-[10px]">
+            <ScrollRow label={linha.titulo} className="mt-[10px] sm:mt-4">
               {linha.itens.map((s) => (
                 <ServicoCard key={s.id} servico={s} />
               ))}

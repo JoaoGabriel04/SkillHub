@@ -46,27 +46,27 @@ export default function ConfiguracoesPage() {
   return (
     <main className="mx-auto max-w-[760px] pb-4">
       <PageTitle>Configurações</PageTitle>
-      <SearchBar value={busca} onChange={setBusca} placeholder="ex: Tema Escuro" label="Buscar configurações" className="mt-[33px]" />
+      <SearchBar value={busca} onChange={setBusca} placeholder="ex: Tema Escuro" label="Buscar configurações" className="mt-[33px] sm:mt-8" />
 
-      <ul className="mt-[25px] flex flex-col gap-[14px]">
+      <ul className="mt-[25px] flex flex-col gap-[14px] sm:mt-8 sm:gap-4">
         {visiveis.map((item) => (
           <li key={item.label}>
             <button type="button" onClick={item.acao} className="group w-full text-left">
-              <ContentCard className="flex h-[64px] items-center px-[19px] transition-colors group-hover:bg-white/[0.04]">
+              <ContentCard className="flex h-[64px] items-center px-[19px] transition-colors group-hover:bg-white/[0.04] sm:h-[76px] sm:px-6">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] text-white">{item.label}</p>
-                  <p className="mt-[3px] truncate font-secondary text-[11px] text-[#9f9f9f]">{item.descricao}</p>
+                  <p className="text-[15px] text-white sm:text-[17px]">{item.label}</p>
+                  <p className="mt-[3px] truncate font-secondary text-[11px] text-[#9f9f9f] sm:mt-1 sm:text-[13px]">{item.descricao}</p>
                 </div>
                 <FontAwesomeIcon
                   icon={faChevronRight}
-                  className="text-[12px] text-[#9f9f9f] transition-transform group-hover:translate-x-0.5 group-hover:text-white"
+                  className="text-[12px] text-[#9f9f9f] transition-transform group-hover:translate-x-0.5 group-hover:text-white sm:text-[14px]"
                 />
               </ContentCard>
             </button>
           </li>
         ))}
         {visiveis.length === 0 && (
-          <li className="mt-6 text-center font-secondary text-[13px] text-[#8a8a8a]">Nenhuma configuração encontrada.</li>
+          <li className="mt-6 text-center font-secondary text-[13px] text-[#8a8a8a] sm:text-[15px]">Nenhuma configuração encontrada.</li>
         )}
       </ul>
 

@@ -1,10 +1,12 @@
 "use client";
 
 import { Children, useEffect, useRef, useState, type ReactNode } from "react";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { cn } from "@/lib/utils";
 
-// Linha com rolagem horizontal e snap (carrosséis do Início). No mobile encosta nas
-// bordas da tela (o próximo card "espia" pela direita, como no mockup).
+// Carrossel horizontal com snap (Início, Serviços, Produtos). No mobile encosta nas bordas da
+// tela (o próximo card "espia" pela direita, como no mockup); a partir de sm fica dentro da coluna.
+// Rola por touch/trackpad e, com o mouse, clicando e arrastando (useDragScroll).
 // dots: bolinhas de paginação — só aparecem quando há o que rolar.
 type ScrollRowProps = { children: ReactNode; dots?: boolean; className?: string; label: string };
 
@@ -13,6 +15,7 @@ export function ScrollRow({ children, dots = false, className, label }: ScrollRo
   const [active, setActive] = useState(0);
   const [scrollable, setScrollable] = useState(false);
   const count = Children.count(children);
+  useDragScroll(ref);
 
   useEffect(() => {
     const el = ref.current;
@@ -35,7 +38,8 @@ export function ScrollRow({ children, dots = false, className, label }: ScrollRo
   function goTo(index: number) {
     const el = ref.current;
     const item = el?.children[index] as HTMLElement | undefined;
-    if (el && item) el.scrollTo({ left: item.offsetLeft - el.offsetLeft - 23, behavior: "smooth" });
+    const padding = el ? parseFloat(getComputedStyle(el).scrollPaddingLeft) || 0 : 0;
+    if (el && item) el.scrollTo({ left: item.offsetLeft - el.offsetLeft - padding, behavior: "smooth" });
   }
 
   return (
@@ -45,7 +49,7 @@ export function ScrollRow({ children, dots = false, className, label }: ScrollRo
         onScroll={handleScroll}
         role="region"
         aria-label={label}
-        className="-mx-[23px] flex snap-x snap-mandatory scroll-px-[23px] gap-[21px] overflow-x-auto px-[23px] pb-2 [scrollbar-width:none] md:mx-0 md:scroll-px-0 md:px-0 [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [&>*]:snap-start"
+        className="-mx-[23px] flex snap-x snap-mandatory scroll-px-[23px] gap-[21px] overflow-x-auto px-[23px] pb-2 [scrollbar-width:none] sm:mx-0 sm:scroll-px-0 sm:px-0 [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [&>*]:snap-start"
       >
         {children}
       </div>

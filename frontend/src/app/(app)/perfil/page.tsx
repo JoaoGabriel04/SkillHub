@@ -23,13 +23,13 @@ export default function PerfilPage() {
     <main className="mx-auto max-w-[760px] pb-4">
       <ProfileHero user={user} />
 
-      <ContentCard className="mt-[16px] px-4 pt-[9px] pb-[8px] md:mt-8 md:py-4">
-        <h2 className="text-center text-[20px] font-semibold text-white md:text-[22px]">Experiências Profissionais</h2>
+      <ContentCard className="mt-[16px] px-4 pt-[9px] pb-[8px] sm:mt-8 sm:py-4">
+        <h2 className="text-center text-[20px] font-semibold text-white sm:text-[22px] lg:text-[24px]">Experiências Profissionais</h2>
         <dl className="mt-[12px] grid grid-cols-3 text-center">
           {ESTATISTICAS.map(({ label, valor }) => (
             <div key={label} className="flex flex-col-reverse">
-              <dt className="text-[11px] text-white/90 md:text-[13px]">{label}</dt>
-              <dd className="text-[19px] leading-tight text-white md:text-[22px]">{valor}</dd>
+              <dt className="text-[11px] text-white/90 sm:text-[13px]">{label}</dt>
+              <dd className="text-[19px] leading-tight text-white sm:text-[22px]">{valor}</dd>
             </div>
           ))}
         </dl>
