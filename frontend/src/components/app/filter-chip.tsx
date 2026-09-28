@@ -55,7 +55,7 @@ export function FilterChip<T extends string>({ label, options, value, onChange }
       >
         <GlassCard
           className={cn(
-            "flex h-[29px] items-center gap-[6px] rounded-full px-[10px] text-[15px] text-[#c9c9c9] transition-colors hover:text-white",
+            "flex h-[29px] items-center gap-[6px] rounded-full px-[10px] text-[15px] text-[#c9c9c9] transition-colors hover:text-white sm:h-[34px] sm:px-3 lg:h-9 lg:text-[16px]",
             value && "border-[#3bd4cc]/70 text-white"
           )}
         >
@@ -77,7 +77,7 @@ export function FilterChip<T extends string>({ label, options, value, onChange }
                     onChange(option === value ? null : option);
                     close();
                   }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-secondary text-[13px] text-white transition-colors hover:bg-white/10"
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-secondary text-[13px] text-white sm:text-[14px] transition-colors hover:bg-white/10"
                 >
                   {option}
                   {option === value && <FontAwesomeIcon icon={faCheck} className="ml-auto text-[11px] text-[#3bd4cc]" />}

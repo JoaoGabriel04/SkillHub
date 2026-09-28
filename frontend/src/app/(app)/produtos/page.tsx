@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLaptop, faUserTie } from "@fortawesome/free-solid-svg-icons";
+import { ChipRow } from "@/components/app/chip-row";
 import { PageTitle } from "@/components/app/page-title";
 import { ProdutoCard } from "@/components/app/produto-card";
 import { ScrollRow } from "@/components/app/scroll-row";
@@ -18,25 +19,25 @@ const LISTRA = "bg-[repeating-linear-gradient(135deg,#8b5cf6_0_4px,transparent_4
 
 function DestaqueBanner({ destaque }: { destaque: Destaque }) {
   return (
-    <article className="relative flex h-[130px] w-[86%] max-w-[341px] items-center overflow-hidden rounded-[10px] bg-[#f4f4f8] pl-[14px] md:w-[calc((100%-21px)/2)] md:max-w-none">
+    <article className="relative flex h-[130px] w-[86%] max-w-[341px] items-center overflow-hidden rounded-[10px] bg-[#f4f4f8] pl-[14px] sm:h-[160px] sm:w-[440px] sm:max-w-none sm:pl-6 lg:w-[480px]">
       <div aria-hidden className={cn("absolute inset-x-0 top-0 h-[6px]", LISTRA)} />
       <div aria-hidden className={cn("absolute inset-x-0 bottom-0 h-[6px]", LISTRA)} />
       <div className="relative z-10 min-w-0 flex-1">
-        <p className="font-secondary text-[18px] leading-none font-semibold text-[#1e1b4b] italic">{destaque.chamada}</p>
-        <p className="mt-[6px] font-secondary text-[13px] leading-tight font-semibold text-[#1e1b4b]">
+        <p className="font-secondary text-[18px] leading-none font-semibold text-[#1e1b4b] italic sm:text-[22px]">{destaque.chamada}</p>
+        <p className="mt-[6px] font-secondary text-[13px] leading-tight font-semibold text-[#1e1b4b] sm:text-[16px]">
           {destaque.titulo} <span className="text-[#8b5cf6]">{destaque.realce}</span>
         </p>
         <button
           type="button"
           onClick={() => emBreve("O download do guia")}
-          className="mt-[10px] rounded-[3px] bg-[#f26b3a] px-[14px] py-[3px] font-secondary text-[11px] font-semibold text-white transition-[filter] hover:brightness-110"
+          className="mt-[10px] rounded-[3px] bg-[#f26b3a] px-[14px] py-[3px] font-secondary text-[11px] font-semibold text-white transition-[filter] hover:brightness-110 sm:mt-3 sm:px-5 sm:py-[5px] sm:text-[13px]"
         >
           {destaque.cta}
         </button>
       </div>
-      <div aria-hidden className="relative mr-[10px] flex h-[90px] w-[90px] shrink-0 items-end justify-center">
-        <FontAwesomeIcon icon={faLaptop} className="text-[64px] text-[#475569]" />
-        <FontAwesomeIcon icon={faUserTie} className="absolute top-0 right-0 text-[34px] text-[#3b82f6]" />
+      <div aria-hidden className="relative mr-[10px] flex h-[90px] w-[90px] shrink-0 items-end justify-center sm:mr-6 sm:h-[110px] sm:w-[110px]">
+        <FontAwesomeIcon icon={faLaptop} className="text-[64px] text-[#475569] sm:text-[80px]" />
+        <FontAwesomeIcon icon={faUserTie} className="absolute top-0 right-0 text-[34px] text-[#3b82f6] sm:text-[42px]" />
       </div>
     </article>
   );
@@ -67,7 +68,7 @@ export default function ProdutosPage() {
     <main className="pb-4">
       <PageTitle>Produtos</PageTitle>
 
-      <nav aria-label="Categorias" className="-mx-[23px] mt-[20px] flex justify-between gap-2 overflow-x-auto px-[23px] [scrollbar-width:none] md:mx-0 md:justify-start md:gap-8 md:px-0 [&::-webkit-scrollbar]:hidden">
+      <ChipRow label="Categorias" className="mt-[20px] justify-between gap-2 sm:mt-6 sm:justify-start sm:gap-8">
         {CATEGORIAS_PRODUTO.map((c) => (
           <button
             key={c}
@@ -75,21 +76,21 @@ export default function ProdutosPage() {
             aria-pressed={categoria === c}
             onClick={() => setCategoria(categoria === c ? null : c)}
             className={cn(
-              "w-[64px] shrink-0 text-center font-secondary text-[10px] leading-[1.2] font-semibold transition-colors md:w-auto",
+              "w-[64px] shrink-0 text-center font-secondary text-[10px] leading-[1.2] font-semibold transition-colors sm:w-auto sm:text-[13px] lg:text-[14px]",
               categoria === c ? "text-[#3bd4cc]" : "text-white hover:text-[#3bd4cc]"
             )}
           >
             {c}
           </button>
         ))}
-      </nav>
+      </ChipRow>
 
-      <SearchBar value={busca} onChange={setBusca} placeholder="ex: Livro de Programação" label="Buscar produtos" className="mt-[12px]" />
+      <SearchBar value={busca} onChange={setBusca} placeholder="ex: Livro de Programação" label="Buscar produtos" className="mt-[12px] sm:mt-5" />
 
       {filtrando ? (
-        <section className="mt-[20px]">
+        <section className="mt-[20px] sm:mt-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] text-[#d9d9d9] md:text-[17px]">
+            <h2 className="text-[15px] text-[#d9d9d9] sm:text-[18px] lg:text-[20px]">
               {categoria ?? "Resultados"} <span className="text-[#8a8a8a]">({resultados.length})</span>
             </h2>
             <button
@@ -98,13 +99,13 @@ export default function ProdutosPage() {
                 setBusca("");
                 setCategoria(null);
               }}
-              className="font-secondary text-[12px] text-[#3bd4cc] hover:text-white"
+              className="font-secondary text-[12px] text-[#3bd4cc] hover:text-white sm:text-[14px]"
             >
               Limpar filtros
             </button>
           </div>
           {resultados.length === 0 ? (
-            <p className="mt-10 text-center font-secondary text-[13px] text-[#8a8a8a]">
+            <p className="mt-10 text-center font-secondary text-[13px] text-[#8a8a8a] sm:text-[15px]">
               {categoria && !busca.trim() ? "Ainda não há produtos nessa categoria." : "Nenhum produto encontrado."}
             </p>
           ) : (
@@ -120,16 +121,16 @@ export default function ProdutosPage() {
       ) : (
         <>
           {destaques && (
-            <ScrollRow label="Destaques" dots className="mt-[15px]">
+            <ScrollRow label="Destaques" dots className="mt-[15px] sm:mt-6">
               {destaques.map((d) => (
                 <DestaqueBanner key={d.id} destaque={d} />
               ))}
             </ScrollRow>
           )}
           {linhas.map((linha) => (
-            <section key={linha.categoria} className="mt-[20px] md:mt-8">
+            <section key={linha.categoria} className="mt-[20px] sm:mt-10">
               <SectionHeader title={linha.categoria} onMore={() => setCategoria(linha.categoria)} />
-              <ScrollRow label={linha.categoria} className="mt-[10px]">
+              <ScrollRow label={linha.categoria} className="mt-[10px] sm:mt-4">
                 {linha.itens.map((p) => (
                   <ProdutoCard key={p.id} produto={p} />
                 ))}

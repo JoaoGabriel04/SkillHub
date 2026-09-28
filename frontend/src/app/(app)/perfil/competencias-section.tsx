@@ -33,7 +33,7 @@ export function CompetenciasSection({ user }: { user: User }) {
           </ContentCard>
         </button>
       ) : (
-        <ul className="mt-[16px] grid gap-[17px] md:grid-cols-2">
+        <ul className="mt-[16px] grid gap-[17px] sm:grid-cols-2">
           {user.competencias.map((c) => (
             <li key={c}>
               <ContentCard className="flex min-h-[74px] items-center gap-4 px-[14px] py-4">

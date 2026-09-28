@@ -73,7 +73,7 @@ export function CurriculoSection({ user }: { user: User }) {
     <section className="mt-[26px]">
       <SectionTitle title="Currículo" onEdit={() => setEditOpen(true)} editLabel="Editar currículo" />
 
-      <div className="mt-[16px] grid gap-[12px] md:grid-cols-2 md:gap-[17px]">
+      <div className="mt-[16px] grid gap-[12px] sm:grid-cols-2 sm:gap-[17px]">
         {user.curriculo ? (
           <>
             <ActionCard icon={faPlay} label="Visualizar Currículo" onClick={view} busy={busy === "view"} />

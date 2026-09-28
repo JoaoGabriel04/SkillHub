@@ -44,7 +44,7 @@ export function ProfileHero({ user }: { user: User }) {
 
   return (
     <section className="flex flex-col items-center">
-      <div className="relative -mx-[23px] mt-[88px] flex w-[calc(100%+46px)] justify-center md:mx-0 md:mt-[40px] md:w-full">
+      <div className="relative -mx-[23px] mt-[88px] flex w-[calc(100%+46px)] justify-center sm:mx-0 sm:mt-[40px] sm:w-full">
         <svg
           aria-hidden
           viewBox="0 0 440 130"
@@ -90,7 +90,7 @@ export function ProfileHero({ user }: { user: User }) {
       </div>
 
       <div className="mt-[64px] flex min-h-[26px] max-w-full items-center justify-center gap-3 px-4">
-        <h1 className="text-center text-[19px] leading-tight font-bold text-white md:text-[24px]">{user.fullName}</h1>
+        <h1 className="text-center text-[19px] leading-tight font-bold text-white sm:text-[24px] lg:text-[28px]">{user.fullName}</h1>
         <button
           type="button"
           onClick={() => setEditOpen(true)}

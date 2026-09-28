@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app/app-header";
 import { BottomNav } from "@/components/app/bottom-nav";
+import { PageContainer } from "@/components/app/page-container";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -34,10 +35,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {ready ? (
         <>
           {/* pb: espaço pro menu inferior fixo não cobrir o fim do conteúdo */}
-          <div className="mx-auto w-full max-w-[1200px] flex-1 px-[23px] pb-[90px] md:px-10">
+          <PageContainer className="flex-1 pb-[90px]">
             <AppHeader />
             {children}
-          </div>
+          </PageContainer>
           <BottomNav />
         </>
       ) : (
