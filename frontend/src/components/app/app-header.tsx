@@ -1,19 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCoins, faGear, faRightFromBracket, faUserXmark } from "@fortawesome/free-solid-svg-icons";
+import { faGear, faRightFromBracket, faUserXmark } from "@fortawesome/free-solid-svg-icons";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
 import { GlassCard } from "@/components/ui/glass-card";
+import { CreditsChip } from "./credits-chip";
 import { DeleteAccountDialog } from "./delete-account-dialog";
 import { api } from "@/lib/api";
+import { useDismiss } from "@/hooks/use-dismiss";
 import { useAuthStore } from "@/stores/auth-store";
 
-const formatCredits = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-
-// designs/New Início.png: logo 38px, chip de créditos (moeda + caixa com borda) e engrenagem
+// designs/New Início.png: logo 38px, chip de créditos (ver CreditsChip) e engrenagem
 export function AppHeader() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -22,20 +21,8 @@ export function AppHeader() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // fecha o menu ao clicar fora ou apertar Esc
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  useDismiss(menuRef, menuOpen, closeMenu);
 
   async function logout() {
     await api.post("/auth/logout").catch(() => {});
@@ -47,14 +34,8 @@ export function AppHeader() {
     <header className="flex items-center justify-between pt-[15px]">
       <SkillHubLogo size={38} />
 
-      <div className="flex items-center gap-[25px]">
-        <div className="flex items-center" title="Seus créditos">
-          <FontAwesomeIcon icon={faCoins} className="relative z-10 text-[22px] text-[#c9c9c9]" />
-          <span className="-ml-[6px] flex h-[23px] min-w-[73px] items-center justify-end border border-[#e3e3e3] px-2 font-jersey-15 text-[17px] text-white">
-            <span className="sr-only">Créditos: </span>
-            {formatCredits(user?.credits ?? 0)}
-          </span>
-        </div>
+      <div className="flex items-center gap-[20px]">
+        <CreditsChip credits={user?.credits ?? 0} />
 
         <div ref={menuRef} className="relative">
           <button
