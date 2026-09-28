@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCamera, faCheck, faCircleNotch, faPen, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCamera, faCircleNotch, faPen } from "@fortawesome/free-solid-svg-icons";
 import { Avatar } from "@/components/app/avatar";
+import { EditNomeDialog } from "@/components/app/perfil/edit-nome-dialog";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import type { User } from "@/types/user";
@@ -12,14 +13,12 @@ const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_MB = 5;
 
 // designs/Perfil.png: curva cinza atrás da foto (140px, anel cinza), selo azul de câmera,
-// nome em negrito com lápis e o perfil logo abaixo.
+// nome em negrito com lápis (abre o modal de dados pessoais) e o perfil logo abaixo.
 export function ProfileHero({ user }: { user: User }) {
   const setUser = useAuthStore((s) => s.setUser);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [name, setName] = useState(user.fullName);
-  const [savingName, setSavingName] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
@@ -41,31 +40,6 @@ export function ProfileHero({ user }: { user: User }) {
     } finally {
       setUploading(false);
     }
-  }
-
-  async function saveName(event: FormEvent) {
-    event.preventDefault();
-    const fullName = name.trim();
-    if (fullName.length < 3) return setError("O nome precisa ter ao menos 3 letras.");
-    if (fullName === user.fullName) return setEditingName(false);
-
-    setError(null);
-    setSavingName(true);
-    try {
-      const { data } = await api.patch<{ user: User }>("/user", { fullName });
-      setUser(data.user);
-      setEditingName(false);
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Não foi possível salvar o nome."));
-    } finally {
-      setSavingName(false);
-    }
-  }
-
-  function cancelName() {
-    setName(user.fullName);
-    setEditingName(false);
-    setError(null);
   }
 
   return (
@@ -116,36 +90,15 @@ export function ProfileHero({ user }: { user: User }) {
       </div>
 
       <div className="mt-[64px] flex min-h-[26px] max-w-full items-center justify-center gap-3 px-4">
-        {editingName ? (
-          <form onSubmit={saveName} className="flex items-center gap-2">
-            <input
-              autoFocus
-              aria-label="Nome completo"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && cancelName()}
-              className="w-[260px] max-w-[60vw] border-b border-[#a0a0a0] bg-transparent text-center text-[19px] font-bold text-white outline-none focus:border-white"
-            />
-            <button type="submit" disabled={savingName} aria-label="Salvar nome" className="text-accent hover:text-white">
-              <FontAwesomeIcon icon={savingName ? faCircleNotch : faCheck} spin={savingName} />
-            </button>
-            <button type="button" onClick={cancelName} aria-label="Cancelar edição" className="text-[#8a8a8a] hover:text-white">
-              <FontAwesomeIcon icon={faXmark} />
-            </button>
-          </form>
-        ) : (
-          <>
-            <h1 className="text-center text-[19px] leading-tight font-bold text-white md:text-[24px]">{user.fullName}</h1>
-            <button
-              type="button"
-              onClick={() => setEditingName(true)}
-              aria-label="Editar nome"
-              className="text-[#8a8a8a] transition-colors hover:text-white"
-            >
-              <FontAwesomeIcon icon={faPen} className="text-[13px]" />
-            </button>
-          </>
-        )}
+        <h1 className="text-center text-[19px] leading-tight font-bold text-white md:text-[24px]">{user.fullName}</h1>
+        <button
+          type="button"
+          onClick={() => setEditOpen(true)}
+          aria-label="Editar dados pessoais"
+          className="text-[#8a8a8a] transition-colors hover:text-white"
+        >
+          <FontAwesomeIcon icon={faPen} className="text-[13px]" />
+        </button>
       </div>
       <p className="mt-[2px] text-[14px] leading-tight text-[#8a8a8a]">{user.perfil}</p>
       {error && (
@@ -153,6 +106,8 @@ export function ProfileHero({ user }: { user: User }) {
           {error}
         </p>
       )}
+      {/* montado só enquanto aberto: o formulário sempre começa dos dados atuais */}
+      {editOpen && <EditNomeDialog user={user} open onOpenChange={setEditOpen} />}
     </section>
   );
 }

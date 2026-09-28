@@ -1,6 +1,6 @@
 "use client";
 
-import { GlassCard } from "@/components/ui/glass-card";
+import { ContentCard } from "@/components/ui/content-card";
 import { useAuthStore } from "@/stores/auth-store";
 import { CompetenciasSection } from "./competencias-section";
 import { CurriculoSection } from "./curriculo-section";
@@ -14,17 +14,16 @@ const ESTATISTICAS = [
   { label: "Experiência", valor: "00" },
 ];
 
-// designs/Perfil.png
+// designs/New Perfil.png — cada seção editável abre o seu modal (components/app/perfil/)
 export default function PerfilPage() {
   const user = useAuthStore((s) => s.user);
   if (!user) return null; // o layout só renderiza a página com usuário carregado
 
   return (
     <main className="mx-auto max-w-[760px] pb-4">
-      {/* key: ao trocar de usuário/nome salvo o formulário de nome recomeça do valor novo */}
-      <ProfileHero key={user.fullName} user={user} />
+      <ProfileHero user={user} />
 
-      <GlassCard className="mt-[16px] px-4 pt-[9px] pb-[8px] md:mt-8 md:py-4">
+      <ContentCard className="mt-[16px] px-4 pt-[9px] pb-[8px] md:mt-8 md:py-4">
         <h2 className="text-center text-[20px] font-semibold text-white md:text-[22px]">Experiências Profissionais</h2>
         <dl className="mt-[12px] grid grid-cols-3 text-center">
           {ESTATISTICAS.map(({ label, valor }) => (
@@ -34,7 +33,7 @@ export default function PerfilPage() {
             </div>
           ))}
         </dl>
-      </GlassCard>
+      </ContentCard>
 
       {user.perfil === "Colaborador" && (
         <>

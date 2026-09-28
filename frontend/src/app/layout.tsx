@@ -3,6 +3,7 @@ import { Inter, Jersey_15, Jersey_20, Jersey_25, Poppins } from "next/font/googl
 import { config } from "@fortawesome/fontawesome-svg-core";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import { SessionProvider } from "@/components/auth/session-provider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 // o CSS do Font Awesome já vem importado acima (evita ícone gigante no primeiro paint)
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <SessionProvider>{children}</SessionProvider>
+        <Toaster position="top-center" />
       </body>
     </html>
   );
