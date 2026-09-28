@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SkillHub — Frontend
 
-## Getting Started
+Next.js 16 (App Router), Tailwind 4, shadcn/ui, Zustand e SWR.
 
-First, run the development server:
+## Desenvolvimento
+
+O jeito normal é subir tudo pelo `docker compose up` na raiz do projeto (frontend em `:3000`, backend em `:7000`).
+Para rodar só o frontend fora do docker:
 
 ```bash
+cp .env.example .env.local   # NEXT_PUBLIC_API_URL=http://localhost:7000/api
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy na Vercel
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+O navegador fala com o backend **pelo domínio do próprio site**: `next.config.ts` repassa `/api/*` para `BACKEND_URL/api/*`.
+Assim o cookie `refresh_token` é gravado no domínio do site e não cai no bloqueio de cookies de terceiros (Safari, Firefox).
+O login pelo Google/Discord também passa por esse proxy.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Projeto na Vercel
 
-## Learn More
+- **Import** do repositório no painel da Vercel.
+- **Root Directory:** `frontend` (o Next.js é detectado sozinho; comando de build e pasta de saída ficam no padrão).
 
-To learn more about Next.js, take a look at the following resources:
+### 2. Variáveis de ambiente do frontend (Settings → Environment Variables)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variável | Valor | Observação |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `/api` | Entra no build: se mudar, precisa de um novo deploy. |
+| `BACKEND_URL` | `https://<backend>` | Origem do backend, **sem** `/api` no fim. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Variáveis do backend
 
-## Deploy on Vercel
+| Variável | Valor |
+|---|---|
+| `NODE_ENV` | `production` (cookie com `Secure`) |
+| `CLIENT_URL` | `https://<site>.vercel.app` (links dos e-mails e volta do OAuth) |
+| `API_URL` | `https://<site>.vercel.app`: o **site**, não o backend. O OAuth volta pelo proxy e o cookie fica no domínio do site. |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. OAuth
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Nos consoles do Google e do Discord, cadastrar as URLs de retorno pelo domínio do site:
+
+- `https://<site>.vercel.app/api/auth/google/callback`
+- `https://<site>.vercel.app/api/auth/discord/callback`
+
+### Deploys de preview
+
+Os previews têm outra URL. O login por e-mail e senha funciona neles, porque o proxy é do próprio preview.
+Já o OAuth e os links dos e-mails voltam para o `CLIENT_URL`/`API_URL` do backend, ou seja, para a produção.
