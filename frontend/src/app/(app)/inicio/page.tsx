@@ -1,16 +1,23 @@
+import Image from "next/image";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { Avatar } from "@/components/app/avatar";
 import { ScrollRow } from "@/components/app/scroll-row";
+import { ContentCard } from "@/components/ui/content-card";
+import { ctaButtonClass } from "@/components/ui/cta-button";
+import { getProdutos } from "@/lib/mock/produtos";
+import { getServicos } from "@/lib/mock/servicos";
 import { cn } from "@/lib/utils";
-import { colaboradores, eventos, produtos, servicos } from "./mock";
+import { colaboradores, eventos } from "./mock";
 
 const formatPreco = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 // designs/New Início.png — medidas do mockup mobile (440px); a partir de md as linhas
 // mostram mais cards lado a lado e os colaboradores ganham mais avatares.
-export default function InicioPage() {
+export default async function InicioPage() {
+  const [servicos, produtos] = await Promise.all([getServicos(), getProdutos()]);
+
   return (
     <main className="pb-4">
       <section className="mt-[53px] md:mt-16">
@@ -77,24 +84,21 @@ export default function InicioPage() {
         </div>
         <ScrollRow label="Serviços" className="mt-[20px]">
           {servicos.map((servico) => (
-            <article
+            <ContentCard
               key={servico.id}
-              className="flex h-[159px] w-[302px] flex-col rounded-[10px] border border-white/[0.06] bg-[#1b1b1b] px-[11px] pt-[11px] pb-[12px] font-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.35)]"
+              className="flex h-[159px] w-[302px] flex-col px-[11px] pt-[11px] pb-[12px] font-secondary"
             >
               <div className="flex items-center gap-[10px]">
-                <Avatar nome={servico.autor} size={39} />
-                <h3 className="truncate text-[15px] text-white">{servico.autor}</h3>
+                <Avatar nome={servico.autor.fullName} src={servico.autor.urlPhoto} size={39} />
+                <h3 className="truncate text-[15px] text-white">{servico.autor.fullName}</h3>
               </div>
               <p className="mt-[16px] line-clamp-2 text-justify text-[12px] md:text-left leading-[1.25] text-[#e6e6e6]">
                 {servico.descricao}
               </p>
-              <Link
-                href="/servicos"
-                className="mt-auto flex h-[27px] items-center justify-center rounded-[4px] bg-[linear-gradient(180deg,#55dad3_0%,#3bd4cc_50%,#37c3bb_100%)] text-[11px] font-semibold text-white shadow-[0_2px_6px_rgba(59,212,204,0.25)] transition-[filter] hover:brightness-110"
-              >
+              <Link href="/servicos" className={cn(ctaButtonClass, "mt-auto flex h-[27px] items-center justify-center text-[11px]")}>
                 Saiba Mais
               </Link>
-            </article>
+            </ContentCard>
           ))}
         </ScrollRow>
       </section>
@@ -104,21 +108,22 @@ export default function InicioPage() {
         <h2 className="text-[15px] text-[#d9d9d9] md:text-[17px]">Produtos Relevantes</h2>
         <ScrollRow label="Produtos" className="mt-[20px]">
           {produtos.map((produto) => (
-            <Link
-              key={produto.id}
-              href="/produtos"
-              className="group flex w-[176px] flex-col overflow-hidden rounded-[10px] bg-[#1b1b1b] font-secondary transition-transform hover:-translate-y-1"
-            >
-              <div className="flex h-[199px] items-center justify-center bg-[#5f5f5f]">
-                <FontAwesomeIcon
-                  icon={produto.icon}
-                  className="text-[48px] text-white/70 transition-transform group-hover:scale-110"
-                />
-              </div>
-              <div className="px-3 py-[10px]">
-                <h3 className="truncate text-[13px] text-white">{produto.nome}</h3>
-                <p className="mt-[2px] text-[13px] font-semibold text-accent">{formatPreco(produto.preco)}</p>
-              </div>
+            <Link key={produto.id} href="/produtos" className="group w-[176px] transition-transform hover:-translate-y-1">
+              <ContentCard className="flex flex-col overflow-hidden font-secondary">
+                <div className="relative h-[199px] bg-[#5f5f5f]">
+                  <Image
+                    src={produto.imagemUrl}
+                    alt={produto.nome}
+                    fill
+                    sizes="176px"
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <div className="px-3 py-[10px]">
+                  <h3 className="truncate text-[13px] text-white">{produto.nome}</h3>
+                  <p className="mt-[2px] text-[13px] font-semibold text-accent">{formatPreco(produto.preco)}</p>
+                </div>
+              </ContentCard>
             </Link>
           ))}
         </ScrollRow>

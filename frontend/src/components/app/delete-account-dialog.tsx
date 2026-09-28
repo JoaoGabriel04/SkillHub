@@ -43,7 +43,7 @@ export function DeleteAccountDialog({ user, onClose }: { user: User; onClose: ()
     }
   }
 
-  // portal: o menu da engrenagem usa backdrop-filter, que prenderia o position:fixed dentro dele
+  // portal: um ancestral com backdrop-filter prenderia o position:fixed dentro dele
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4"

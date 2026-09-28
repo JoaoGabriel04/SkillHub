@@ -1,34 +1,20 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGear, faRightFromBracket, faUserXmark } from "@fortawesome/free-solid-svg-icons";
+import { faGear } from "@fortawesome/free-solid-svg-icons";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
-import { GlassCard } from "@/components/ui/glass-card";
-import { CreditsChip } from "./credits-chip";
-import { DeleteAccountDialog } from "./delete-account-dialog";
-import { api } from "@/lib/api";
-import { useDismiss } from "@/hooks/use-dismiss";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { CreditsChip } from "./credits-chip";
 
-// designs/New Início.png: logo 38px, chip de créditos (ver CreditsChip) e engrenagem
+// designs/New Início.png: logo 38px, chip de créditos (ver CreditsChip) e engrenagem,
+// que leva para /configuracoes (lá ficam Sair e, em Privacidade e Segurança, Excluir conta).
 export function AppHeader() {
-  const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const clear = useAuthStore((s) => s.clear);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
-  useDismiss(menuRef, menuOpen, closeMenu);
-
-  async function logout() {
-    await api.post("/auth/logout").catch(() => {});
-    clear();
-    router.replace("/login");
-  }
+  const naConfig = pathname === "/configuracoes";
 
   return (
     <header className="flex items-center justify-between pt-[15px]">
@@ -37,46 +23,17 @@ export function AppHeader() {
       <div className="flex items-center gap-[20px]">
         <CreditsChip credits={user?.credits ?? 0} />
 
-        <div ref={menuRef} className="relative">
-          <button
-            type="button"
-            aria-label="Configurações"
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            onClick={() => setMenuOpen((open) => !open)}
-            className="flex rounded-full text-white transition-transform outline-none hover:rotate-45 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-[#101010]"
-          >
-            <FontAwesomeIcon icon={faGear} className="text-[23px]" />
-          </button>
-          {menuOpen && (
-            <GlassCard variant="dark" role="menu" className="absolute top-9 right-0 z-50 w-48 p-2">
-              <p className="truncate px-3 pt-1 pb-2 font-secondary text-xs text-[#9f9f9f]">{user?.email}</p>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={logout}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 font-secondary text-sm text-white transition-colors hover:bg-white/10"
-              >
-                <FontAwesomeIcon icon={faRightFromBracket} className="text-[#9f9f9f]" />
-                Sair
-              </button>
-              <div className="mx-3 my-1 border-t border-white/10" />
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setDeleteOpen(true);
-                }}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 font-secondary text-sm text-[#ff6b6b] transition-colors hover:bg-[#ff6b6b]/10"
-              >
-                <FontAwesomeIcon icon={faUserXmark} />
-                Excluir conta
-              </button>
-            </GlassCard>
+        <Link
+          href="/configuracoes"
+          aria-label="Configurações"
+          aria-current={naConfig ? "page" : undefined}
+          className={cn(
+            "flex rounded-full transition-transform outline-none hover:rotate-45 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-[#101010]",
+            naConfig ? "text-[#3bd4cc]" : "text-white"
           )}
-          {deleteOpen && user && <DeleteAccountDialog user={user} onClose={() => setDeleteOpen(false)} />}
-        </div>
+        >
+          <FontAwesomeIcon icon={faGear} className="text-[23px]" />
+        </Link>
       </div>
     </header>
   );

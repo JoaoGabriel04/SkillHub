@@ -55,9 +55,11 @@ const ok = (label, cond, extra = "") => {
   console.log(`${cond ? "✅" : "❌"} ${label}${extra ? " — " + extra : ""}`);
 };
 const alertText = async () => (await page.locator("[role=alert]:not(#__next-route-announcer__)").allTextContents()).join(" | ");
-const openMenu = async () => { await page.getByRole("button", { name: "Configurações" }).click(); };
-const loggedAs = async (email) => { await page.getByRole("heading", { name: "SkillHub" }).waitFor({ timeout: 8000 }).catch(() => {}); await openMenu(); const ok = await page.getByText(email).isVisible().catch(() => false); await page.keyboard.press("Escape"); return ok; };
-const sair = async () => { await openMenu(); await page.getByRole("menuitem", { name: "Sair" }).click(); };
+// A engrenagem do header leva a /configuracoes: lá ficam Sair e, em Privacidade e Segurança, o e-mail da conta e o Excluir conta
+const openConfig = async () => { await page.getByRole("link", { name: "Configurações" }).click(); await page.waitForURL("**/configuracoes"); };
+const openPrivacidade = async () => { await openConfig(); await page.getByRole("button", { name: /Privacidade e Segurança/ }).click(); };
+const loggedAs = async (email) => { await page.getByRole("heading", { name: "SkillHub" }).waitFor({ timeout: 8000 }).catch(() => {}); await openPrivacidade(); const ok = await page.getByText(email).isVisible().catch(() => false); await page.keyboard.press("Escape"); return ok; };
+const sair = async () => { await openConfig(); await page.getByRole("button", { name: /^Sair/ }).click(); };
 const errTexts = async () => (await page.locator("p.text-\\[\\#ff6b6b\\]").allTextContents());
 
 // 1. login vazio
@@ -162,7 +164,7 @@ await page.getByRole("button", { name: "Concluir cadastro" }).click(); await pag
 ok("perfil completado → /inicio", page.url().endsWith("/inicio") && (await loggedAs("e2e.oauth@example.com")), page.url() + " " + (await alertText()));
 
 await page.getByRole("link", { name: "Serviços" }).last().click(); await page.waitForURL("**/servicos");
-ok("menu inferior leva a /servicos (em construção)", await page.getByText("Esta seção está em construção.").isVisible());
+ok("menu inferior leva a /servicos", await page.getByRole("heading", { name: "Serviços", level: 1 }).isVisible());
 ok("item ativo do menu é Serviços", (await page.getByRole("link", { name: "Serviços" }).last().getAttribute("aria-current")) === "page");
 
 // 13. Perfil — segue logado como o Colaborador que veio do OAuth (qualidades "Designer, Técnico", sem senha)
@@ -173,15 +175,15 @@ ok("perfil mostra nome e tipo de conta", (await page.textContent("h1")) === "Usu
 ok("Colaborador vê Qualidades e Currículo", (await page.locator("main h2").allTextContents()).join(",") === "Experiências Profissionais,Qualidades,Currículo");
 ok("qualidades do cadastro listadas", (await qualidades.allTextContents()).join(",") === "Designer,Técnico", (await qualidades.allTextContents()).join(","));
 
-// nome
-await page.getByRole("button", { name: "Editar nome" }).click();
-await page.getByLabel("Nome completo").fill("ab"); await page.getByRole("button", { name: "Salvar nome" }).click();
+// nome (modal de dados pessoais)
+await page.getByRole("button", { name: "Editar dados pessoais" }).click();
+await page.getByLabel("Nome completo").fill("ab"); await page.getByRole("button", { name: "Salvar", exact: true }).click();
 ok("nome curto rejeitado", (await alertText()).includes("3 letras"), await alertText());
-await page.getByLabel("Nome completo").fill("  Nome Editado E2E  "); await page.getByRole("button", { name: "Salvar nome" }).click();
+await page.getByLabel("Nome completo").fill("  Nome Editado E2E  "); await page.getByRole("button", { name: "Salvar", exact: true }).click();
 await page.locator("h1", { hasText: "Nome Editado E2E" }).waitFor({ timeout: 8000 }).catch(() => {});
 await page.reload(); await page.locator("h1").waitFor();
 ok("nome salvo (sem espaços) e mantido ao recarregar", (await page.textContent("h1")) === "Nome Editado E2E", await page.textContent("h1"));
-await page.getByRole("button", { name: "Editar nome" }).click(); await page.keyboard.press("Escape");
+await page.getByRole("button", { name: "Editar dados pessoais" }).click(); await page.keyboard.press("Escape");
 ok("Esc cancela a edição do nome", (await page.getByLabel("Nome completo").count()) === 0);
 
 // qualidades
@@ -209,6 +211,7 @@ ok("foto enviada e exibida", (await page.locator('img[src*="cloudinary"], img[sr
 // currículo
 const cvInput = page.locator('input[type="file"][accept="application/pdf"]');
 ok("sem currículo mostra 'Enviar currículo'", await page.getByRole("button", { name: "Enviar currículo (PDF)" }).isVisible());
+await page.getByRole("button", { name: "Enviar currículo (PDF)" }).click(); // abre o modal do currículo
 await cvInput.setInputFiles(PNG);
 ok("currículo que não é PDF rejeitado", (await alertText()).includes("PDF"), await alertText());
 await cvInput.setInputFiles(PDF);
@@ -226,7 +229,13 @@ ok("foto e currículo estão no Cloudinary", cloudinaryHas(`Skillhub/avatars/${O
 // 14. Excluir conta sem senha (OAuth): confirma digitando EXCLUIR
 const dialog = page.getByRole("dialog");
 const confirmar = dialog.getByRole("button", { name: "Excluir conta" });
-const abrirExclusao = async () => { await openMenu(); await page.getByRole("menuitem", { name: "Excluir conta" }).click(); await dialog.waitFor(); };
+const abrirExclusao = async () => {
+  if (!page.url().endsWith("/configuracoes")) await openConfig();
+  await page.getByRole("button", { name: /Privacidade e Segurança/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Excluir conta" }).click();
+  await page.getByRole("dialog", { name: "Privacidade e Segurança" }).waitFor({ state: "detached" });
+  await dialog.waitFor();
+};
 await abrirExclusao();
 ok("conta OAuth confirma com a palavra EXCLUIR", (await dialog.locator('input[type="text"]').count()) === 1 && (await dialog.getByText("EXCLUIR", { exact: true }).isVisible()));
 await dialog.locator("input").fill("excluí");
@@ -306,13 +315,13 @@ ok("clique fora fecha o modal", (await dialog.count()) === 0);
 await abrirExclusao();
 await dialog.locator("input").fill("errada"); await confirmar.click();
 await dialog.getByRole("alert").waitFor({ timeout: 8000 }).catch(() => {});
-ok("senha errada não exclui", (await dialog.getByRole("alert").textContent().catch(() => "")) === "Senha incorreta" && page.url().endsWith("/perfil"));
+ok("senha errada não exclui", (await dialog.getByRole("alert").textContent().catch(() => "")) === "Senha incorreta" && page.url().endsWith("/configuracoes"));
 await dialog.locator("input").fill(NOVA_SENHA); await confirmar.click();
 await page.waitForURL("**/login?conta=excluida", { timeout: 10000 }).catch(() => {});
 ok("senha certa exclui → login com aviso", page.url().endsWith("/login?conta=excluida"), page.url());
 
-await outraAba.getByRole("button", { name: "Editar nome" }).click();
-await outraAba.getByLabel("Nome completo").fill("Outro Nome"); await outraAba.getByRole("button", { name: "Salvar nome" }).click();
+await outraAba.getByRole("button", { name: "Editar dados pessoais" }).click();
+await outraAba.getByLabel("Nome completo").fill("Outro Nome"); await outraAba.getByRole("button", { name: "Salvar", exact: true }).click();
 await outraAba.waitForURL("**/login", { timeout: 10000 }).catch(() => {});
 ok("outra aba aberta cai no login ao editar", outraAba.url().endsWith("/login"), outraAba.url());
 await outraAba.close();
