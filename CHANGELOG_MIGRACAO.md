@@ -9,6 +9,63 @@
 
 ---
 
+## Fase 16.1 — Casca do desktop com sidebar
+
+**Data:** 2026-10-13
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/sidebar-desktop`
+
+### Contexto
+
+Primeira subfase do `SKILLHUB_SIDEBAR_E_DOMINIO.md` (plano em `PLANO_16_1.md`). A partir de `lg` (1024px) o menu pill inferior e o `AppHeader` dão lugar a uma **sidebar à esquerda** (designs/New Início - Desktop.png, node `719:131`), presa à viewport enquanto a página rola. Abaixo de `lg` nada muda. Só layout: nenhum dado, rota, endpoint ou fluxo mudou.
+
+Decisões tomadas na aprovação do plano:
+- O trabalho de animações (GSAP, transição de páginas) que estava sem commit saiu antes, no PR #4; esta branch parte da `main` depois desse merge (`fe74495`).
+- Acima de 1496px a coluna de 1200px fica centralizada no espaço à direita da sidebar.
+- O `BottomNav` passa a usar a mesma regra de item ativo da sidebar (prefixo, `rotaAtiva`); como ainda não há subrotas, nada muda na tela.
+- No desktop o fim da página tem 24px (`lg:pb-6`), como o 24/24/24/0 do Figma.
+- Fluxos de desktop acrescentados ao e2e.
+
+### Arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/components/app/sidebar.tsx` | **Novo** — marca (link para `/inicio`), card de créditos (`ContentCard`, saldo real com `formatCredits`/`useCountUp`), "MENU", navegação (Início, Serviços, Produtos, Comunidade, Perfil) e Conta (Configurações, Sair). `sticky top-4`, `self-start`, altura `calc(100dvh-32px)`. Numa tela baixa a parte de cima rola e a Conta fica sempre visível. Ícones FontAwesome e Lucide numa caixa de largura fixa, para os rótulos alinharem. |
+| `frontend/src/components/app/navegacao.ts` | **Novo** — lista única `NAV_ITENS` (cada menu escolhe a ordem), `NAV_VIDRO` (vidro compartilhado pelos dois menus) e `rotaAtiva` (`pathname === href` ou subrota). |
+| `frontend/src/hooks/use-logout.ts` | **Novo** — o `sair` que estava em Configurações, usado também pela sidebar. Comportamento idêntico. |
+| `frontend/src/app/(app)/layout.tsx` | A partir de `lg`, linha `flex lg:gap-8 lg:p-4` com a sidebar e a coluna da página. A coluna (`data-page-exit`) tem `lg:min-w-0 lg:overflow-x-clip`. A sidebar fica fora dela, então não afunda na transição de página. |
+| `frontend/src/components/app/page-container.tsx` | Só `lg+`: `lg:max-w-5xl lg:px-12 xl:max-w-6xl` → `lg:max-w-[1200px] lg:pt-6 lg:pr-6 lg:pl-0`. |
+| `frontend/src/components/app/bottom-nav.tsx` | Usa `NAV_ITENS`, `NAV_VIDRO` e `rotaAtiva`; `lg:hidden` no lugar de `lg:max-w-[520px]`. |
+| `frontend/src/components/app/app-header.tsx` | Só `lg:hidden`. |
+| `frontend/src/components/app/credits-chip.tsx` | Só `export` de `formatCredits` e `useCountUp`. |
+| `frontend/src/app/(app)/configuracoes/page.tsx` | Só a troca do `sair` local pelo `useLogout`. |
+| `e2e/fluxos.mjs` | Bloco de desktop (1280×800): sidebar visível com menu inferior e header ocultos, item ativo e ausência de rolagem horizontal nas 6 rotas, saldo do usuário e Sair pela sidebar. |
+
+### Ajuste: rolagem horizontal e sidebar presa (receita de layout da Seção 16.1)
+
+Dois erros clássicos de flexbox, descritos no bloco "Receita de layout" do documento:
+- **Rolagem horizontal:** a coluna da página é um item `flex-1` numa linha. Com `min-width: auto` ela crescia até a largura da trilha dos carrosséis (`ScrollRow`), e a página rolava de lado (a 1440px, `scrollWidth` chegava a 1496). A correção foi `lg:min-w-0`, mais `lg:overflow-x-clip` por segurança, que corta sem criar contêiner de rolagem. As duas classes ficam **só na coluna**: overflow num ancestral da sidebar desligaria o `sticky`.
+- **Sidebar presa:** o `aside` já usa `self-start` e altura própria (`h-[calc(100dvh-32px)]`), então não estica até a altura do conteúdo e o `sticky top-4` tem para onde grudar. Nenhum ancestral dele tem `overflow` diferente de `visible`. A rolagem continua sendo a da janela, sem contêiner interno.
+
+### Validação
+
+- **Mobile e tablet inalterados:** screenshots de página inteira das 6 páginas a 375, 440 e 768px, antes e depois, **idênticos byte a byte** (18 de 18). O método é determinístico: duas capturas da base deram 18 de 18 iguais, com o mouse fora da página para não pegar hover.
+- **Desktop (Playwright, 1024, 1280, 1440 e 1920px, 6 rotas, abrindo pela sidebar e por carga direta):** `scrollWidth <= clientWidth`; topo do aside em 16px antes e depois de `scrollTo(0, 800)` e depois de rolar até o fim; nenhum ancestral do aside com overflow; carrosséis rolam dentro de si e o arraste com o mouse continua funcionando, sem mover a página.
+- Item ativo correto nas 6 rotas (inclusive Configurações); a 1024×600 a parte de cima da sidebar rola e o Sair continua visível; Tab percorre marca, itens, Configurações e Sair com o anel no accent.
+- Contraste sobre o vidro (`#0a0a0a`): texto inativo 15.9:1, ativo 9.0:1, rótulos cinza 7.5:1.
+- `./e2e/run.sh`: 88/88 (73 anteriores + 15 de desktop). `tsc --noEmit` (frontend e backend), `eslint` e `next build` sem erros.
+
+### Pendente
+
+- **Início entre 1024 e ~1243px:** a fileira de "Colaboradores Relevantes" mostra 8 avatares a partir de `lg` (cerca de 907px) e não cabe na coluna nova (688px a 1024). Com o `overflow-x-clip` a página não rola mais de lado, mas o 8º avatar e o "Ver mais..." ficam cortados nessa faixa. A página de conteúdo está fora do escopo da 16.1; a decisão (uma linha agora ou na 16.2) é do João Gabriel.
+
+### Achados fora de escopo
+
+- Sem o header no desktop, as páginas mantêm a margem de topo pensada para ficar abaixo dele (cerca de 60px vazios acima do título). Fica para a 16.2.
+- Os títulos dos eventos do Início ainda têm emojis; a 16.2 já prevê removê-los.
+
+---
+
 ## Fase 15 — Responsividade desktop
 
 **Data:** 2026-09-28

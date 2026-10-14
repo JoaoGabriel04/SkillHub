@@ -40,8 +40,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Sidebar />
             {/* pb: espaço pro menu inferior fixo não cobrir o fim do conteúdo (no desktop não há menu inferior) */}
             {/* data-page-exit: afunda/desfoca quando a transição de página cobre a tela; a sidebar fica parada */}
-            {/* lg:min-w-0: sem isso a coluna cresce até a largura dos carrosséis e a página rola de lado */}
-            <div data-page-exit className="flex flex-1 flex-col lg:min-w-0">
+            {/* lg:min-w-0: sem isso a coluna cresce até a largura dos carrosséis e a página rola de lado.
+                lg:overflow-x-clip corta sem criar contêiner de rolagem; fica só aqui, porque overflow num
+                ancestral da sidebar desligaria o sticky (receita da Seção 16.1). A rolagem é a da janela. */}
+            <div data-page-exit className="flex flex-1 flex-col lg:min-w-0 lg:overflow-x-clip">
               <PageContainer className="flex-1 pb-[90px] lg:pb-6">
                 <AppHeader />
                 {children}
