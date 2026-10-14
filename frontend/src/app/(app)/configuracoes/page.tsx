@@ -9,7 +9,7 @@ import { PageTitle } from "@/components/app/page-title";
 import { normalizar, SearchBar } from "@/components/app/search-bar";
 import { ContentCard } from "@/components/ui/content-card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { api } from "@/lib/api";
+import { useLogout } from "@/hooks/use-logout";
 import { emBreve } from "@/lib/em-breve";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -23,12 +23,7 @@ export default function ConfiguracoesPage() {
   const [busca, setBusca] = useState("");
   const [privacidadeOpen, setPrivacidadeOpen] = useState(false);
   const [excluirOpen, setExcluirOpen] = useState(false);
-
-  async function sair() {
-    await api.post("/auth/logout").catch(() => {});
-    useAuthStore.getState().clear();
-    router.replace("/login");
-  }
+  const sair = useLogout();
 
   const itens: Item[] = [
     { label: "Editar Perfil", descricao: "Dados pessoais, foto e currículo", acao: () => router.push("/perfil") },
