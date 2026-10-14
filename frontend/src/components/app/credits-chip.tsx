@@ -7,11 +7,11 @@ import { faBagShopping, faChevronRight, faCoins, faScrewdriverWrench } from "@fo
 import { GlassCard } from "@/components/ui/glass-card";
 import { useDismiss } from "@/hooks/use-dismiss";
 
-const formatCredits = (value: number) =>
+export const formatCredits = (value: number) =>
   new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
 // Anima o número do valor anterior até o novo (ease-out); sem animação se o usuário pede menos movimento.
-function useCountUp(target: number, duration = 700) {
+export function useCountUp(target: number, duration = 700) {
   const [value, setValue] = useState(0);
   const from = useRef(0);
 

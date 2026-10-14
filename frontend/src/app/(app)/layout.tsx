@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app/app-header";
 import { BottomNav } from "@/components/app/bottom-nav";
 import { PageContainer } from "@/components/app/page-container";
+import { Sidebar } from "@/components/app/sidebar";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -34,13 +35,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       />
       {ready ? (
         <>
-          {/* pb: espaço pro menu inferior fixo não cobrir o fim do conteúdo */}
-          {/* data-page-exit: afunda/desfoca quando a transição de página cobre a tela */}
-          <div data-page-exit className="flex flex-1 flex-col">
-            <PageContainer className="flex-1 pb-[90px]">
-              <AppHeader />
-              {children}
-            </PageContainer>
+          {/* lg+: sidebar à esquerda e a coluna da página ao lado (designs/New Início - Desktop.png) */}
+          <div className="flex flex-1 flex-col lg:flex-row lg:gap-8 lg:p-4">
+            <Sidebar />
+            {/* pb: espaço pro menu inferior fixo não cobrir o fim do conteúdo (no desktop não há menu inferior) */}
+            {/* data-page-exit: afunda/desfoca quando a transição de página cobre a tela; a sidebar fica parada */}
+            {/* lg:min-w-0: sem isso a coluna cresce até a largura dos carrosséis e a página rola de lado.
+                lg:overflow-x-clip corta sem criar contêiner de rolagem; fica só aqui, porque overflow num
+                ancestral da sidebar desligaria o sticky (receita da Seção 16.1). A rolagem é a da janela. */}
+            <div data-page-exit className="flex flex-1 flex-col lg:min-w-0 lg:overflow-x-clip">
+              <PageContainer className="flex-1 pb-[90px] lg:pb-6">
+                <AppHeader />
+                {children}
+              </PageContainer>
+            </div>
           </div>
           <BottomNav />
         </>
