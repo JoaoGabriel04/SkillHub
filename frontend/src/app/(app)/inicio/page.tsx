@@ -62,7 +62,7 @@ export default async function InicioPage() {
         <h2 className="text-[15px] text-[#d9d9d9] sm:text-[18px] lg:text-[20px]">Colaboradores Relevantes</h2>
         <ul className="mt-[25px] flex items-center justify-between sm:justify-start sm:gap-8">
           {colaboradores.map((pessoa, i) => (
-            <li key={pessoa.id} className={cn(i >= 4 && "hidden lg:block")}>
+            <li key={pessoa.id} className={cn(i >= 4 && "hidden xl:block")}>
               <Avatar nome={pessoa.nome} size={60} className="sm:size-[72px]!" />
             </li>
           ))}

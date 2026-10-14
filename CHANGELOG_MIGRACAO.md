@@ -39,6 +39,7 @@ Decisões tomadas na aprovação do plano:
 | `frontend/src/components/app/app-header.tsx` | Só `lg:hidden`. |
 | `frontend/src/components/app/credits-chip.tsx` | Só `export` de `formatCredits` e `useCountUp`. |
 | `frontend/src/app/(app)/configuracoes/page.tsx` | Só a troca do `sair` local pelo `useLogout`. |
+| `frontend/src/app/(app)/inicio/page.tsx` | Só a classe dos avatares extras de colaboradores: `hidden lg:block` → `hidden xl:block`. |
 | `e2e/fluxos.mjs` | Bloco de desktop (1280×800): sidebar visível com menu inferior e header ocultos, item ativo e ausência de rolagem horizontal nas 6 rotas, saldo do usuário e Sair pela sidebar. |
 
 ### Ajuste: rolagem horizontal e sidebar presa (receita de layout da Seção 16.1)
@@ -55,9 +56,9 @@ Dois erros clássicos de flexbox, descritos no bloco "Receita de layout" do docu
 - Contraste sobre o vidro (`#0a0a0a`): texto inativo 15.9:1, ativo 9.0:1, rótulos cinza 7.5:1.
 - `./e2e/run.sh`: 88/88 (73 anteriores + 15 de desktop). `tsc --noEmit` (frontend e backend), `eslint` e `next build` sem erros.
 
-### Pendente
+### Ajuste: colaboradores do Início entre 1024 e 1279px
 
-- **Início entre 1024 e ~1243px:** a fileira de "Colaboradores Relevantes" mostra 8 avatares a partir de `lg` (cerca de 907px) e não cabe na coluna nova (688px a 1024). Com o `overflow-x-clip` a página não rola mais de lado, mas o 8º avatar e o "Ver mais..." ficam cortados nessa faixa. A página de conteúdo está fora do escopo da 16.1; a decisão (uma linha agora ou na 16.2) é do João Gabriel.
+A fileira de "Colaboradores Relevantes" mostrava 8 avatares a partir de `lg` (cerca de 907px), mas a coluna nova tem 688px a 1024. Com o `overflow-x-clip` a página não rolava mais de lado, porém o 8º avatar e o "Ver mais..." ficavam escondidos e inalcançáveis até ~1243px. Os avatares a partir do 5º passam a aparecer só a partir de `xl` (`hidden xl:block`): abaixo de 1280px a fileira mostra 4 avatares e o "Ver mais...", como no tablet; a partir de 1280px, os 8 cabem. Única mudança numa página de conteúdo, autorizada por João Gabriel.
 
 ### Achados fora de escopo
 
