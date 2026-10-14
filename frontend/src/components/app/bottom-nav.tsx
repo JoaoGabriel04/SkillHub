@@ -3,28 +3,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBagShopping, faGlobe, faHouse, faScrewdriverWrench, faUser } from "@fortawesome/free-solid-svg-icons";
 import { cn } from "@/lib/utils";
+import { NAV_ITENS, NAV_VIDRO, rotaAtiva } from "./navegacao";
 
-const ITENS = [
-  { href: "/servicos", label: "Serviços", icon: faScrewdriverWrench },
-  { href: "/produtos", label: "Produtos", icon: faBagShopping },
-  { href: "/inicio", label: "Início", icon: faHouse },
-  { href: "/comunidade", label: "Comunidade", icon: faGlobe },
-  { href: "/perfil", label: "Perfil", icon: faUser },
-];
+// Início no meio da pílula, como no designs/New Início.png
+const ITENS = [NAV_ITENS.servicos, NAV_ITENS.produtos, NAV_ITENS.inicio, NAV_ITENS.comunidade, NAV_ITENS.perfil];
 
 // Menu inferior flutuante (SKILLHUB_PAGINAS_DESIGN.md, Seção 0): pílula de 405×58 a 12px da base,
-// fundo de vidro só com insets (sem brilho colorido); item ativo no accent #3bd4cc com brilho.
+// item ativo no accent #3bd4cc com brilho. A partir de lg some: a Sidebar assume a navegação.
 export function BottomNav() {
   const pathname = usePathname();
   return (
     <nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-3 z-40 mx-auto flex h-[58px] w-[calc(100%-32px)] max-w-[405px] items-center lg:max-w-[520px] justify-around rounded-full border border-[#b0b0b0]/[0.33] bg-black/35 px-3 backdrop-blur-[3px] shadow-[inset_0_-4px_4px_rgba(0,0,0,0.25),inset_0_4px_4px_rgba(255,255,255,0.10)]"
+      className={cn(
+        "fixed inset-x-0 bottom-3 z-40 mx-auto flex h-[58px] w-[calc(100%-32px)] max-w-[405px] items-center justify-around rounded-full px-3 lg:hidden",
+        NAV_VIDRO
+      )}
     >
       {ITENS.map(({ href, label, icon }) => {
-        const active = pathname === href;
+        const active = rotaAtiva(pathname, href);
         return (
           <Link
             key={href}
