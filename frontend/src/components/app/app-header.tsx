@@ -11,13 +11,14 @@ import { CreditsChip } from "./credits-chip";
 
 // designs/New Início.png: logo 38px, chip de créditos (ver CreditsChip) e engrenagem,
 // que leva para /configuracoes (lá ficam Sair e, em Privacidade e Segurança, Excluir conta).
+// A partir de lg some: logo, créditos e Configurações moram na Sidebar.
 export function AppHeader() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const naConfig = pathname === "/configuracoes";
 
   return (
-    <header className="flex items-center justify-between pt-[15px]">
+    <header className="flex items-center justify-between pt-[15px] lg:hidden">
       <SkillHubLogo size={38} />
 
       <div className="flex items-center gap-[20px]">
