@@ -40,7 +40,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Sidebar />
             {/* pb: espaço pro menu inferior fixo não cobrir o fim do conteúdo (no desktop não há menu inferior) */}
             {/* data-page-exit: afunda/desfoca quando a transição de página cobre a tela; a sidebar fica parada */}
-            <div data-page-exit className="flex flex-1 flex-col">
+            {/* lg:min-w-0: sem isso a coluna cresce até a largura dos carrosséis e a página rola de lado */}
+            <div data-page-exit className="flex flex-1 flex-col lg:min-w-0">
               <PageContainer className="flex-1 pb-[90px] lg:pb-6">
                 <AppHeader />
                 {children}

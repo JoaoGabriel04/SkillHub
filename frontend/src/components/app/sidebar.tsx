@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -24,8 +25,12 @@ const itemClass = (active: boolean) =>
       ? "border-[rgba(59,212,204,0.4)] bg-[rgba(59,212,204,0.12)] text-[#3bd4cc]"
       : "border-transparent text-[rgb(212,233,255)] hover:bg-white/5 hover:text-white"
   );
-const iconClass = (active: boolean) =>
-  cn("w-[22px] shrink-0 text-[20px]", active && "drop-shadow-[0_0_6px_rgba(59,212,204,0.7)]");
+const iconClass = (active: boolean) => cn("text-[20px]", active && "drop-shadow-[0_0_6px_rgba(59,212,204,0.7)]");
+
+// Caixa fixa pros ícones: FontAwesome (1.25em) e Lucide têm larguras diferentes e desalinhariam os rótulos
+function Icone({ children }: { children: ReactNode }) {
+  return <span className="flex w-[25px] shrink-0 justify-center">{children}</span>;
+}
 
 // Navegação do desktop (lg+), designs/New Início - Desktop.png (node 719:131): substitui o menu inferior
 // e o AppHeader. Fica presa à viewport enquanto a página rola; numa tela baixa, a parte de cima rola
@@ -75,7 +80,9 @@ export function Sidebar() {
             const active = rotaAtiva(pathname, href);
             return (
               <Link key={href} href={href} aria-current={active ? "page" : undefined} className={itemClass(active)}>
-                <FontAwesomeIcon icon={icon} className={iconClass(active)} />
+                <Icone>
+                  <FontAwesomeIcon icon={icon} className={iconClass(active)} />
+                </Icone>
                 {label}
               </Link>
             );
@@ -91,11 +98,15 @@ export function Sidebar() {
           aria-current={naConfig ? "page" : undefined}
           className={itemClass(naConfig)}
         >
-          <FontAwesomeIcon icon={faGear} className={iconClass(naConfig)} />
+          <Icone>
+            <FontAwesomeIcon icon={faGear} className={iconClass(naConfig)} />
+          </Icone>
           Configurações
         </Link>
         <button type="button" onClick={sair} className={cn(itemClass(false), "w-full text-left")}>
-          <LogOut aria-hidden className="w-[22px] shrink-0" size={20} />
+          <Icone>
+            <LogOut aria-hidden size={20} />
+          </Icone>
           Sair
         </button>
       </div>
