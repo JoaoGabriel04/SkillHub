@@ -301,6 +301,26 @@ await page.getByPlaceholder("Senha").fill(NOVA_SENHA);
 await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 8000 }).catch(() => {});
 ok("entra com a senha nova", page.url().endsWith("/inicio"), page.url());
 
+// 15b. Desktop (lg+): a sidebar substitui o menu inferior e o header; navega, marca o item ativo e sai por ela
+await page.setViewportSize({ width: 1280, height: 800 });
+await page.goto(B + "/inicio"); await page.getByRole("heading", { name: "SkillHub" }).waitFor();
+const sidebar = page.getByRole("complementary", { name: "Barra lateral" });
+ok("desktop: sidebar visível, menu inferior e header ocultos",
+  (await sidebar.isVisible()) && (await page.locator("nav.fixed").isHidden()) && (await page.locator("header").isHidden()));
+const semRolagemLateral = () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+for (const [label, rota] of [["Serviços", "/servicos"], ["Produtos", "/produtos"], ["Comunidade", "/comunidade"], ["Perfil", "/perfil"], ["Início", "/inicio"], ["Configurações", "/configuracoes"]]) {
+  const link = sidebar.getByRole("link", { name: label, exact: true });
+  await link.click(); await page.waitForURL("**" + rota);
+  ok(`desktop: sidebar leva a ${rota} e marca ${label}`, (await link.getAttribute("aria-current")) === "page" && (await sidebar.locator("[aria-current=page]").count()) === 1);
+  ok(`desktop: ${rota} sem rolagem horizontal`, await semRolagemLateral());
+}
+ok("desktop: créditos da sidebar vêm do usuário", (await sidebar.getByText("Seus créditos").isVisible()) && (await sidebar.getByText("0,00").first().isVisible()));
+await sidebar.getByRole("button", { name: "Sair" }).click(); await page.waitForURL("**/login", { timeout: 8000 }).catch(() => {});
+ok("desktop: Sair da sidebar leva ao login", page.url().endsWith("/login"), page.url());
+await page.setViewportSize({ width: 440, height: 956 });
+await page.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await page.getByPlaceholder("Senha").fill(NOVA_SENHA);
+await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 8000 }).catch(() => {});
+
 // 16. Excluir conta com senha (o Cliente, já com a senha nova), com uma segunda aba aberta
 await page.goto(B + "/perfil"); await page.locator("h1").waitFor();
 ok("Cliente vê só as estatísticas no perfil", (await page.locator("main h2").allTextContents()).join(",") === "Experiências Profissionais");
