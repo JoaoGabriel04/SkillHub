@@ -144,6 +144,8 @@ await page.getByRole("button", { name: "Criar conta" }).click(); await page.wait
 ok("CPF já cadastrado mostra erro do backend", (await alertText()).includes("CPF já cadastrado"), await alertText());
 // 11. retorno de OAuth com erro
 await page.goto(B + "/auth/callback?error=discord_falhou"); await page.waitForURL("**/login**", { timeout: 5000 }).catch(() => {});
+// a mensagem entra "decodificando" (ScrambleText); espera o texto final
+await page.locator("[role=alert]", { hasText: "Discord" }).waitFor({ timeout: 3000 }).catch(() => {});
 ok("callback com erro → /login com aviso", (await alertText()).includes("Discord"), page.url());
 // 12. retorno de OAuth de conta nova → completar perfil como Colaborador
 // o backend grava o refresh_token antes de redirecionar para o callback do front
