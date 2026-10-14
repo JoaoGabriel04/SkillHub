@@ -3,6 +3,7 @@ import { Inter, Jersey_15, Jersey_20, Jersey_25, Poppins } from "next/font/googl
 import { config } from "@fortawesome/fontawesome-svg-core";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import { SessionProvider } from "@/components/auth/session-provider";
+import { PageTransitionProvider } from "@/components/motion/page-transition";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`dark ${inter.variable} ${poppins.variable} ${jersey15.variable} ${jersey20.variable} ${jersey25.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <PageTransitionProvider>{children}</PageTransitionProvider>
+        </SessionProvider>
         <Toaster position="top-center" />
       </body>
     </html>

@@ -35,10 +35,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {ready ? (
         <>
           {/* pb: espaço pro menu inferior fixo não cobrir o fim do conteúdo */}
-          <PageContainer className="flex-1 pb-[90px]">
-            <AppHeader />
-            {children}
-          </PageContainer>
+          {/* data-page-exit: afunda/desfoca quando a transição de página cobre a tela */}
+          <div data-page-exit className="flex flex-1 flex-col">
+            <PageContainer className="flex-1 pb-[90px]">
+              <AppHeader />
+              {children}
+            </PageContainer>
+          </div>
           <BottomNav />
         </>
       ) : (

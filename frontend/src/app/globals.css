@@ -132,3 +132,15 @@
     @apply font-sans;
   }
 }
+/* Splash da transição de páginas (components/motion/page-transition.tsx): o JS assume
+   e desliga isso em menos de 1s. Se o JS falhar, o overlay some sozinho em vez de travar a tela. */
+.page-transition-overlay {
+  animation: page-transition-fallback 0.4s ease 4s forwards;
+}
+@keyframes page-transition-fallback {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
