@@ -9,6 +9,34 @@
 
 ---
 
+## Ajuste pós-16.4 — Switch de tema na sidebar
+
+**Data:** 2026-10-15
+**Status:** Implementado, aguardando conferência visual e PR
+**Branch:** `feat/switch-tema`
+
+Pedido do João Gabriel depois do merge da 16.4: o atalho de tema da sidebar deixa de ser um botão com texto ("Tema claro" / "Tema escuro") e vira um switch compacto e animado, com Sol e Lua.
+
+- **Linha "Tema" da sidebar** (`components/tema/alternar-tema.tsx`): mesma caixa de ícone e alinhamento dos outros itens, com um switch em pílula de 48×26px à direita. É um `role="switch"` com nome acessível "Tema escuro" e `aria-checked` ligado no escuro. Clicar no rótulo também alterna, e a tecla Espaço funciona.
+- **Animação (GSAP):**
+  - O botão ciano desliza até o lado do tema, com Sol à esquerda e Lua à direita.
+  - A bolha estica no caminho e assenta com rebote elástico; os ícones não deformam, porque o esticão é só da bolha.
+  - O ícone que sai gira e encolhe, e o que entra vem girando do outro lado.
+  - No trilho, uma Lua discreta aparece no claro e três estrelas acendem em sequência no escuro.
+  - Com "menos movimento", vai direto ao estado final.
+- Só tokens de cor (o `check-cores` passa).
+- `e2e/fluxos.mjs`: os fluxos do atalho passam a usar o switch, mais um fluxo de clique no rótulo.
+- **Validação:**
+  - `tsc`, `eslint` e `check:cores` verdes.
+  - Quadros da animação capturados a 3x nos dois sentidos e com teclado.
+  - `./e2e/run.sh`: 102/102 em duas de três rodadas. A outra caiu no passo 16 (exclusão de conta, a 440px), esperando o link "Configurações" depois de um login; não se repetiu (ver achado).
+
+### Achado fora de escopo
+
+- O e2e tem um ponto instável. No passo 16, o login com a senha nova usa `waitForURL(...).catch(() => {})`. Se o redirecionamento demora, o erro é engolido e o passo seguinte falha esperando o header. Vale trocar o `catch` silencioso por uma espera que reprove com mensagem clara.
+
+---
+
 ## Fase 16.4 — Infraestrutura do tema claro/escuro
 
 **Data:** 2026-10-15
