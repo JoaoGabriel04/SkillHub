@@ -9,6 +9,91 @@
 
 ---
 
+## Fase 17A — Domínio de Serviços (modelo, API, telas ligadas e seed)
+
+**Data:** 2026-10-15
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/servicos-dominio`
+
+### Contexto
+
+Primeira subfase da Fase 17 do `SKILLHUB_SIDEBAR_E_DOMINIO.md` (plano em `PLANO_17A.md`). Serviços sai do mock: os pedidos passam a existir no banco, com API própria, e a página de Serviços e a seção de Serviços do Início leem a API via SWR, com o mesmo visual.
+
+As datas e relações do modelo já servem aos KPIs da PIBITI:
+- `aceitoEm` e `createdAt` dão a latência de contratação;
+- `concluidoEm` dá o volume de transações.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **Distância:** `null` por enquanto; o card esconde o "à X km".
+- **Botão "Publicar":** na linha do título.
+- **Lista geral:** esconde os próprios pedidos.
+- **"Serviços na sua área":** pedidos de autores da mesma cidade. "Mais próximos" sai do Organizar até existir distância.
+- **Linha "Seus pedidos":** no topo de Serviços.
+- **Filtros de remuneração, prazo e ordem:** continuam no cliente, sobre até 50 pedidos.
+
+### Backend
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261015204933_servico` | Enums `CategoriaServico` e `StatusServico` e model `Servico`, exatamente o da Seção 17A, com índices e com `colaboradorId`, `aceitoEm` e `concluidoEm` já criados. No `User`, só as duas relações inversas. Pedidos do autor caem em cascata; o colaborador vira `null`. Criada com `prisma migrate dev` dentro do container, e as migrations antigas ficaram intactas. |
+| `src/utils/autorResumo.ts` | **Novo.** `toAutorResumo` e o `select` com só `id`, `fullName` e `urlPhoto`: o resto do usuário nem sai do banco nessas consultas. |
+| `src/modules/servico/*` | **Novos.** Schema, repository, service e controller no padrão do módulo `user`, mais o `categoria.map.ts` (único mapa enum ↔ rótulo). |
+| `src/api/routes/servico.route.ts`, `routes/index.ts` | **Rota nova** `/servicos`, com `authenticate`, e o registro dela. |
+| `prisma/seed.ts`, `package.json` (`prisma.seed`) | **Seed de desenvolvimento.** <br>• Cria 8 usuários `seed.*@example.com`, todos com a senha `seed1234`, sem CPF, cidade São Paulo. <br>• Cria os 8 pedidos do antigo mock. <br>• É idempotente e recusa rodar com `NODE_ENV=production`. <br>• Para rodar: `docker compose exec backend npx prisma db seed`. |
+
+**API** (todas as rotas com token):
+
+| Rota | Comportamento |
+|---|---|
+| `GET /servicos` | Só pedidos abertos e sem os do próprio usuário. Filtros `categoria`, `q` (título e descrição, sem diferenciar maiúsculas) e `cidade` (do autor, que não sai na resposta). Paginação por `limit` e `cursor`. |
+| `GET /servicos/meus` | Os pedidos do usuário, em qualquer status. |
+| `GET /servicos/:id` | Detalhe. Um pedido cancelado só aparece para o autor. |
+| `POST /servicos` | Exige perfil completo. |
+| `PATCH /servicos/:id` | Só o autor (403) e só enquanto o pedido está aberto (409). |
+| `DELETE /servicos/:id` | Muda para cancelado e não apaga a linha. Um pedido concluído não cancela (409). |
+
+O `PLATFORM_FEE_PERCENT` ainda não é usado (é da 17C).
+
+### Frontend
+
+| Arquivo | Alteração |
+|---|---|
+| `src/types/servico.ts` | **Novo.** O tipo `Servico`, saído do mock: `distanciaKm` passa a `number \| null` e entra o `status`. Também as categorias e o `AutorResumo`. |
+| `src/lib/servicos.ts` | **Novo.** Cliente da API e chaves do SWR, mais o `revalidarServicos`. Não fica em `lib/api/`, porque o `lib/api.ts` existente tornaria o import ambíguo. |
+| `src/lib/validation/servico.ts` | **Novo.** As mesmas regras do backend para o formulário. |
+| `src/components/app/publicar-servico-dialog.tsx` | **Novo.** Publicar pedido na casca dos modais do Perfil (`ProfileDialog`). |
+| `src/components/app/servico-card-esqueleto.tsx` | **Novo.** Estado "carregando" (`GlassCard`, sem spinner). |
+| `src/app/(app)/servicos/page.tsx` | <br>• **Dados:** SWR sobre a API; categoria, busca (com debounce de 300ms) e cidade vão na requisição. <br>• **Estados:** carregando, vazio e erro com "Tentar de novo". <br>• **Novidades na tela:** botão "Publicar", linha "Seus pedidos" e "Serviços na sua área" pela cidade. |
+| `src/components/app/servico-card.tsx` | Esconde a distância `null`. Em "Seus pedidos", mostra o status no lugar dela. |
+| `src/app/(app)/inicio/servicos-recentes.tsx`, `grade.ts`, `page.tsx` | A seção "Serviços" do Início vira Client Component com SWR (8 pedidos), com o mesmo markup da 16.2. A página continua Server Component. |
+| `e2e/fluxos.mjs` | Seção 15e com 25 fluxos (ver Validação). |
+
+O `lib/mock/servicos.ts` ficou sem uso. A remoção fica para quando os outros mocks forem trocados, porque o `pessoas.ts` ainda serve Produtos e Comunidade.
+
+### Validação
+
+- `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build` e `check:cores` sem erros.
+- **`./e2e/run.sh`: 134/134.** Os 25 fluxos novos cobrem:
+  - **Publicar:** 201, e o autor sai só com id, nome e foto.
+  - **Validação:** 400 nos 5 campos.
+  - **Sem token:** 401.
+  - **Perfil incompleto:** 403.
+  - **Listagem:** o próprio pedido fica de fora; filtros de categoria, busca e cidade; paginação por cursor.
+  - **Detalhe:** 200, e 404 (inclusive com um id que não é UUID).
+  - **Editar e cancelar:** o autor consegue; outro usuário recebe 403 nos dois.
+  - **Cancelado:** fica no banco, sai da lista e dá 404 para os outros; não se edita (409).
+  - **Concluído:** não se cancela (409).
+  - **Exclusão de conta:** apaga os pedidos do autor.
+  - **Tela:** publicar pelo diálogo, "Seus pedidos", busca de outro usuário e o Início com dados do banco.
+- **Mesmo visual com o seed:** a 375, 440, 768 e 1440px, nos dois temas. As diferenças são as previstas: o botão "Publicar", sem "à X km", a ordem por pedidos mais recentes e "Seus pedidos". Os estados de carregando, vazio e erro foram forçados no navegador e capturados, e o "Tentar de novo" recupera a lista.
+
+### Achados fora de escopo
+
+- O `lib/mock/servicos.ts` está sem uso (ver acima).
+- Editar e cancelar o próprio pedido pela tela, e a página de detalhe ("Saiba Mais"), ficam para a 17B; a API já permite editar e cancelar.
+
+---
+
 ## Fase 16.2 — Início em layout desktop
 
 **Data:** 2026-10-15
