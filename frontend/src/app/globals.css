@@ -76,7 +76,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Tema claro: valores provisórios (acertados na tela na 16.5). O tema vem da classe `dark` no <html> (lib/tema.ts) */
+/* Tema claro (acabamento da 16.5). O tema vem da classe `dark` no <html> (lib/tema.ts) */
 :root {
   color-scheme: light;
   --background: #f4f7f7;
@@ -97,13 +97,13 @@
   --success: #137a3f;
   --warning: #8a5a00;
   --border-input: #76837f;
-  --glass-border: color-mix(in srgb, #0f1a19 14%, transparent);
+  --glass-border: color-mix(in srgb, #0f1a19 18%, transparent);
 
-  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-strong-bg: rgba(255, 255, 255, 0.92);
   --glass-strong-border: color-mix(in srgb, #0f1a19 8%, transparent);
   --card-bg: #ffffff;
-  --nav-bg: rgba(255, 255, 255, 0.72);
+  --nav-bg: rgba(255, 255, 255, 0.88);
   --overlay: rgba(15, 26, 25, 0.4);
   --shadow-glass: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
   --shadow-card: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
@@ -118,12 +118,17 @@
   --bg-profile-to: #dfe8e7;
   --curve-from: #b8c3c1;
   --curve-mid: #8f9c9a;
+  /* Brilhos ciano: no claro, suaves (o brilho cheio do escuro vira halo sobre fundo claro) */
+  --glow-active: 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
+  --glow-coin: 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent);
+  --glow-coin-lg: 0 0 10px color-mix(in srgb, var(--accent) 25%, transparent);
+  --glow-line: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent);
+  --glow-logo: 0 0 0 transparent;
 
   /* Marca (decorativa, sem texto por cima; igual nos dois temas) */
   --brand-gradient: linear-gradient(180deg, #29cffe 0%, #3bd4cc 100%);
   --brand-title-gradient: linear-gradient(180deg, #2dbfda 0%, #3bd4cc 55%, #93e7e2 100%);
   --brand-spotlight: radial-gradient(circle, rgba(59, 212, 204, 0.1) 0%, rgba(41, 195, 220, 0.04) 40%, transparent 70%);
-  --glow-logo: 0 0 6px rgba(41, 195, 220, 0.45);
 
   --border: color-mix(in srgb, #0f1a19 10%, transparent);
   --chart-1: oklch(0.87 0 0);
@@ -146,12 +151,6 @@
    (um .dark aninhado, como o das telas de entrada, herdaria o valor claro já resolvido no :root) */
 :root,
 .dark {
-  /* Brilhos ciano (acompanham --accent) */
-  --glow-active: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
-  --glow-coin: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
-  --glow-coin-lg: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
-  --glow-line: 0 0 10px color-mix(in srgb, var(--accent) 80%, transparent);
-
   /* shadcn: aponta para os tokens */
   --card: var(--surface);
   --card-foreground: var(--foreground);
@@ -209,6 +208,11 @@
   --bg-profile-to: #343434;
   --curve-from: #6f6f6f;
   --curve-mid: #9a9a9a;
+  --glow-active: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+  --glow-coin: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+  --glow-coin-lg: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  --glow-line: 0 0 10px color-mix(in srgb, var(--accent) 80%, transparent);
+  --glow-logo: 0 0 6px rgba(41, 195, 220, 0.45);
 
   --border: rgba(255, 255, 255, 0.08);
   --sidebar: oklch(0.205 0 0);
