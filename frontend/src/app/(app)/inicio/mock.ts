@@ -11,7 +11,7 @@ export type Pessoa = { id: string; nome: string };
 export const eventos: Evento[] = [
   {
     id: "e1",
-    titulo: "Novo Evento! 🎉",
+    titulo: "Novo Evento!",
     descricao: "A empresa TechSolutions está lançando agora um curso para desenvolvimento web.",
     cta: "Acesse Já",
     icon: faCode,
@@ -19,7 +19,7 @@ export const eventos: Evento[] = [
   },
   {
     id: "e2",
-    titulo: "Guia essencial 📚",
+    titulo: "Guia essencial",
     descricao: "Como montar o seu portfólio online e conseguir os primeiros clientes na plataforma.",
     cta: "Ler agora",
     icon: faBook,
@@ -27,7 +27,7 @@ export const eventos: Evento[] = [
   },
   {
     id: "e3",
-    titulo: "Maratona Tech 🏆",
+    titulo: "Maratona Tech",
     descricao: "Inscrições abertas para a maratona de projetos. Monte seu time e concorra a créditos.",
     cta: "Inscrever-se",
     icon: faTrophy,
