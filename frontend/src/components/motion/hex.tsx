@@ -20,5 +20,3 @@ export function Hex({
   );
 }
 
-// Tons do degradê do logo, do azul ao verde-água
-export const HEX_COLORS = ["#1a8fe3", "#29c3dc", "#3bd4cc", "#93e7e2"] as const;

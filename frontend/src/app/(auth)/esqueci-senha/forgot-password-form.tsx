@@ -44,25 +44,25 @@ export function ForgotPasswordForm({ initialEmail }: { initialEmail: string }) {
       {sentTo ? (
         // A mensagem não confirma se o e-mail tem conta (o backend também não revela)
         <div role="status" className="mt-[48px] flex w-full max-w-[318px] flex-col items-center text-center">
-          <FontAwesomeIcon icon={faEnvelopeCircleCheck} className="text-[44px] text-accent" />
-          <p className="mt-6 text-[18px] leading-snug text-white">
-            Se houver uma conta com <span className="break-all text-accent">{sentTo}</span>, enviamos um link para
+          <FontAwesomeIcon icon={faEnvelopeCircleCheck} className="text-[44px] text-accent-text" />
+          <p className="mt-6 text-[18px] leading-snug text-foreground">
+            Se houver uma conta com <span className="break-all text-accent-text">{sentTo}</span>, enviamos um link para
             criar uma nova senha.
           </p>
-          <p className="mt-3 text-[15px] leading-snug text-[#8f8f8f]">
+          <p className="mt-3 text-[15px] leading-snug text-muted-foreground">
             O link vale por 30 minutos. Não chegou? Confira a caixa de spam.
           </p>
           <button
             type="button"
             onClick={() => setSentTo(null)}
-            className="mt-6 text-[15px] text-[#8a8a8a] hover:text-white"
+            className="mt-6 text-[15px] text-muted-foreground hover:text-foreground"
           >
             Usar outro e-mail
           </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} noValidate className="mt-[24px] flex w-full max-w-[318px] flex-col">
-          <p className="text-center text-[16px] leading-snug text-[#8f8f8f]">
+          <p className="text-center text-[16px] leading-snug text-muted-foreground">
             Informe o e-mail da sua conta e enviaremos um link para você criar uma nova senha.
           </p>
           <LineInput
@@ -90,7 +90,7 @@ export function ForgotPasswordForm({ initialEmail }: { initialEmail: string }) {
         </form>
       )}
 
-      <Link href="/login" className="mt-[48px] text-[15px] text-accent hover:underline">
+      <Link href="/login" className="mt-[48px] text-[15px] text-accent-text hover:underline">
         Voltar para o login
       </Link>
     </div>

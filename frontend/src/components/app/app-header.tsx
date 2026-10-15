@@ -28,8 +28,8 @@ export function AppHeader() {
           aria-label="Configurações"
           aria-current={naConfig ? "page" : undefined}
           className={cn(
-            "flex rounded-full transition-transform outline-none hover:rotate-45 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-[#101010]",
-            naConfig ? "text-[#3bd4cc]" : "text-white"
+            "flex rounded-full transition-transform outline-none hover:rotate-45 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background",
+            naConfig ? "text-accent-text" : "text-foreground"
           )}
         >
           <FontAwesomeIcon icon={faGear} className="text-[23px]" />

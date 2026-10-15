@@ -33,7 +33,7 @@ export default function Button1({
   }
 
   return (
-    <div ref={ref} className={`${sizeBtn} h-10 p-[1px] bg-zinc-100 ${disabled ? "opacity-50" : ""} ${className}`}>
+    <div ref={ref} className={`${sizeBtn} h-10 p-[1px] bg-foreground ${disabled ? "opacity-50" : ""} ${className}`}>
       <Button
         variant="skillhub"
         onClick={handle}
@@ -41,10 +41,10 @@ export default function Button1({
         disabled={disabled}
         className="group relative w-full h-full p-0 border-0 rounded-none overflow-hidden disabled:opacity-100 cursor-pointer"
       >
-        <span className="font-jersey-25 relative z-10 transition-colors duration-500 group-hover:text-[#101010]">
+        <span className="font-jersey-25 relative z-10 transition-colors duration-500 group-hover:text-background">
           {children}
         </span>
-        <span className="absolute inset-0 bg-zinc-100 scale-x-0 origin-center transition-transform duration-500 group-hover:scale-x-100 pointer-events-none"></span>
+        <span className="absolute inset-0 bg-foreground scale-x-0 origin-center transition-transform duration-500 group-hover:scale-x-100 pointer-events-none"></span>
       </Button>
     </div>
   );

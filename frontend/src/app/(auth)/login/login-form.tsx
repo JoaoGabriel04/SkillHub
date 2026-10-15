@@ -168,19 +168,19 @@ export function LoginForm({ oauthError, notice }: { oauthError: string | null; n
           className="mt-[43px]"
         />
 
-        <div data-row className="mt-[10px] flex items-center justify-between text-[12px] text-[#8a8a8a]">
+        <div data-row className="mt-[10px] flex items-center justify-between text-[12px] text-muted-foreground">
           <label className="flex cursor-pointer items-center gap-[6px]">
             <input
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="size-[10px] cursor-pointer appearance-none border border-[#8a8a8a] checked:border-accent checked:bg-accent"
+              className="size-[10px] cursor-pointer appearance-none border border-field checked:border-accent checked:bg-accent"
             />
             Lembre de mim
           </label>
           <TransitionLink
             href={email.trim() ? `/esqueci-senha?email=${encodeURIComponent(email.trim())}` : "/esqueci-senha"}
-            className="hover:text-white"
+            className="hover:text-foreground"
           >
             Esqueceu a senha?
           </TransitionLink>
@@ -191,7 +191,7 @@ export function LoginForm({ oauthError, notice }: { oauthError: string | null; n
             <FormAlert>{formError}</FormAlert>
           ) : (
             notice && (
-              <p role="status" className="text-center font-jersey-15 text-[15px] text-[#b3b3b3]">
+              <p role="status" className="text-center font-jersey-15 text-[15px] text-foreground-secondary">
                 {notice}
               </p>
             )
@@ -205,16 +205,16 @@ export function LoginForm({ oauthError, notice }: { oauthError: string | null; n
         </div>
       </form>
 
-      <p data-try className="mt-[43px] text-[17px] text-[#8f8f8f]">
+      <p data-try className="mt-[43px] text-[17px] text-muted-foreground">
         Tente também:
       </p>
       <div className="mt-[53px]">
         <SocialButtons />
       </div>
 
-      <p data-footer className="mt-[48px] text-[15px] text-[#8a8a8a]">
+      <p data-footer className="mt-[48px] text-[15px] text-muted-foreground">
         Não tem conta?{" "}
-        <TransitionLink href="/cadastro" className="text-accent hover:underline">
+        <TransitionLink href="/cadastro" className="text-accent-text hover:underline">
           Cadastre-se
         </TransitionLink>
       </p>

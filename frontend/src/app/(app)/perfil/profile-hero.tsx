@@ -53,9 +53,9 @@ export function ProfileHero({ user }: { user: User }) {
         >
           <defs>
             <linearGradient id="curva" x1="0" x2="1">
-              <stop offset="0" stopColor="#6f6f6f" />
-              <stop offset="0.5" stopColor="#9a9a9a" />
-              <stop offset="1" stopColor="#6f6f6f" />
+              <stop offset="0" style={{ stopColor: "var(--curve-from)" }} />
+              <stop offset="0.5" style={{ stopColor: "var(--curve-mid)" }} />
+              <stop offset="1" style={{ stopColor: "var(--curve-from)" }} />
             </linearGradient>
           </defs>
           <path
@@ -68,12 +68,12 @@ export function ProfileHero({ user }: { user: User }) {
         </svg>
 
         <div className="relative">
-          <div className="rounded-full border-[3px] border-[#8f8f8f] bg-[#101010]">
+          <div className="rounded-full border-[3px] border-muted-foreground bg-background">
             <Avatar nome={user.fullName} src={user.urlPhoto} size={134} />
           </div>
           {uploading && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/55">
-              <FontAwesomeIcon icon={faCircleNotch} spin className="text-[28px] text-white" />
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/55">
+              <FontAwesomeIcon icon={faCircleNotch} spin className="text-[28px] text-foreground" />
             </div>
           )}
           <button
@@ -81,7 +81,7 @@ export function ProfileHero({ user }: { user: User }) {
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             aria-label="Trocar foto de perfil"
-            className="absolute right-0 bottom-[3px] flex size-[35px] items-center justify-center rounded-full bg-[#63a6ff] text-white shadow-[0_2px_8px_rgba(0,0,0,0.4)] transition-transform hover:scale-110 disabled:opacity-70"
+            className="absolute right-0 bottom-[3px] flex size-[35px] items-center justify-center rounded-full bg-accent text-accent-foreground shadow-(--shadow-badge) transition-transform hover:scale-110 disabled:opacity-70"
           >
             <FontAwesomeIcon icon={faCamera} className="text-[16px]" />
           </button>
@@ -90,19 +90,19 @@ export function ProfileHero({ user }: { user: User }) {
       </div>
 
       <div className="mt-[64px] flex min-h-[26px] max-w-full items-center justify-center gap-3 px-4">
-        <h1 className="text-center text-[19px] leading-tight font-bold text-white sm:text-[24px] lg:text-[28px]">{user.fullName}</h1>
+        <h1 className="text-center text-[19px] leading-tight font-bold text-foreground sm:text-[24px] lg:text-[28px]">{user.fullName}</h1>
         <button
           type="button"
           onClick={() => setEditOpen(true)}
           aria-label="Editar dados pessoais"
-          className="text-[#8a8a8a] transition-colors hover:text-white"
+          className="text-muted-foreground transition-colors hover:text-foreground"
         >
           <FontAwesomeIcon icon={faPen} className="text-[13px]" />
         </button>
       </div>
-      <p className="mt-[2px] text-[14px] leading-tight text-[#8a8a8a]">{user.perfil}</p>
+      <p className="mt-[2px] text-[14px] leading-tight text-muted-foreground">{user.perfil}</p>
       {error && (
-        <p role="alert" className="mt-2 text-center text-[13px] text-[#ff6b6b]">
+        <p role="alert" className="mt-2 text-center text-[13px] text-danger">
           {error}
         </p>
       )}

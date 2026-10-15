@@ -63,13 +63,13 @@ export function EditQualidadesDialog({ user, open, onOpenChange }: Props) {
       {draft.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
           {draft.map((c) => (
-            <li key={c} className="flex items-center gap-2 rounded-full bg-white/10 py-1 pr-2 pl-3 text-[14px] text-white">
+            <li key={c} className="flex items-center gap-2 rounded-full bg-foreground/10 py-1 pr-2 pl-3 text-[14px] text-foreground">
               {c}
               <button
                 type="button"
                 onClick={() => setDraft((d) => d.filter((x) => x !== c))}
                 aria-label={`Remover ${c}`}
-                className="text-[#b3b3b3] hover:text-white"
+                className="text-foreground-secondary hover:text-foreground"
               >
                 <FontAwesomeIcon icon={faXmark} className="text-[12px]" />
               </button>
@@ -77,9 +77,9 @@ export function EditQualidadesDialog({ user, open, onOpenChange }: Props) {
           ))}
         </ul>
       ) : (
-        <p className="text-[13px] text-[#8a8a8a]">Nenhuma qualidade ainda.</p>
+        <p className="text-[13px] text-muted-foreground">Nenhuma qualidade ainda.</p>
       )}
-      <div className="mt-4 flex items-center gap-3 border-b border-[#a0a0a0] pb-2 focus-within:border-white">
+      <div className="mt-4 flex items-center gap-3 border-b border-field pb-2 focus-within:border-foreground">
         <input
           value={nova}
           onChange={(e) => setNova(e.target.value)}
@@ -88,9 +88,9 @@ export function EditQualidadesDialog({ user, open, onOpenChange }: Props) {
           aria-label="Nova qualidade"
           maxLength={40}
           autoFocus
-          className="min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-[#8a8a8a]"
+          className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
         />
-        <button type="button" onClick={add} aria-label="Adicionar qualidade" className="text-[#3bd4cc] hover:text-white">
+        <button type="button" onClick={add} aria-label="Adicionar qualidade" className="text-accent-text hover:text-foreground">
           <FontAwesomeIcon icon={faPlus} />
         </button>
       </div>

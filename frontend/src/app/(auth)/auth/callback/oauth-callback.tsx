@@ -39,7 +39,7 @@ export function OAuthCallback({ token, needsSetup, error }: Props) {
   return (
     <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col items-center justify-center gap-6">
       <SkillHubLogo size={65} className="animate-pulse" />
-      <p className="text-[17px] text-[#8a8a8a]">Entrando...</p>
+      <p className="text-[17px] text-muted-foreground">Entrando...</p>
     </div>
   );
 }

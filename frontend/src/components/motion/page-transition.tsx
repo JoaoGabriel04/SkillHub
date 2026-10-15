@@ -15,6 +15,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { rotaDoMenu } from "@/components/app/navegacao";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
+import { BRILHO_LOGO_TRANSICAO, COLMEIA_ESCURO, COLMEIA_GRADIENTE, FUNDO_ESCURO, rgbCss } from "@/lib/brand";
 import { gsap, prefersReducedMotion, SCRAMBLE_CHARS, useGSAP } from "@/lib/gsap";
 
 // Transição entre páginas: uma colmeia de hexágonos (os mesmos do logo) cobre a tela
@@ -45,14 +46,9 @@ type TransitionContext = {
 
 const Ctx = createContext<TransitionContext | null>(null);
 
-// Degradê do logo (designs/New Home.png): azul em cima, ciano e verde-água embaixo
-const GRADIENT: [number, [number, number, number]][] = [
-  [0, [26, 143, 227]],
-  [0.5, [41, 195, 220]],
-  [0.78, [59, 212, 204]],
-  [1, [147, 231, 226]],
-];
-const DARK: [number, number, number] = [16, 16, 16];
+// Degradê do logo (designs/New Home.png): azul em cima, ciano e verde-água embaixo; ladrilho no escuro da marca
+const GRADIENT = COLMEIA_GRADIENTE;
+const DARK = COLMEIA_ESCURO;
 const MIN_COVERED_MS = 320; // tempo mínimo com a tela coberta, pro logo não piscar
 const FALLBACK_MS = 6000; // rota que nunca resolve não deixa a tela presa
 
@@ -150,11 +146,11 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
       // ladrilho: escuro, tingido pela cor do logo enquanto a "onda" passa
       const k = g * 0.9;
       hexPath(ctx, c.x, c.y, R * c.s * 1.03);
-      ctx.fillStyle = `rgb(${DARK[0] + (r - DARK[0]) * k},${DARK[1] + (gr - DARK[1]) * k},${DARK[2] + (b - DARK[2]) * k})`;
+      ctx.fillStyle = rgbCss([DARK[0] + (r - DARK[0]) * k, DARK[1] + (gr - DARK[1]) * k, DARK[2] + (b - DARK[2]) * k]);
       ctx.fill();
       // favo interno: contorno fino que acende junto com a onda
       hexPath(ctx, c.x, c.y, R * c.s * 0.82);
-      ctx.strokeStyle = `rgba(${r},${gr},${b},${0.14 + g * 0.75})`;
+      ctx.strokeStyle = rgbCss([r, gr, b], 0.14 + g * 0.75);
       ctx.stroke();
     }
   }, []);
@@ -193,7 +189,7 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
   const startPulse = useCallback(() => {
     pulseRef.current?.kill();
     pulseRef.current = gsap.to(logoRef.current, {
-      filter: "drop-shadow(0 0 22px rgba(59,212,204,0.85))",
+      filter: BRILHO_LOGO_TRANSICAO,
       scale: 1.06,
       duration: 0.7,
       ease: "sine.inOut",
@@ -340,7 +336,7 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
       if (reducedRef.current) {
         gsap.fromTo(
           overlay,
-          { autoAlpha: 0, backgroundColor: "#101010" },
+          { autoAlpha: 0, backgroundColor: FUNDO_ESCURO },
           { autoAlpha: 1, duration: 0.2, onComplete: onCovered }
         );
         return;
@@ -393,13 +389,13 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
       <div
         ref={lineRef}
         aria-hidden
-        className="invisible pointer-events-none fixed top-0 z-[150] h-[2px] bg-accent shadow-[0_0_10px_rgba(59,212,204,0.8)]"
+        className="invisible pointer-events-none fixed top-0 z-[150] h-[2px] bg-accent shadow-(--glow-line)"
       />
       <div
         ref={overlayRef}
         aria-hidden
         // SSR: fundo sólido + logo = splash. Sem JS, o CSS some com ele (globals.css)
-        className="page-transition-overlay fixed inset-0 z-[200] flex items-center justify-center bg-[#101010]"
+        className="page-transition-overlay fixed inset-0 z-[200] flex items-center justify-center bg-background"
         style={{ pointerEvents: phase === "idle" ? "none" : "auto" }}
       >
         <canvas ref={canvasRef} className="absolute inset-0" />

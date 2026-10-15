@@ -313,9 +313,9 @@ export function CadastroFlow({ completar }: { completar: boolean }) {
         </div>
 
         {!completar && (
-          <p data-footer className="mt-8 text-[15px] text-[#8a8a8a] md:text-[17px]">
+          <p data-footer className="mt-8 text-[15px] text-muted-foreground md:text-[17px]">
             Já tem conta?{" "}
-            <TransitionLink href="/login" className="text-accent hover:underline">
+            <TransitionLink href="/login" className="text-accent-text hover:underline">
               Entrar
             </TransitionLink>
           </p>
@@ -336,7 +336,7 @@ export function CadastroFlow({ completar }: { completar: boolean }) {
           data-back
           onClick={backToPerfil}
           aria-label="Voltar para a escolha de perfil"
-          className="absolute top-1/2 left-0 flex -translate-y-1/2 items-center gap-2 p-2 text-[#8a8a8a] hover:text-white"
+          className="absolute top-1/2 left-0 flex -translate-y-1/2 items-center gap-2 p-2 text-muted-foreground hover:text-foreground"
         >
           <FontAwesomeIcon icon={faChevronLeft} className="text-[18px]" />
           <span className="hidden text-[17px] md:inline">Voltar</span>
@@ -349,7 +349,7 @@ export function CadastroFlow({ completar }: { completar: boolean }) {
       <AuthTitle data-title className="mt-[40px] md:mt-10 md:text-[32px]">
         {completar ? "Complete seu cadastro" : "Crie sua conta"}
       </AuthTitle>
-      <p data-perfil className="mt-2 text-[17px] text-accent md:text-[19px]">
+      <p data-perfil className="mt-2 text-[17px] text-accent-text md:text-[19px]">
         {perfil}
       </p>
 
@@ -459,7 +459,7 @@ function FormSection({ title, children }: { title: string; children: ReactNode }
   const id = `secao-${title.toLowerCase().replace(/\W+/g, "-")}`;
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} data-section-title className="mb-6 text-[15px] text-[#8a8a8a] md:mb-8 md:text-[17px]">
+      <h2 id={id} data-section-title className="mb-6 text-[15px] text-muted-foreground md:mb-8 md:text-[17px]">
         {title}
       </h2>
       <div className="grid grid-cols-4 gap-x-5 gap-y-[30px] md:gap-x-10 md:gap-y-9">{children}</div>

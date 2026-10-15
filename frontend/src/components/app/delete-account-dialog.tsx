@@ -46,7 +46,7 @@ export function DeleteAccountDialog({ user, onClose }: { user: User; onClose: ()
   // portal: um ancestral com backdrop-filter prenderia o position:fixed dentro dele
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay px-4"
       onMouseDown={(e) => e.target === e.currentTarget && !submitting && onClose()}
     >
       <GlassCard
@@ -57,24 +57,24 @@ export function DeleteAccountDialog({ user, onClose }: { user: User; onClose: ()
         className="w-full max-w-[400px] p-6"
       >
         <div className="flex items-center gap-3">
-          <FontAwesomeIcon icon={faTriangleExclamation} className="text-[20px] text-[#ff6b6b]" />
-          <h2 id={titleId} className="text-[19px] font-bold text-white">
+          <FontAwesomeIcon icon={faTriangleExclamation} className="text-[20px] text-danger" />
+          <h2 id={titleId} className="text-[19px] font-bold text-foreground">
             Excluir conta
           </h2>
         </div>
 
-        <p className="mt-4 text-[14px] leading-relaxed text-[#c9c9c9]">
-          Esta ação é <strong className="text-white">permanente</strong>. Seu perfil, sua foto, seu currículo e
+        <p className="mt-4 text-[14px] leading-relaxed text-foreground-secondary">
+          Esta ação é <strong className="text-foreground">permanente</strong>. Seu perfil, sua foto, seu currículo e
           seus créditos serão apagados e não poderão ser recuperados.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6">
-          <label className="text-[13px] text-[#9f9f9f]" htmlFor={`${titleId}-input`}>
+          <label className="text-[13px] text-muted-foreground" htmlFor={`${titleId}-input`}>
             {user.hasPassword ? (
               "Digite sua senha para confirmar"
             ) : (
               <>
-                Digite <strong className="text-white">{CONFIRM_WORD}</strong> para confirmar
+                Digite <strong className="text-foreground">{CONFIRM_WORD}</strong> para confirmar
               </>
             )}
           </label>
@@ -97,14 +97,14 @@ export function DeleteAccountDialog({ user, onClose }: { user: User; onClose: ()
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="rounded-[6px] px-4 py-2 text-[#c9c9c9] transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+              className="rounded-[6px] px-4 py-2 text-foreground-secondary transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={!canSubmit || submitting}
-              className="flex items-center gap-2 rounded-[6px] bg-[#d93b3b] px-4 py-2 font-semibold text-white transition-colors hover:bg-[#e54848] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex items-center gap-2 rounded-[6px] bg-danger-fill px-4 py-2 font-semibold text-danger-fill-foreground transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {submitting && <FontAwesomeIcon icon={faCircleNotch} spin />}
               Excluir conta

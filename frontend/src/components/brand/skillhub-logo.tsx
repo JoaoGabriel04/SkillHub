@@ -14,7 +14,7 @@ export function SkillHubLogo({ size, className }: { size: number; className?: st
       sizes={`${size}px`}
       loading="eager"
       style={{ width: size }}
-      className={cn("h-auto drop-shadow-[0_0_6px_rgba(41,195,220,0.45)]", className)}
+      className={cn("h-auto drop-shadow-(--glow-logo)", className)}
     />
   );
 }

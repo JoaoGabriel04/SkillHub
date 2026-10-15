@@ -60,7 +60,7 @@ const openConfig = async () => { await page.getByRole("link", { name: "Configura
 const openPrivacidade = async () => { await openConfig(); await page.getByRole("button", { name: /Privacidade e Segurança/ }).click(); };
 const loggedAs = async (email) => { await page.getByRole("heading", { name: "SkillHub" }).waitFor({ timeout: 8000 }).catch(() => {}); await openPrivacidade(); const ok = await page.getByText(email).isVisible().catch(() => false); await page.keyboard.press("Escape"); return ok; };
 const sair = async () => { await openConfig(); await page.getByRole("button", { name: /^Sair/ }).click(); };
-const errTexts = async () => (await page.locator("p.text-\\[\\#ff6b6b\\]").allTextContents());
+const errTexts = async () => (await page.locator("p.text-danger").allTextContents());
 
 // 1. login vazio
 await page.goto(B + "/login"); await page.getByRole("button", { name: "Entrar", exact: true }).click();

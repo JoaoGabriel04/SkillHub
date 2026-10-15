@@ -3,8 +3,9 @@
 import { useRef } from "react";
 import Button1 from "@/components/Button1";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
-import { Hex, HEX_COLORS } from "@/components/motion/hex";
+import { Hex } from "@/components/motion/hex";
 import { useEntered, usePageTransition } from "@/components/motion/page-transition";
+import { BRILHO_LOGO_HOME, HEX_COLORS } from "@/lib/brand";
 import { gsap, prefersReducedMotion, SCRAMBLE_CHARS, useGSAP } from "@/lib/gsap";
 
 const SWARM = 42; // hexágonos que voam até o centro e "montam" o logo
@@ -91,7 +92,7 @@ export default function HomePage() {
         .to("[data-float-logo]", { y: -9, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: -1 })
         .to(
           "[data-logo]",
-          { filter: "drop-shadow(0 0 18px rgba(59,212,204,0.55))", duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: -1 },
+          { filter: BRILHO_LOGO_HOME, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: -1 },
           "<"
         );
 
@@ -137,7 +138,7 @@ export default function HomePage() {
         <div data-float-logo className="relative">
           {/* ondas de choque */}
           {[0, 1].map((i) => (
-            <div key={i} data-ring className="invisible absolute top-1/2 left-1/2 -translate-1/2 text-accent">
+            <div key={i} data-ring className="invisible absolute top-1/2 left-1/2 -translate-1/2 text-accent-text">
               <Hex size={120} strokeWidth={2} />
             </div>
           ))}
@@ -177,7 +178,7 @@ export default function HomePage() {
         </div>
         <p
           data-title
-          className="invisible mt-[9px] min-h-8 bg-[linear-gradient(180deg,#2dbfda_0%,#3bd4cc_55%,#93e7e2_100%)] bg-clip-text font-jersey-25 text-[32px] leading-none text-transparent"
+          className="invisible mt-[9px] min-h-8 bg-(image:--brand-title-gradient) bg-clip-text font-jersey-25 text-[32px] leading-none text-transparent"
         >
           SkillHub
         </p>

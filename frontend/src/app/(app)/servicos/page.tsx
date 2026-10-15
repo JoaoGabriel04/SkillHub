@@ -105,16 +105,16 @@ export default function ServicosPage() {
       {!servicos ? null : filtrando ? (
         <section className="mt-[20px] sm:mt-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] text-[#d9d9d9] sm:text-[18px] lg:text-[20px]">
+            <h2 className="text-[15px] text-foreground-secondary sm:text-[18px] lg:text-[20px]">
               {soNaArea ? "Serviços na sua área" : "Resultados"}{" "}
-              <span className="text-[#8a8a8a]">({resultados.length})</span>
+              <span className="text-muted-foreground">({resultados.length})</span>
             </h2>
-            <button type="button" onClick={limparFiltros} className="font-secondary text-[12px] text-[#3bd4cc] hover:text-white sm:text-[14px]">
+            <button type="button" onClick={limparFiltros} className="font-secondary text-[12px] text-accent-text hover:text-foreground sm:text-[14px]">
               Limpar filtros
             </button>
           </div>
           {resultados.length === 0 ? (
-            <p className="mt-10 text-center font-secondary text-[13px] text-[#8a8a8a] sm:text-[15px]">Nenhum serviço encontrado.</p>
+            <p className="mt-10 text-center font-secondary text-[13px] text-muted-foreground sm:text-[15px]">Nenhum serviço encontrado.</p>
           ) : (
             <ul className="mt-[18px] grid gap-[17px] sm:grid-cols-2 lg:grid-cols-3">
               {resultados.map((s) => (

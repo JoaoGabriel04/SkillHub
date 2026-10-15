@@ -20,9 +20,9 @@ async function fetchPdf(url: string) {
 function ActionCard({ icon, label, onClick, busy }: { icon: IconDefinition; label: ReactNode; onClick: () => void; busy?: boolean }) {
   return (
     <button type="button" onClick={onClick} disabled={busy} className="group w-full text-left disabled:opacity-70">
-      <ContentCard className="flex h-[45px] items-center gap-4 px-[14px] transition-colors group-hover:bg-white/[0.04]">
-        <FontAwesomeIcon icon={busy ? faCircleNotch : icon} spin={busy} className="w-[22px] text-[18px] text-white" />
-        <span className="text-[16px] font-semibold text-white">{label}</span>
+      <ContentCard className="flex h-[45px] items-center gap-4 px-[14px] transition-colors group-hover:bg-foreground/[0.04]">
+        <FontAwesomeIcon icon={busy ? faCircleNotch : icon} spin={busy} className="w-[22px] text-[18px] text-foreground" />
+        <span className="text-[16px] font-semibold text-foreground">{label}</span>
       </ContentCard>
     </button>
   );
@@ -84,7 +84,7 @@ export function CurriculoSection({ user }: { user: User }) {
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-[13px] text-[#ff6b6b]">
+        <p role="alert" className="mt-2 text-[13px] text-danger">
           {error}
         </p>
       )}

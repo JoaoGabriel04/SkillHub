@@ -10,7 +10,7 @@ import { SkillHubLogo } from "@/components/brand/skillhub-logo";
 import { useAuthStore } from "@/stores/auth-store";
 
 // Área logada: exige sessão e perfil completo.
-// Fundo: #101010 chapado (New Início.png); no Perfil, degradê vertical #101010 → #343434 (Perfil.png).
+// Fundo: --background chapado (New Início.png); no Perfil, degradê vertical --bg-profile-from → --bg-profile-to (Perfil.png).
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,8 +29,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         aria-hidden
         className={
           pathname === "/perfil"
-            ? "fixed inset-0 -z-10 bg-[linear-gradient(180deg,#101010_0%,#343434_100%)]"
-            : "fixed inset-0 -z-10 bg-[#101010]"
+            ? "fixed inset-0 -z-10 bg-[linear-gradient(180deg,var(--bg-profile-from)_0%,var(--bg-profile-to)_100%)]"
+            : "fixed inset-0 -z-10 bg-background"
         }
       />
       {ready ? (

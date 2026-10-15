@@ -1,10 +1,11 @@
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { faBook, faCode, faTrophy } from "@fortawesome/free-solid-svg-icons";
+import type { EventoFundo } from "@/lib/brand";
 
 // ⚠️ DADOS DE EXEMPLO — o backend ainda não tem eventos nem listagem de colaboradores.
 // Serviços e produtos do Início vêm de lib/mock (os mesmos das páginas Serviços e Produtos).
 
-export type Evento = { id: string; titulo: string; descricao: string; cta: string; icon: IconDefinition; cor: string };
+export type Evento = { id: string; titulo: string; descricao: string; cta: string; icon: IconDefinition; fundo: EventoFundo };
 export type Pessoa = { id: string; nome: string };
 
 export const eventos: Evento[] = [
@@ -14,7 +15,7 @@ export const eventos: Evento[] = [
     descricao: "A empresa TechSolutions está lançando agora um curso para desenvolvimento web.",
     cta: "Acesse Já",
     icon: faCode,
-    cor: "from-[#29cffe] to-[#3bd4cc]",
+    fundo: "ciano",
   },
   {
     id: "e2",
@@ -22,7 +23,7 @@ export const eventos: Evento[] = [
     descricao: "Como montar o seu portfólio online e conseguir os primeiros clientes na plataforma.",
     cta: "Ler agora",
     icon: faBook,
-    cor: "from-[#1e3a8a] to-[#2563eb]",
+    fundo: "azul",
   },
   {
     id: "e3",
@@ -30,7 +31,7 @@ export const eventos: Evento[] = [
     descricao: "Inscrições abertas para a maratona de projetos. Monte seu time e concorra a créditos.",
     cta: "Inscrever-se",
     icon: faTrophy,
-    cor: "from-[#b45309] to-[#f59e0b]",
+    fundo: "petroleo",
   },
 ];
 

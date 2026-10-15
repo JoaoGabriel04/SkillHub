@@ -20,13 +20,13 @@ const ITENS = [NAV_ITENS.inicio, NAV_ITENS.servicos, NAV_ITENS.produtos, NAV_ITE
 // ring-inset: a área rolável cortaria um anel por fora
 const itemBase =
   "flex h-11 shrink-0 items-center gap-3 rounded-[12px] border px-4 font-secondary text-[15px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
-const itemInativo = "border-transparent text-[rgb(212,233,255)] hover:bg-white/5 hover:text-white";
-const caixaAtiva = "border-[rgba(59,212,204,0.4)] bg-[rgba(59,212,204,0.12)]";
-const itemClass = (active: boolean) => cn(itemBase, active ? cn(caixaAtiva, "text-[#3bd4cc]") : itemInativo);
+const itemInativo = "border-transparent text-foreground-secondary hover:bg-foreground/5 hover:text-foreground";
+const caixaAtiva = "border-accent-soft-border bg-accent-soft";
+const itemClass = (active: boolean) => cn(itemBase, active ? cn(caixaAtiva, "text-accent-text") : itemInativo);
 // No menu a caixa do ativo é uma peça só ([data-indicator]) que desliza até o item novo
 const navItemClass = (active: boolean) =>
-  cn(itemBase, "relative", active ? "border-transparent text-[#3bd4cc]" : itemInativo);
-const iconClass = (active: boolean) => cn("text-[20px]", active && "drop-shadow-[0_0_6px_rgba(59,212,204,0.7)]");
+  cn(itemBase, "relative", active ? "border-transparent text-accent-text" : itemInativo);
+const iconClass = (active: boolean) => cn("text-[20px]", active && "drop-shadow-(--glow-active)");
 
 // Caixa fixa pros ícones: FontAwesome (1.25em) e Lucide têm larguras diferentes e desalinhariam os rótulos
 function Icone({ children }: { children: ReactNode }) {
@@ -87,23 +87,23 @@ export function Sidebar() {
           className="flex shrink-0 items-center gap-3 rounded-[12px] outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
         >
           <SkillHubLogo size={38} />
-          <span className="text-[22px] font-bold text-white">SkillHub</span>
+          <span className="text-[22px] font-bold text-foreground">SkillHub</span>
         </TransitionLink>
 
         <ContentCard className="shrink-0 px-4 py-3">
-          <p className="font-secondary text-[11px] text-[#9f9f9f]">Seus créditos</p>
+          <p className="font-secondary text-[11px] text-muted-foreground">Seus créditos</p>
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="flex size-[24px] items-center justify-center rounded-full bg-accent-gradient shadow-[0_0_10px_rgba(59,212,204,0.45)]">
-              <FontAwesomeIcon icon={faCoins} className="text-[12px] text-[#101010]" />
+            <span className="flex size-[24px] items-center justify-center rounded-full bg-accent-gradient shadow-(--glow-coin)">
+              <FontAwesomeIcon icon={faCoins} className="text-[12px] text-accent-foreground" />
             </span>
-            <span aria-hidden className="font-jersey-15 text-[24px] leading-none text-white tabular-nums">
+            <span aria-hidden className="font-jersey-15 text-[24px] leading-none text-foreground tabular-nums">
               {formatCredits(shown)}
             </span>
             <span className="sr-only">{formatCredits(credits)}</span>
           </div>
         </ContentCard>
 
-        <p className="shrink-0 font-secondary text-[11px] font-medium tracking-[0.12em] text-[#9f9f9f]">MENU</p>
+        <p className="shrink-0 font-secondary text-[11px] font-medium tracking-[0.12em] text-muted-foreground">MENU</p>
 
         <nav ref={navRef} aria-label="Navegação principal" className="relative flex flex-col gap-1">
           <span aria-hidden data-indicator className={cn("invisible absolute inset-x-0 top-0 rounded-[12px] border", caixaAtiva)} />
@@ -121,7 +121,7 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div className="mt-5 h-px shrink-0 bg-white/10" />
+      <div className="mt-5 h-px shrink-0 bg-foreground/10" />
 
       <div className="mt-5 flex shrink-0 flex-col gap-1">
         <TransitionLink

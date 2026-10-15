@@ -6,6 +6,8 @@
 
 ## 1. Paleta
 
+> **Substituída pela Seção 8 (Fase 16.3).** Os valores abaixo ficam como registro da amostragem dos mockups; os tokens em uso estão na Seção 8.
+
 | Token | Valor | Uso |
 |---|---|---|
 | `--bg-base` | `#1a1a1a` → `#222222` (gradiente radial sutil) | Fundo de toda a aplicação |
@@ -56,6 +58,8 @@ shadow-[inset_0_4px_4px_rgba(255,255,255,0.10),inset_0_-4px_4px_rgba(0,0,0,0.25)
 Vale extrair isso pra uma classe utilitária própria (`.glass-card` no CSS global, ou um componente `GlassCard` no React) em vez de repetir essa string longa em cada elemento — é o tipo de coisa que o Claude Code deve centralizar num só lugar.
 
 ### 2.2. Vidro escuro (menu inferior)
+
+> **Substituída pela Seção 8 (Fase 16.3).** O menu inferior e a sidebar usam o vidro `NAV_VIDRO` (`bg-nav`, preto a 35%, com `--shadow-glass`); o valor abaixo virou `--glass-strong-bg` e vale para popovers, diálogos e toasts.
 Flutuante, fixo na base, pill/rounded, quase opaco mas com blur do conteúdo atrás.
 
 ```css
@@ -91,8 +95,8 @@ Jersey é carregada via Google Fonts (`Jersey+15`, `Jersey+20`, `Jersey+25` — 
 - **Input (login/cadastro):** sem caixa, só `border-bottom: 1px solid var(--text-secondary)`, fundo transparente, ícone à direita (usuário, cadeado), placeholder em `--text-secondary`.
 - **Botão primário:** fundo transparente com borda branca fina (`Entrar`) OU preenchido em `--accent` (`Saiba Mais`) — dois estilos coexistem; usar preenchido para CTA principal de card, contornado para ações de formulário.
 - **Botões de login social:** círculo/retângulo com o ícone da marca (Google, Discord) sobre fundo claro ou escuro conforme a marca original do provedor — não recolorir os ícones oficiais.
-- **Card de seleção de perfil (Cadastro):** ícone circular grande centralizado, label abaixo, borda azul + badge de check no canto quando selecionado, borda cinza neutra quando não selecionado.
-- **Avatar com edição:** foto circular, badge circular menor sobreposto no canto inferior direito com ícone de câmera, fundo azul/accent.
+- **Card de seleção de perfil (Cadastro):** ícone circular grande centralizado, label abaixo, borda azul + badge de check no canto quando selecionado, borda cinza neutra quando não selecionado. *(Fase 16.3: o selecionado passa a usar o ciano da marca, ver Seção 8.)*
+- **Avatar com edição:** foto circular, badge circular menor sobreposto no canto inferior direito com ícone de câmera, fundo azul/accent. *(Fase 16.3: fundo `accent` com ícone `accent-foreground`.)*
 - **Chip de créditos:** pill pequeno no header, ícone de moeda + valor numérico, fundo `--surface`.
 - **Carrossel (Início):** cards largura quase total, dots de paginação centralizados abaixo.
 - **Avatares em linha (Colaboradores Relevantes):** círculos sobrepostos/lado a lado, "Ver mais..." ao final da linha.
@@ -122,6 +126,8 @@ Jersey é carregada via Google Fonts (`Jersey+15`, `Jersey+20`, `Jersey+25` — 
 ---
 
 ## 6. Tailwind — extensão sugerida (`tailwind.config.ts`)
+
+> **Substituída pela Seção 8 (Fase 16.3)** no que é cor: o bloco `colors` saiu do `tailwind.config.mts` e as cores vêm do `@theme inline` do `globals.css`. Fontes e `accent-gradient` continuam no config.
 
 ```ts
 export default {
@@ -155,3 +161,56 @@ export default {
 ## 7. Observação sobre os provedores de login social
 
 Confirmado: **Google e Discord**, como já implementado no backend. O mockup de Login mostrando Facebook/LinkedIn era desatualizado — ignorar esses dois ícones ao construir a tela real.
+
+---
+
+## 8. Paleta e regra de cor (Fase 16.3)
+
+> Fonte da verdade dos valores: `frontend/scripts/check-contrast.mjs` (`npm run check:contrast`). Os tokens moram em `frontend/src/app/globals.css`, e `npm run check:cores` reprova se divergirem do script ou se aparecer cor escrita à mão em `src/`.
+
+### 8.1. A regra
+
+1. **Uma única cor de ação: o ciano da marca `#3bd4cc`.** Botão principal, link, item ativo, anel de foco e destaque. Não há verde, laranja, roxo, amarelo ou azul puro de ação.
+2. **Texto sobre ciano é sempre escuro** (`accent-foreground`, `#08201e`, 9,29:1). **Nunca branco sobre ciano.**
+3. **Ciano como texto ou ícone usa `accent-text`**, que no claro é o ciano escuro `#0a736e` (o ciano puro tem 1,8:1 sobre branco). `accent` é preenchimento.
+4. **Três níveis de texto:** `foreground` (principal), `foreground-secondary` (descrições), `muted-foreground` (rótulos, placeholders).
+5. **Vermelho, verde e âmbar só para estado** (`danger`, `success`, `warning`), nunca decoração nem botão comum.
+6. **Cor nunca diz sozinha:** estado também aparece em texto ou ícone.
+7. **Nenhuma cor escrita à mão nos componentes.** Nem `#hex`, nem `rgb()`, nem classes da paleta fixa do Tailwind (`text-white`, `bg-black/35`...). Tudo sai de um token. As únicas exceções são o `globals.css` e o `src/lib/brand.ts` (cores de marca usadas em JavaScript: colmeia, brilhos do GSAP, avatares, blocos dos eventos).
+
+### 8.2. Tokens
+
+| Token | Classe | Escuro | Claro (provisório até a 16.5) | Uso |
+|---|---|---|---|---|
+| `--background` | `bg-background` | `#101010` | `#f4f7f7` | fundo da página |
+| `--surface` | `bg-surface` | `#0c0c0c` | `#ffffff` | cards sólidos |
+| `--surface-2` | `bg-surface-2` | `#1b1b1b` | `#e9efee` | superfícies elevadas, faixas |
+| `--foreground` | `text-foreground` | `#f2f4f4` | `#0f1a19` | texto principal |
+| `--foreground-secondary` | `text-foreground-secondary` | `#b8c0bf` | `#3f4f4d` | texto secundário |
+| `--muted-foreground` | `text-muted-foreground` | `#8f9897` | `#5a6866` | texto discreto |
+| `--accent` | `bg-accent` | `#3bd4cc` | `#3bd4cc` | preenchimento do botão principal |
+| `--accent-foreground` | `text-accent-foreground` | `#08201e` | `#08201e` | texto sobre `accent` |
+| `--accent-hover` | `hover:bg-accent-hover` | `#62e0d9` | `#62e0d9` | hover do botão principal |
+| `--accent-text` | `text-accent-text` | `#3bd4cc` | `#0a736e` | texto, link, ícone e item ativo |
+| `--accent-soft` | `bg-accent-soft` | ciano a 12% | ciano a 16% | fundo do item ativo |
+| `--accent-soft-border` | `border-accent-soft-border` | ciano a 40% | `#0a736e` a 40% | borda do item ativo |
+| `--danger` | `text-danger` | `#ff7b7b` | `#b3261e` | erro em texto |
+| `--danger-fill` | `bg-danger-fill` | `#c62f2f` | `#c62f2f` | botão perigoso |
+| `--danger-fill-foreground` | `text-danger-fill-foreground` | `#ffffff` | `#ffffff` | texto do botão perigoso |
+| `--success` | `text-success` | `#4ade80` | `#137a3f` | sucesso em texto |
+| `--warning` | `text-warning` | `#f5b942` | `#8a5a00` | aviso em texto |
+| `--border-input` | `border-field`, `bg-field` | `#6b7574` | `#76837f` | linha de campo (mínimo 3:1) |
+| `--glass-border` | `border-glass-border` | `#b0b0b0` a 33% | `#0f1a19` a 14% | borda de cards e menus de vidro |
+
+Vidros, sombras e fundos (valores escuros iguais aos de antes da 16.3): `bg-glass` (vidro claro do `GlassCard`), `bg-glass-strong` e `border-glass-strong-border` (vidro escuro: popovers, diálogos, toasts), `bg-card-fill` (`ContentCard`), `bg-nav` (`NAV_VIDRO`), `bg-overlay` (fundo dos diálogos); sombras por variável com `shadow-(--shadow-glass)`, `--shadow-card`, `--shadow-cta`, `--shadow-popover`, `--shadow-raised`, `--shadow-badge`, `--shadow-check`; brilhos ciano `drop-shadow-(--glow-active)`, `shadow-(--glow-coin)`, `--glow-coin-lg`, `--glow-line`; fundos `--bg-gradient-from/to` (body), `--bg-profile-from/to` (Perfil) e `--curve-from/mid` (curva do Perfil). Marca: `--brand-gradient` (`bg-accent-gradient`), `--brand-title-gradient`, `--brand-spotlight`, `--glow-logo`.
+
+As variáveis do shadcn (`--primary`, `--ring`, `--card`, `--popover`, `--destructive`, `--input`...) apontam para esses tokens, então os componentes `ui/` herdam a paleta.
+
+### 8.3. Botão principal
+
+Um só: `CtaButton` / `ctaButtonClass` (`bg-accent text-accent-foreground hover:bg-accent-hover`, 12px no celular e 13px a partir de `lg`). "Saiba Mais", os botões dos eventos do Início e o dos banners de Produtos usam essa classe. Os botões dos diálogos do Perfil usam os mesmos tokens com o tamanho deles.
+
+### 8.4. Avatares
+
+Iniciais brancas sobre `#2f6f8f`, `#8f5a2f`, `#4a5a8f`, `#7c4a8f`, `#8f2f4a` ou `#2a7553` (todas com 4,5:1 ou mais), em `src/lib/brand.ts`.
+

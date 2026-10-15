@@ -8,7 +8,7 @@ import { gsap, prefersReducedMotion, useGSAP } from "@/lib/gsap";
 import { cn } from "@/lib/utils";
 
 // Card de seleção de perfil (designs/Cadastro.png): 175×200, círculo de 77px,
-// selecionado = borda/texto azul #0015ff, círculo preenchido e selo de check.
+// selecionado = borda e texto no ciano da marca, círculo preenchido de ciano e selo de check.
 // A partir de md cresce pra 230×260 (telas maiores têm espaço de sobra).
 // Animações: inclina em 3D seguindo o mouse; ao ser escolhido dá um "soco" elástico,
 // o selo de check gira pra dentro, o ícone balança e um anel azul se expande do círculo.
@@ -70,16 +70,16 @@ export function ProfileCard({ label, icon, selected, onSelect, disabled = false,
       disabled={disabled}
       onClick={onSelect}
       className={cn(
-        "relative flex h-[200px] w-full max-w-[175px] flex-col items-center overflow-hidden rounded-[4px] bg-[#101010] transition-colors md:h-[260px] md:max-w-[230px]",
+        "relative flex h-[200px] w-full max-w-[175px] flex-col items-center overflow-hidden rounded-[4px] bg-background transition-colors md:h-[260px] md:max-w-[230px]",
         disabled
-          ? "cursor-not-allowed border-2 border-[#4a4a4a]"
+          ? "cursor-not-allowed border-2 border-glass-border"
           : selected
-            ? "border-2 border-[#0015ff]"
-            : "border-2 border-[#e3e3e3] hover:border-white"
+            ? "border-2 border-accent"
+            : "border-2 border-foreground"
       )}
     >
       {ribbon && (
-        <span data-ribbon className="absolute top-[26px] -right-[42px] z-10 w-[170px] rotate-45 bg-accent py-[3px] text-center font-jersey-15 text-[14px] text-[#101010] shadow-[0_2px_6px_rgba(0,0,0,0.5)] md:top-[30px] md:-right-[40px] md:text-[16px]">
+        <span data-ribbon className="absolute top-[26px] -right-[42px] z-10 w-[170px] rotate-45 bg-accent py-[3px] text-center font-jersey-15 text-[14px] text-accent-foreground shadow-(--shadow-check) md:top-[30px] md:-right-[40px] md:text-[16px]">
           {ribbon}
         </span>
       )}
@@ -88,7 +88,7 @@ export function ProfileCard({ label, icon, selected, onSelect, disabled = false,
         data-check
         className={cn(
           "absolute top-[5px] right-[5px] flex size-5 items-center justify-center rounded-full border-2 md:top-2 md:right-2 md:size-6",
-          selected ? "border-[#0015ff] bg-[#e3e3e3] text-[#0015ff]" : "border-[#e3e3e3]",
+          selected ? "border-accent bg-accent text-accent-foreground" : "border-foreground",
           disabled && "hidden"
         )}
       >
@@ -98,11 +98,11 @@ export function ProfileCard({ label, icon, selected, onSelect, disabled = false,
       <span
         className={cn(
           "relative mt-[46px] flex size-[77px] items-center justify-center rounded-full border-2 md:mt-[58px] md:size-[100px]",
-          selected ? "border-[#0015ff] bg-[#e3e3e3] text-[#0015ff]" : "border-[#e3e3e3] text-[#e3e3e3]",
+          selected ? "border-accent bg-accent text-accent-foreground" : "border-foreground text-foreground",
           disabled && "opacity-35"
         )}
       >
-        <span data-pulse aria-hidden className="invisible absolute -inset-[2px] rounded-full border-2 border-[#0015ff]" />
+        <span data-pulse aria-hidden className="invisible absolute -inset-[2px] rounded-full border-2 border-accent" />
         <span data-profile-icon className="flex">
           <FontAwesomeIcon icon={icon} className="text-[28px] md:text-[36px]" />
         </span>
@@ -110,7 +110,7 @@ export function ProfileCard({ label, icon, selected, onSelect, disabled = false,
 
       <span className={cn(
           "mt-[25px] font-jersey-15 text-[17px] md:mt-[30px] md:text-[21px]",
-          selected ? "text-[#0015ff]" : "text-white",
+          selected ? "text-accent-text" : "text-foreground",
           disabled && "opacity-35"
         )}>
         {label}

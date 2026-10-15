@@ -57,8 +57,8 @@ export default function ComunidadePage() {
           <button key={t} type="button" aria-pressed={tag === t} onClick={() => setTag(tag === t ? null : t)} className="shrink-0">
             <GlassCard
               className={cn(
-                "flex h-[29px] items-center rounded-[5px] px-[10px] text-[15px] text-[#d9d9d9] transition-colors hover:text-white sm:h-[34px] sm:px-3 lg:h-9 lg:text-[16px]",
-                tag === t && "border-[#3bd4cc]/70 text-white"
+                "flex h-[29px] items-center rounded-[5px] px-[10px] text-[15px] text-foreground-secondary transition-colors hover:text-foreground sm:h-[34px] sm:px-3 lg:h-9 lg:text-[16px]",
+                tag === t && "border-accent/70 text-foreground"
               )}
             >
               {t}
@@ -68,7 +68,7 @@ export default function ComunidadePage() {
       </ChipRow>
 
       {postagens && visiveis.length === 0 && (
-        <p className="mt-12 text-center font-secondary text-[13px] text-[#8a8a8a] sm:text-[15px]">Nenhuma postagem encontrada.</p>
+        <p className="mt-12 text-center font-secondary text-[13px] text-muted-foreground sm:text-[15px]">Nenhuma postagem encontrada.</p>
       )}
 
       {feed.length > 0 && (
@@ -77,7 +77,7 @@ export default function ComunidadePage() {
           <div className="mt-[10px] grid gap-[12px] sm:mt-4">
             {feed.map((p) => (
               <ContentCard key={p.id} className="flex flex-col gap-[14px] px-[12px] pt-[12px] pb-[10px] sm:gap-4 sm:p-5">
-                <p className="font-secondary text-[12px] leading-[1.35] text-[#d9d9d9] sm:text-[14px] lg:text-[15px]">{p.conteudo}</p>
+                <p className="font-secondary text-[12px] leading-[1.35] text-foreground-secondary sm:text-[14px] lg:text-[15px]">{p.conteudo}</p>
                 <Avatar nome={p.autor.fullName} src={p.autor.urlPhoto} size={30} className="sm:size-10!" />
               </ContentCard>
             ))}
@@ -93,8 +93,8 @@ export default function ComunidadePage() {
               {duvidas.map((p) => (
                 <li key={p.id}>
                   <ContentCard className="px-[6px] pt-[5px] pb-[4px] font-secondary sm:px-3 sm:py-2.5">
-                    <h3 className="line-clamp-2 text-[11px] leading-[1.3] font-semibold text-white sm:text-[14px] lg:text-[15px]">{p.titulo}</h3>
-                    <p className="mt-[3px] flex justify-between gap-2 text-[8px] text-[#8a8a8a] sm:mt-1 sm:text-[11px] lg:text-[12px]">
+                    <h3 className="line-clamp-2 text-[11px] leading-[1.3] font-semibold text-foreground sm:text-[14px] lg:text-[15px]">{p.titulo}</h3>
+                    <p className="mt-[3px] flex justify-between gap-2 text-[8px] text-muted-foreground sm:mt-1 sm:text-[11px] lg:text-[12px]">
                       <span className="truncate">{p.autor.fullName}</span>
                       <span className="shrink-0">{haQuanto(p.createdAt)}</span>
                     </p>
@@ -109,9 +109,9 @@ export default function ComunidadePage() {
               {eventos.map((p) => (
                 <li key={p.id}>
                   <ContentCard className="flex h-[22px] items-center gap-[6px] px-[10px] font-secondary sm:h-9 sm:gap-2.5 sm:px-3.5">
-                    <span aria-hidden className="size-[4px] shrink-0 rounded-full bg-white sm:size-[6px]" />
-                    <h3 className="min-w-0 flex-1 truncate text-[11px] font-semibold text-white sm:text-[14px] lg:text-[15px]">{p.titulo}</h3>
-                    {p.dataEvento && <time dateTime={p.dataEvento} className="shrink-0 text-[8px] text-white sm:text-[12px]">{formatData(p.dataEvento)}</time>}
+                    <span aria-hidden className="size-[4px] shrink-0 rounded-full bg-foreground sm:size-[6px]" />
+                    <h3 className="min-w-0 flex-1 truncate text-[11px] font-semibold text-foreground sm:text-[14px] lg:text-[15px]">{p.titulo}</h3>
+                    {p.dataEvento && <time dateTime={p.dataEvento} className="shrink-0 text-[8px] text-foreground sm:text-[12px]">{formatData(p.dataEvento)}</time>}
                   </ContentCard>
                 </li>
               ))}
@@ -128,9 +128,9 @@ export default function ComunidadePage() {
               <ContentCard key={p.id} className="px-[18px] pt-[8px] pb-[12px] font-secondary sm:px-6 sm:pt-4 sm:pb-5">
                 <div className="flex items-center gap-[8px]">
                   <Avatar nome={p.autor.fullName} src={p.autor.urlPhoto} size={38} className="sm:size-12!" />
-                  <h3 className="text-[14px] font-semibold text-white sm:text-[17px] lg:text-[18px]">{p.titulo}</h3>
+                  <h3 className="text-[14px] font-semibold text-foreground sm:text-[17px] lg:text-[18px]">{p.titulo}</h3>
                 </div>
-                <p className="mt-[10px] line-clamp-4 text-[12px] leading-[1.35] text-[#d9d9d9] sm:mt-3 sm:text-[14px] lg:text-[15px]">{p.conteudo}</p>
+                <p className="mt-[10px] line-clamp-4 text-[12px] leading-[1.35] text-foreground-secondary sm:mt-3 sm:text-[14px] lg:text-[15px]">{p.conteudo}</p>
               </ContentCard>
             ))}
           </div>

@@ -13,9 +13,9 @@ export function GlassCard({ variant = "light", className, ...props }: GlassCardP
     <div
       className={cn(
         variant === "light" &&
-          "rounded-[16px] backdrop-blur-[16px] bg-[#595959]/15 border border-[#B0B0B0]/[0.33] shadow-[inset_0_4px_4px_rgba(255,255,255,0.10),inset_0_-4px_4px_rgba(0,0,0,0.25)]",
+          "rounded-[16px] backdrop-blur-[16px] bg-glass border border-glass-border shadow-(--shadow-glass)",
         variant === "dark" &&
-          "rounded-[24px] backdrop-blur-[20px] bg-[rgba(28,28,28,0.92)] border border-[rgba(255,255,255,0.06)] shadow-[0_8px_32px_rgba(0,0,0,0.4)]",
+          "rounded-[24px] backdrop-blur-[20px] bg-glass-strong border border-glass-strong-border shadow-(--shadow-popover)",
         className
       )}
       {...props}

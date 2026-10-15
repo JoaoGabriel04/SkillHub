@@ -62,7 +62,7 @@ export function ScrollRow({ children, dots = false, className, label }: ScrollRo
               aria-label={`Ir para o item ${i + 1}`}
               aria-current={i === active}
               onClick={() => goTo(i)}
-              className={cn("size-[7px] rounded-full transition-colors", i === active ? "bg-white" : "bg-[#5a5a5a]")}
+              className={cn("size-[7px] rounded-full transition-colors", i === active ? "bg-foreground" : "bg-field")}
             />
           ))}
         </div>
