@@ -6,6 +6,7 @@ import { faCoins, faGear } from "@fortawesome/free-solid-svg-icons";
 import { LogOut } from "lucide-react";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
 import { TransitionLink, useNavPathname } from "@/components/motion/page-transition";
+import { AlternarTema } from "@/components/tema/alternar-tema";
 import { ContentCard } from "@/components/ui/content-card";
 import { useLogout } from "@/hooks/use-logout";
 import { gsap, prefersReducedMotion, useGSAP } from "@/lib/gsap";
@@ -134,6 +135,7 @@ export function Sidebar() {
           </Icone>
           Configurações
         </TransitionLink>
+        <AlternarTema className={cn(itemClass(false), "w-full text-left")} Icone={Icone} />
         <button type="button" onClick={(e) => sair(e.currentTarget)} className={cn(itemClass(false), "w-full text-left")}>
           <Icone>
             <LogOut aria-hidden size={20} />
