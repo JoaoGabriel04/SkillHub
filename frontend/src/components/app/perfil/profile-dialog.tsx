@@ -71,7 +71,7 @@ export function DialogField({ label, className, ...props }: InputHTMLAttributes<
     <label className={cn("block", className)}>
       <span className="text-[12px] text-muted-foreground">{label}</span>
       <input
-        className="mt-1 w-full border-b border-field bg-transparent pb-2 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground [color-scheme:dark]"
+        className="mt-1 w-full border-b border-field bg-transparent pb-2 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground"
         {...props}
       />
     </label>

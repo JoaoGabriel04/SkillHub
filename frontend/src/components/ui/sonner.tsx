@@ -2,12 +2,14 @@
 
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { useTema } from "@/components/tema/tema-provider"
 
-// Tema fixo "dark": o design system só tem tema escuro (sem next-themes).
+// Segue o tema aplicado (TemaProvider); as cores vêm dos tokens de vidro
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { tema } = useTema()
   return (
     <Sonner
-      theme="dark"
+      theme={tema === "escuro" ? "dark" : "light"}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

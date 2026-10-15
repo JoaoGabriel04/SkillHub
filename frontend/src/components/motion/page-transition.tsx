@@ -395,7 +395,8 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
         ref={overlayRef}
         aria-hidden
         // SSR: fundo sólido + logo = splash. Sem JS, o CSS some com ele (globals.css)
-        className="page-transition-overlay fixed inset-0 z-[200] flex items-center justify-center bg-background"
+        // `dark`: a colmeia é sempre escura, nos dois temas (o canvas desenha ladrilhos escuros)
+        className="page-transition-overlay dark fixed inset-0 z-[200] flex items-center justify-center bg-background"
         style={{ pointerEvents: phase === "idle" ? "none" : "auto" }}
       >
         <canvas ref={canvasRef} className="absolute inset-0" />

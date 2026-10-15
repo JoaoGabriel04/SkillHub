@@ -76,8 +76,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Tema claro: valores provisórios (o tema continua fixo em escuro; acertados na tela na 16.5) */
+/* Tema claro: valores provisórios (acertados na tela na 16.5). O tema vem da classe `dark` no <html> (lib/tema.ts) */
 :root {
+  color-scheme: light;
   --background: #f4f7f7;
   --surface: #ffffff;
   --surface-2: #e9efee;
@@ -118,32 +119,13 @@
   --curve-from: #b8c3c1;
   --curve-mid: #8f9c9a;
 
-  /* Brilhos ciano (acompanham --accent) */
-  --glow-active: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
-  --glow-coin: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
-  --glow-coin-lg: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
-  --glow-line: 0 0 10px color-mix(in srgb, var(--accent) 80%, transparent);
-
   /* Marca (decorativa, sem texto por cima; igual nos dois temas) */
   --brand-gradient: linear-gradient(180deg, #29cffe 0%, #3bd4cc 100%);
   --brand-title-gradient: linear-gradient(180deg, #2dbfda 0%, #3bd4cc 55%, #93e7e2 100%);
   --brand-spotlight: radial-gradient(circle, rgba(59, 212, 204, 0.1) 0%, rgba(41, 195, 220, 0.04) 40%, transparent 70%);
   --glow-logo: 0 0 6px rgba(41, 195, 220, 0.45);
 
-  /* shadcn: aponta para os tokens acima */
-  --card: var(--surface);
-  --card-foreground: var(--foreground);
-  --popover: var(--surface-2);
-  --popover-foreground: var(--foreground);
-  --primary: var(--accent);
-  --primary-foreground: var(--accent-foreground);
-  --secondary: var(--surface-2);
-  --secondary-foreground: var(--foreground);
-  --muted: var(--surface-2);
-  --destructive: var(--danger);
   --border: color-mix(in srgb, #0f1a19 10%, transparent);
-  --input: var(--border-input);
-  --ring: var(--accent);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -160,8 +142,34 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Tema escuro (o único em uso). Vidros, sombras e fundos com os valores de antes da 16.3. */
+/* Derivados dos tokens: declarados nos dois seletores para serem recalculados em cada elemento .dark
+   (um .dark aninhado, como o das telas de entrada, herdaria o valor claro já resolvido no :root) */
+:root,
 .dark {
+  /* Brilhos ciano (acompanham --accent) */
+  --glow-active: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+  --glow-coin: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+  --glow-coin-lg: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  --glow-line: 0 0 10px color-mix(in srgb, var(--accent) 80%, transparent);
+
+  /* shadcn: aponta para os tokens */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --destructive: var(--danger);
+  --input: var(--border-input);
+  --ring: var(--accent);
+}
+
+/* Tema escuro (o padrão). Vidros, sombras e fundos com os valores de antes da 16.3. */
+.dark {
+  color-scheme: dark;
   --background: #101010;
   --surface: #0c0c0c;
   --surface-2: #1b1b1b;

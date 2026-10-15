@@ -19,6 +19,9 @@ export const COLMEIA_GRADIENTE: [number, Rgb][] = [
 export const COLMEIA_ESCURO: Rgb = [16, 16, 16];
 export const FUNDO_ESCURO = "#101010";
 
+// Cor da barra do navegador (meta theme-color) por tema: o --background de cada um (check-cores.mjs confere)
+export const COR_BARRA = { escuro: "#101010", claro: "#f4f7f7" } as const;
+
 // Brilhos animados pelo GSAP (filter)
 export const BRILHO_LOGO_TRANSICAO = "drop-shadow(0 0 22px rgba(59,212,204,0.85))";
 export const BRILHO_LOGO_HOME = "drop-shadow(0 0 18px rgba(59,212,204,0.55))";
