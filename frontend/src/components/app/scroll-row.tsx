@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 // tela (o próximo card "espia" pela direita, como no mockup); a partir de sm fica dentro da coluna.
 // Rola por touch/trackpad e, com o mouse, clicando e arrastando (useDragScroll).
 // dots: bolinhas de paginação — só aparecem quando há o que rolar.
-type ScrollRowProps = { children: ReactNode; dots?: boolean; className?: string; label: string };
+// trilhaClassName: classes extras da trilha (o Início a transforma em grade a partir de xl).
+type ScrollRowProps = { children: ReactNode; dots?: boolean; className?: string; trilhaClassName?: string; label: string };
 
-export function ScrollRow({ children, dots = false, className, label }: ScrollRowProps) {
+export function ScrollRow({ children, dots = false, className, trilhaClassName, label }: ScrollRowProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [scrollable, setScrollable] = useState(false);
@@ -49,7 +50,10 @@ export function ScrollRow({ children, dots = false, className, label }: ScrollRo
         onScroll={handleScroll}
         role="region"
         aria-label={label}
-        className="-mx-[23px] flex snap-x snap-mandatory scroll-px-[23px] gap-[21px] overflow-x-auto px-[23px] pb-2 [scrollbar-width:none] sm:mx-0 sm:scroll-px-0 sm:px-0 [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [&>*]:snap-start"
+        className={cn(
+          "-mx-[23px] flex snap-x snap-mandatory scroll-px-[23px] gap-[21px] overflow-x-auto px-[23px] pb-2 [scrollbar-width:none] sm:mx-0 sm:scroll-px-0 sm:px-0 [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [&>*]:snap-start",
+          trilhaClassName
+        )}
       >
         {children}
       </div>
