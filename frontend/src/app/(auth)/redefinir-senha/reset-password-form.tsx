@@ -60,16 +60,16 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
       <AuthTitle className="mt-[48px]">Crie uma nova senha</AuthTitle>
 
       {link.status === "checking" && (
-        <FontAwesomeIcon icon={faCircleNotch} spin aria-label="Verificando o link" className="mt-[69px] text-[28px] text-[#8a8a8a]" />
+        <FontAwesomeIcon icon={faCircleNotch} spin aria-label="Verificando o link" className="mt-[69px] text-[28px] text-muted-foreground" />
       )}
 
       {link.status === "invalid" && (
         <div className="mt-[48px] flex w-full max-w-[318px] flex-col items-center text-center">
-          <FontAwesomeIcon icon={faLinkSlash} className="text-[40px] text-[#ff6b6b]" />
-          <p role="alert" className="mt-6 text-[18px] leading-snug text-white">
+          <FontAwesomeIcon icon={faLinkSlash} className="text-[40px] text-danger" />
+          <p role="alert" className="mt-6 text-[18px] leading-snug text-foreground">
             {link.message}
           </p>
-          <Link href="/esqueci-senha" className="mt-6 text-[16px] text-accent hover:underline">
+          <Link href="/esqueci-senha" className="mt-6 text-[16px] text-accent-text hover:underline">
             Pedir um novo link
           </Link>
         </div>
@@ -114,7 +114,7 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
         </form>
       )}
 
-      <Link href="/login" className="mt-[48px] text-[15px] text-accent hover:underline">
+      <Link href="/login" className="mt-[48px] text-[15px] text-accent-text hover:underline">
         Voltar para o login
       </Link>
     </div>

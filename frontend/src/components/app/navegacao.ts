@@ -12,7 +12,7 @@ export const NAV_ITENS = {
 
 // Vidro dos menus (SKILLHUB_PAGINAS_DESIGN.md, Seção 0): só insets, sem brilho colorido. O raio fica com cada menu.
 export const NAV_VIDRO =
-  "border border-[#b0b0b0]/[0.33] bg-black/35 backdrop-blur-[3px] shadow-[inset_0_-4px_4px_rgba(0,0,0,0.25),inset_0_4px_4px_rgba(255,255,255,0.10)]";
+  "border border-glass-border bg-nav backdrop-blur-[3px] shadow-(--shadow-glass)";
 
 // Ativo também nas subrotas (/servicos/123), sem confundir /perfil com /perfilx.
 export const rotaAtiva = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");

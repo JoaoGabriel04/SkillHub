@@ -3,12 +3,12 @@ import { cn } from "@/lib/utils";
 
 // Visual do CTA, exportado para links com cara de botão (ex.: "Saiba Mais" do Início)
 export const ctaButtonClass = cn(
-  "rounded-[5px] bg-[#3bd4cc] font-secondary text-[10px] font-semibold text-white sm:text-[12px] lg:text-[13px]",
-  "shadow-[inset_0_-2px_4px_rgba(0,0,0,0.35),inset_0_4px_4px_rgba(255,255,255,0.30)]",
-  "transition-[filter] hover:brightness-110 disabled:opacity-60"
+  "rounded-[5px] bg-accent font-secondary text-[12px] font-semibold text-accent-foreground lg:text-[13px]",
+  "shadow-(--shadow-cta)",
+  "transition-colors hover:bg-accent-hover disabled:opacity-60"
 );
 
-// Botão CTA cyan (Figma: frame "Elements" > Button).
+// Botão principal (Figma: frame "Elements" > Button): o único botão de ação, texto escuro sobre o ciano.
 export function CtaButton({ className, type = "button", ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button type={type} className={cn(ctaButtonClass, className)} {...props} />;
 }

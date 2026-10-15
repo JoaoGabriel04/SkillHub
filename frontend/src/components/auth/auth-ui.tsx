@@ -9,13 +9,13 @@ import { cn } from "@/lib/utils";
 // e [data-line-focus] (ciano com brilho, desenhado da esquerda no foco e recolhido pra direita no blur).
 
 export function AuthTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h1 className={cn("text-center font-jersey-20 text-[23px] leading-[1.1] text-balance text-white", className)} {...props} />;
+  return <h1 className={cn("text-center font-jersey-20 text-[23px] leading-[1.1] text-balance text-foreground", className)} {...props} />;
 }
 
 export function FieldError({ children }: { children?: string }) {
   if (!children) return null;
   return (
-    <p data-field-error className="mt-1 font-jersey-15 text-[14px] text-[#ff6b6b]">
+    <p data-field-error className="mt-1 font-jersey-15 text-[14px] text-danger">
       {children}
     </p>
   );
@@ -71,11 +71,11 @@ function Underline({ error }: { error?: string }) {
     <>
       <span
         data-line
-        className={cn("absolute inset-x-0 bottom-0 h-px transition-colors", error ? "bg-[#ff6b6b]" : "bg-[#a0a0a0]")}
+        className={cn("absolute inset-x-0 bottom-0 h-px transition-colors", error ? "bg-danger" : "bg-field")}
       />
       <span
         data-line-focus
-        className="absolute inset-x-0 bottom-0 h-[2px] scale-x-0 bg-accent shadow-[0_0_10px_rgba(59,212,204,0.8)]"
+        className="absolute inset-x-0 bottom-0 h-[2px] scale-x-0 bg-accent shadow-(--glow-line)"
       />
     </>
   );
@@ -91,12 +91,12 @@ export function LineInput({ icon, error, className, onFocus, onBlur, ...props }:
       <label className="group relative flex items-center gap-3 pb-[9px]">
         <input
           aria-invalid={!!error}
-          className="min-w-0 flex-1 bg-transparent font-jersey-15 text-[17px] text-white outline-none placeholder:text-[#8a8a8a] [color-scheme:dark]"
+          className="min-w-0 flex-1 bg-transparent font-jersey-15 text-[17px] text-foreground outline-none placeholder:text-muted-foreground [color-scheme:dark]"
           {...handlers}
           {...props}
         />
         {icon && (
-          <span data-field-icon className="shrink-0 text-[#828282] transition-colors group-focus-within:text-accent">
+          <span data-field-icon className="shrink-0 text-muted-foreground transition-colors group-focus-within:text-accent-text">
             {icon}
           </span>
         )}
@@ -124,7 +124,7 @@ export function LineSelect({ placeholder, options, error, className, value, onFo
           {...handlers}
           className={cn(
             "w-full cursor-pointer bg-transparent font-jersey-15 text-[17px] outline-none [color-scheme:dark]",
-            value ? "text-white" : "text-[#8a8a8a]"
+            value ? "text-foreground" : "text-muted-foreground"
           )}
           {...props}
         >
@@ -132,7 +132,7 @@ export function LineSelect({ placeholder, options, error, className, value, onFo
             {placeholder}
           </option>
           {options.map((option) => (
-            <option key={option} value={option} className="bg-[#101010] text-white">
+            <option key={option} value={option} className="bg-background text-foreground">
               {option}
             </option>
           ))}
@@ -148,7 +148,7 @@ export function LineSelect({ placeholder, options, error, className, value, onFo
 export function FormAlert({ children }: { children?: string | null }) {
   if (!children) return null;
   return (
-    <p role="alert" className="text-center font-jersey-15 text-[15px] text-[#ff6b6b]">
+    <p role="alert" className="text-center font-jersey-15 text-[15px] text-danger">
       {children}
     </p>
   );

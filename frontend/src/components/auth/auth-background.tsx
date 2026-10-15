@@ -91,7 +91,7 @@ export function AuthBackground() {
   );
 
   return (
-    <div ref={root} aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#101010]">
+    <div ref={root} aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-background">
       <div data-bg-layer className="absolute -inset-6">
         <div data-bg className="absolute inset-0">
           <Image
@@ -111,12 +111,12 @@ export function AuthBackground() {
       {/* holofote: centro em (x, y) do mouse; mix-blend-screen só clareia */}
       <div
         data-spot
-        className="absolute top-0 left-0 size-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(59,212,204,0.10)_0%,rgba(41,195,220,0.04)_40%,transparent_70%)] mix-blend-screen"
+        className="absolute top-0 left-0 size-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-(image:--brand-spotlight) mix-blend-screen"
       />
 
       {FLOATERS.map(({ left, top, size, depth, opacity, filled }, i) => (
         <div key={i} data-depth={depth} className="absolute" style={{ left, top, opacity }}>
-          <div data-float className="invisible text-accent">
+          <div data-float className="invisible text-accent-text">
             <Hex size={size} filled={filled} />
           </div>
         </div>

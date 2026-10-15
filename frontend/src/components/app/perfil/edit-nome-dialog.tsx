@@ -68,17 +68,17 @@ export function EditNomeDialog({ user, open, onOpenChange }: Props) {
         />
         {pessoaFisica && (
           <label className="block">
-            <span className="text-[12px] text-[#9f9f9f]">Gênero</span>
+            <span className="text-[12px] text-muted-foreground">Gênero</span>
             <select
               value={genero}
               onChange={(e) => setGenero(e.target.value)}
-              className="mt-1 w-full cursor-pointer border-b border-[#a0a0a0] bg-transparent pb-2 text-[15px] text-white outline-none focus:border-white [color-scheme:dark]"
+              className="mt-1 w-full cursor-pointer border-b border-field bg-transparent pb-2 text-[15px] text-foreground outline-none focus:border-foreground [color-scheme:dark]"
             >
               <option value="" disabled>
                 Selecione
               </option>
               {GENEROS.map((g) => (
-                <option key={g} value={g} className="bg-[#101010]">
+                <option key={g} value={g} className="bg-background">
                   {g}
                 </option>
               ))}

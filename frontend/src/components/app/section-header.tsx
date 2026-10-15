@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 export function SectionHeader({ title, onMore, className }: { title: string; onMore?: () => void; className?: string }) {
   return (
     <div className={cn("flex items-center justify-between", className)}>
-      <h2 className="text-[15px] text-[#d9d9d9] sm:text-[18px] lg:text-[20px]">{title}</h2>
+      <h2 className="text-[15px] text-foreground-secondary sm:text-[18px] lg:text-[20px]">{title}</h2>
       {onMore && (
-        <button type="button" onClick={onMore} aria-label={`Ver tudo em ${title}`} className="text-[#8a8a8a] transition-colors hover:text-white">
+        <button type="button" onClick={onMore} aria-label={`Ver tudo em ${title}`} className="text-muted-foreground transition-colors hover:text-foreground">
           <FontAwesomeIcon icon={faArrowRight} className="text-[17px] sm:text-[20px]" />
         </button>
       )}

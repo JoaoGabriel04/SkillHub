@@ -27,9 +27,9 @@ export function CompetenciasSection({ user }: { user: User }) {
       {user.competencias.length === 0 ? (
         // cadastro por e-mail não pede qualidades: o perfil começa vazio
         <button type="button" onClick={() => setEditOpen(true)} className="group mt-[16px] w-full text-left">
-          <ContentCard className="flex h-[45px] items-center gap-4 px-[14px] transition-colors group-hover:bg-white/[0.04]">
-            <FontAwesomeIcon icon={faPlus} className="w-[22px] text-[18px] text-white" />
-            <span className="text-[16px] font-semibold text-white">Adicionar qualidades</span>
+          <ContentCard className="flex h-[45px] items-center gap-4 px-[14px] transition-colors group-hover:bg-foreground/[0.04]">
+            <FontAwesomeIcon icon={faPlus} className="w-[22px] text-[18px] text-foreground" />
+            <span className="text-[16px] font-semibold text-foreground">Adicionar qualidades</span>
           </ContentCard>
         </button>
       ) : (
@@ -37,8 +37,8 @@ export function CompetenciasSection({ user }: { user: User }) {
           {user.competencias.map((c) => (
             <li key={c}>
               <ContentCard className="flex min-h-[74px] items-center gap-4 px-[14px] py-4">
-                <FontAwesomeIcon icon={iconeDa(c)} className="w-[26px] text-[22px] text-white" />
-                <span className="text-[16px] font-semibold text-white">{c}</span>
+                <FontAwesomeIcon icon={iconeDa(c)} className="w-[26px] text-[22px] text-foreground" />
+                <span className="text-[16px] font-semibold text-foreground">{c}</span>
               </ContentCard>
             </li>
           ))}

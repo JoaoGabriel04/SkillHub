@@ -48,48 +48,48 @@ export default function ConfiguracoesPage() {
         {visiveis.map((item) => (
           <li key={item.label}>
             <button type="button" onClick={(e) => item.acao(e.currentTarget)} className="group w-full text-left">
-              <ContentCard className="flex h-[64px] items-center px-[19px] transition-colors group-hover:bg-white/[0.04] sm:h-[76px] sm:px-6">
+              <ContentCard className="flex h-[64px] items-center px-[19px] transition-colors group-hover:bg-foreground/[0.04] sm:h-[76px] sm:px-6">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] text-white sm:text-[17px]">{item.label}</p>
-                  <p className="mt-[3px] truncate font-secondary text-[11px] text-[#9f9f9f] sm:mt-1 sm:text-[13px]">{item.descricao}</p>
+                  <p className="text-[15px] text-foreground sm:text-[17px]">{item.label}</p>
+                  <p className="mt-[3px] truncate font-secondary text-[11px] text-muted-foreground sm:mt-1 sm:text-[13px]">{item.descricao}</p>
                 </div>
                 <FontAwesomeIcon
                   icon={faChevronRight}
-                  className="text-[12px] text-[#9f9f9f] transition-transform group-hover:translate-x-0.5 group-hover:text-white sm:text-[14px]"
+                  className="text-[12px] text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:text-[14px]"
                 />
               </ContentCard>
             </button>
           </li>
         ))}
         {visiveis.length === 0 && (
-          <li className="mt-6 text-center font-secondary text-[13px] text-[#8a8a8a] sm:text-[15px]">Nenhuma configuração encontrada.</li>
+          <li className="mt-6 text-center font-secondary text-[13px] text-muted-foreground sm:text-[15px]">Nenhuma configuração encontrada.</li>
         )}
       </ul>
 
       <Dialog open={privacidadeOpen} onOpenChange={setPrivacidadeOpen}>
-        <DialogContent className="max-w-[400px] rounded-[24px] border border-white/[0.06] bg-[rgba(28,28,28,0.92)] p-6 ring-0 backdrop-blur-[20px] sm:max-w-[400px]">
-          <DialogTitle className="text-[19px] font-bold text-white">Privacidade e Segurança</DialogTitle>
-          <DialogDescription className="font-secondary text-[13px] text-[#9f9f9f]">
-            Conectado como <span className="text-white">{user?.email}</span>
+        <DialogContent className="max-w-[400px] rounded-[24px] border border-glass-strong-border bg-glass-strong p-6 ring-0 backdrop-blur-[20px] sm:max-w-[400px]">
+          <DialogTitle className="text-[19px] font-bold text-foreground">Privacidade e Segurança</DialogTitle>
+          <DialogDescription className="font-secondary text-[13px] text-muted-foreground">
+            Conectado como <span className="text-foreground">{user?.email}</span>
           </DialogDescription>
           <div className="mt-2 flex flex-col gap-1">
             <button
               type="button"
               onClick={() => emBreve("A troca de senha")}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-secondary text-sm text-white transition-colors hover:bg-white/10"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-secondary text-sm text-foreground transition-colors hover:bg-foreground/10"
             >
-              <FontAwesomeIcon icon={faKey} className="w-4 text-[#9f9f9f]" />
+              <FontAwesomeIcon icon={faKey} className="w-4 text-muted-foreground" />
               Alterar senha
-              <span className="ml-auto text-[11px] text-[#8a8a8a]">em breve</span>
+              <span className="ml-auto text-[11px] text-muted-foreground">em breve</span>
             </button>
-            <div className="mx-3 my-1 border-t border-white/10" />
+            <div className="mx-3 my-1 border-t border-foreground/10" />
             <button
               type="button"
               onClick={() => {
                 setPrivacidadeOpen(false);
                 setExcluirOpen(true);
               }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-secondary text-sm text-[#ff6b6b] transition-colors hover:bg-[#ff6b6b]/10"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-secondary text-sm text-danger transition-colors hover:bg-danger/10"
             >
               <FontAwesomeIcon icon={faUserXmark} className="w-4" />
               Excluir conta

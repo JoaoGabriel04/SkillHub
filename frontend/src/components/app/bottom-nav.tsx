@@ -11,7 +11,7 @@ import { NAV_ITENS, NAV_VIDRO, rotaAtiva } from "./navegacao";
 const ITENS = [NAV_ITENS.servicos, NAV_ITENS.produtos, NAV_ITENS.inicio, NAV_ITENS.comunidade, NAV_ITENS.perfil];
 
 // Menu inferior flutuante (SKILLHUB_PAGINAS_DESIGN.md, Seção 0): pílula de 405×58 a 12px da base,
-// item ativo no accent #3bd4cc com brilho. A partir de lg some: a Sidebar assume a navegação.
+// item ativo no ciano da marca (text-accent-text) com brilho. A partir de lg some: a Sidebar assume a navegação.
 export function BottomNav() {
   const pathname = useNavPathname();
   const ref = useRef<HTMLElement>(null);
@@ -46,12 +46,12 @@ export function BottomNav() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex w-[68px] flex-col items-center gap-[4px] font-secondary text-[10px] transition-colors",
-              active ? "text-[#3bd4cc]" : "text-[#d8d8d8] hover:text-white"
+              active ? "text-accent-text" : "text-foreground-secondary hover:text-foreground"
             )}
           >
             <FontAwesomeIcon
               icon={icon}
-              className={cn("text-[20px]", active && "drop-shadow-[0_0_6px_rgba(59,212,204,0.7)]")}
+              className={cn("text-[20px]", active && "drop-shadow-(--glow-active)")}
             />
             {label}
           </TransitionLink>

@@ -11,16 +11,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4 text-[#3bd4cc]" />,
+        info: <InfoIcon className="size-4 text-accent-text" />,
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       style={
         {
-          "--normal-bg": "rgba(28,28,28,0.92)",
-          "--normal-text": "#ffffff",
-          "--normal-border": "rgba(255,255,255,0.06)",
+          "--normal-bg": "var(--glass-strong-bg)",
+          "--normal-text": "var(--foreground)",
+          "--normal-border": "var(--glass-strong-border)",
           "--border-radius": "12px",
         } as React.CSSProperties
       }

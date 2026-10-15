@@ -17,7 +17,7 @@ export function ProdutoCard({ produto, className }: { produto: Produto; classNam
       onClick={() => emBreve("A página do produto")}
       className={cn("group flex w-[180px] flex-col text-left font-secondary sm:w-[210px] lg:w-[240px]", className)}
     >
-      <div className="relative h-[135px] w-full overflow-hidden sm:h-[158px] lg:h-[180px] rounded-[2px] border-[6px] border-[#2e2e2e] bg-[#2e2e2e]">
+      <div className="relative h-[135px] w-full overflow-hidden sm:h-[158px] lg:h-[180px] rounded-[2px] border-[6px] border-surface-2 bg-surface-2">
         <Image
           src={produto.imagemUrl}
           alt={produto.nome}
@@ -26,11 +26,11 @@ export function ProdutoCard({ produto, className }: { produto: Produto; classNam
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
       </div>
-      <p className="mt-[4px] line-clamp-2 text-[11px] leading-[1.3] text-white sm:mt-1.5 sm:text-[13px] lg:text-[14px]">
+      <p className="mt-[4px] line-clamp-2 text-[11px] leading-[1.3] text-foreground sm:mt-1.5 sm:text-[13px] lg:text-[14px]">
         {produto.nome}
         {vendedor.jovemAprendiz && ` - ${vendedor.fullName} (Jovem aprendiz)`} - {formatPreco(produto.preco)}
       </p>
-      <span className="mt-[2px] text-[10px] text-[#8a8a8a] transition-colors group-hover:text-white sm:text-[12px] lg:text-[13px]">Ver detalhes</span>
+      <span className="mt-[2px] text-[10px] text-muted-foreground transition-colors group-hover:text-foreground sm:text-[12px] lg:text-[13px]">Ver detalhes</span>
     </button>
   );
 }

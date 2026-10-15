@@ -58,34 +58,34 @@ export function CreditsChip({ credits }: { credits: number }) {
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
-        className="group flex h-[30px] items-center gap-2 rounded-full border border-[#B0B0B0]/[0.33] bg-[#595959]/15 pr-3 pl-[3px] shadow-[inset_0_4px_4px_rgba(255,255,255,0.10),inset_0_-4px_4px_rgba(0,0,0,0.25)] backdrop-blur-[16px] transition-colors outline-none hover:border-accent/60 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[#101010] aria-expanded:border-accent/60"
+        className="group flex h-[30px] items-center gap-2 rounded-full border border-glass-border bg-glass pr-3 pl-[3px] shadow-(--shadow-glass) backdrop-blur-[16px] transition-colors outline-none hover:border-accent/60 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-expanded:border-accent/60"
       >
-        <span className="flex size-[24px] items-center justify-center rounded-full bg-accent-gradient shadow-[0_0_10px_rgba(59,212,204,0.45)] transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110">
-          <FontAwesomeIcon icon={faCoins} className="text-[12px] text-[#101010]" />
+        <span className="flex size-[24px] items-center justify-center rounded-full bg-accent-gradient shadow-(--glow-coin) transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110">
+          <FontAwesomeIcon icon={faCoins} className="text-[12px] text-accent-foreground" />
         </span>
-        <span aria-hidden className="min-w-[38px] text-right font-jersey-15 text-[19px] leading-none text-white tabular-nums">
+        <span aria-hidden className="min-w-[38px] text-right font-jersey-15 text-[19px] leading-none text-foreground tabular-nums">
           {formatCredits(shown)}
         </span>
       </button>
 
       {open && (
         <GlassCard variant="dark" role="dialog" aria-label="Seu saldo" className="absolute top-10 right-0 z-50 w-64 p-4">
-          <p className="font-secondary text-xs text-[#9f9f9f]">Seu saldo</p>
+          <p className="font-secondary text-xs text-muted-foreground">Seu saldo</p>
           <div className="mt-1 flex items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-gradient shadow-[0_0_18px_rgba(59,212,204,0.4)]">
-              <FontAwesomeIcon icon={faCoins} className="text-[18px] text-[#101010]" />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-gradient shadow-(--glow-coin-lg)">
+              <FontAwesomeIcon icon={faCoins} className="text-[18px] text-accent-foreground" />
             </span>
-            <p className="font-jersey-20 text-[36px] leading-none text-white tabular-nums">
+            <p className="font-jersey-20 text-[36px] leading-none text-foreground tabular-nums">
               {formatCredits(credits)}
-              <span className="ml-1.5 font-secondary text-xs text-[#9f9f9f]">créditos</span>
+              <span className="ml-1.5 font-secondary text-xs text-muted-foreground">créditos</span>
             </p>
           </div>
 
-          <p className="mt-3 font-secondary text-xs leading-relaxed text-[#9f9f9f]">
+          <p className="mt-3 font-secondary text-xs leading-relaxed text-muted-foreground">
             Créditos são a moeda do SkillHub: use-os para contratar serviços e comprar produtos.
           </p>
 
-          <div className="my-3 border-t border-white/10" />
+          <div className="my-3 border-t border-foreground/10" />
 
           <nav className="flex flex-col">
             {ATALHOS.map(({ href, label, icon }) => (
@@ -93,13 +93,13 @@ export function CreditsChip({ credits }: { credits: number }) {
                 key={href}
                 href={href}
                 onClick={close}
-                className="group/item flex items-center gap-3 rounded-lg px-2 py-2 font-secondary text-sm text-white transition-colors hover:bg-white/10"
+                className="group/item flex items-center gap-3 rounded-lg px-2 py-2 font-secondary text-sm text-foreground transition-colors hover:bg-foreground/10"
               >
-                <FontAwesomeIcon icon={icon} className="w-4 text-accent" />
+                <FontAwesomeIcon icon={icon} className="w-4 text-accent-text" />
                 {label}
                 <FontAwesomeIcon
                   icon={faChevronRight}
-                  className="ml-auto text-[10px] text-[#9f9f9f] transition-transform group-hover/item:translate-x-0.5"
+                  className="ml-auto text-[10px] text-muted-foreground transition-transform group-hover/item:translate-x-0.5"
                 />
               </TransitionLink>
             ))}
