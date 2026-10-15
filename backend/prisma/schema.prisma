@@ -42,6 +42,8 @@ model User {
   createdAt       DateTime  @default(now())
 
   passwordResetTokens PasswordResetToken[]
+  servicosPublicados  Servico[] @relation("ServicosPublicados")
+  servicosExecutados  Servico[] @relation("ServicosExecutados")
 }
 
 // Link de "esqueci a senha": guarda só o hash SHA-256 do token enviado por e-mail
@@ -55,4 +57,41 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+// Domínio de Serviços (Fase 17A). Pedido publicado por um usuário; colaboradores se candidatam (17B).
+enum CategoriaServico {
+  EDUCACAO
+  TECNOLOGIA
+  DESIGN_ARTE
+  REPAROS
+}
+
+enum StatusServico {
+  ABERTO
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+}
+
+model Servico {
+  id            String           @id @default(uuid())
+  titulo        String
+  descricao     String
+  categoria     CategoriaServico
+  remuneracao   Int?             // em créditos; null = "a combinar"
+  prazo         DateTime?        // null = sem prazo
+  status        StatusServico    @default(ABERTO)
+  autorId       String
+  autor         User             @relation("ServicosPublicados", fields: [autorId], references: [id], onDelete: Cascade)
+  colaboradorId String?          // preenchido na 17B, ao aceitar uma candidatura
+  colaborador   User?            @relation("ServicosExecutados", fields: [colaboradorId], references: [id], onDelete: SetNull)
+  aceitoEm      DateTime?        // KPI: latência de contratação = aceitoEm - createdAt
+  concluidoEm   DateTime?        // KPI: volume de transações concluídas
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([status, categoria, createdAt])
+  @@index([autorId])
+  @@index([colaboradorId])
 }
