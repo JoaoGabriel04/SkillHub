@@ -9,6 +9,73 @@
 
 ---
 
+## Fase 16.4 — Infraestrutura do tema claro/escuro
+
+**Data:** 2026-10-15
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/tema-infra`
+
+### Contexto
+
+Segunda subfase do `SKILLHUB_CORES_E_TEMA.md` (plano em `PLANO_16_4.md`). O usuário escolhe Claro, Escuro ou Sistema, a escolha é lembrada e o carregamento não pisca. O tema claro ainda usa os valores provisórios da 16.3; o acabamento visual é da 16.5.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **Provedor próprio, sem dependência**, no lugar do `next-themes`. Segue a receita do guia "Preventing flash before hydration" do Next 16. O `next-themes` está sem publicação desde março de 2025 e renderiza `<script>` num Client Component.
+- Tema padrão Escuro.
+- Telas de entrada e overlay da colmeia sempre escuros.
+- Atalho na sidebar, nada no header do celular.
+- "Aparência" logo depois de "Editar Perfil" em Configurações.
+
+### Arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/lib/tema.ts` | **Novo**. Inclui: <br>• preferência no `localStorage`, com `try/catch` e memória da sessão quando não grava <br>• resolução de "Sistema" <br>• `aplicarTema` (classe `dark` e meta `theme-color`) <br>• store do `useSyncExternalStore`, que escuta trocas, outra aba e mudança do sistema <br>• texto do script inline, gerado das mesmas constantes |
+| `frontend/src/components/tema/tema-provider.tsx` | **Novo**. `TemaProvider` e `useTema()`. O snapshot do servidor é o tema padrão (sem erro de hidratação). Reaplica o tema num `useLayoutEffect` lendo a preferência real, o que também corrige a remontagem do Strict Mode em dev. |
+| `frontend/src/components/tema/seletor-tema.tsx` | **Novo**. Grupo de rádio Claro, Escuro e Sistema, com ícone e texto e com tabindex móvel, setas, Home e End. `useDescricaoTema` dá o estado em texto ("Em uso: ..."). |
+| `frontend/src/components/tema/alternar-tema.tsx` | **Novo**. Atalho da sidebar. |
+| `frontend/src/app/layout.tsx` | `suppressHydrationWarning` no `<html>`, script inline no `<head>` e `TemaProvider`. A classe `dark` fica como valor do servidor (o padrão). |
+| `frontend/src/app/globals.css` | `color-scheme` por tema. As variáveis derivadas (aliases do shadcn e brilhos) passam para `:root, .dark`, para serem recalculadas em um `.dark` aninhado. Nenhum valor mudou. |
+| `frontend/src/app/(auth)/layout.tsx` | Wrapper `dark` (telas de entrada sempre escuras). |
+| `frontend/src/components/motion/page-transition.tsx` | Classe `dark` no overlay da colmeia. |
+| `frontend/src/components/ui/sonner.tsx` | Toasts seguem o tema. |
+| `frontend/src/app/(app)/configuracoes/page.tsx` | Linha "Aparência" com o seletor (entra na busca). |
+| `frontend/src/components/app/sidebar.tsx` | Atalho de tema entre Configurações e Sair. |
+| `frontend/src/components/app/perfil/profile-dialog.tsx`, `edit-nome-dialog.tsx` | Sai o `[color-scheme:dark]` fixo dos campos. |
+| `frontend/src/lib/brand.ts` | `COR_BARRA` (cor da barra do navegador por tema). |
+| `frontend/scripts/check-cores.mjs` | Confere `COR_BARRA` contra o `--background` de cada tema. A leitura dos blocos do CSS ignora listas de seletores. |
+| `e2e/fluxos.mjs` | 13 fluxos de tema (Seção 15c). |
+| `SKILLHUB_DESIGN_SYSTEM.md` | Seção 8.5 (tema). |
+
+### Validação
+
+- `./e2e/run.sh`: 101/101, sendo 88 anteriores e 13 de tema:
+  - padrão Escuro
+  - Claro troca na hora
+  - toasts seguem o tema
+  - a escolha sobrevive a recarregar
+  - aba nova já pinta o primeiro quadro no tema escolhido
+  - setas do teclado trocam a opção
+  - Sistema segue o sistema e acompanha a troca com a página aberta
+  - atalho da sidebar nos dois sentidos
+  - telas de entrada escuras com o tema claro
+  - `localStorage` bloqueado e valor inválido caem no escuro, sem erro
+- **Sem piscada com rede lenta** (400ms de latência, 50 KB/s, cache desligado, pelo protocolo do Chrome): os 30 primeiros quadros saem no tema escolhido em Claro, Escuro e Sistema (claro).
+- **Console do dev:** nenhum aviso de hidratação nem de `<script>`.
+- `tsc` (frontend e backend), `eslint`, `next build`, `check:contrast` e `check:cores` verdes.
+- **Escuro sem mudança:** capturas antes e depois das 6 páginas e das telas de entrada a 375 e 1440px, sem preferência gravada. Iguais byte a byte, exceto:
+  - o rodapé da sidebar a 1440px (o item novo "Tema claro")
+  - Configurações (a linha "Aparência")
+  - 2 a 3 pixels de ruído de renderização em duas capturas (`servicos_375`, `cadastro_1440`)
+
+### Achados fora de escopo
+
+- **Rede lenta:** o estado de carregamento da área logada aparece antes do overlay da colmeia, porque o HTML do overlay vem depois do conteúdo. No claro, isso fica "tela clara, depois splash escuro". O comportamento já existia; é para olhar na 16.5.
+- **Barra do navegador nas telas de entrada:** segue o tema escolhido, não o escuro fixo da tela. Para a 16.5.
+- **Aviso do GSAP:** um "GSAP target not found" aparece no console ao cair no `/login` sem sessão. Não investiguei se já existia antes da 16.4.
+
+---
+
 ## Fase 16.3 — Paleta de marca e contraste (tema escuro)
 
 **Data:** 2026-10-15
