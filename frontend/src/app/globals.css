@@ -37,6 +37,7 @@
   --color-nav: var(--nav-bg);
   --color-overlay: var(--overlay);
   --color-banner: var(--banner-bg);
+  --color-avatar-ring: var(--avatar-ring);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-inter);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -129,6 +130,8 @@
   --banner-bg: var(--surface);
   --banner-shadow: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
   --stripe: var(--accent-text);
+  /* Anel do avatar do Perfil: no tom da curva que passa atrás dele */
+  --avatar-ring: var(--curve-mid);
 
   /* Marca (decorativa, sem texto por cima; igual nos dois temas) */
   --brand-gradient: linear-gradient(180deg, #29cffe 0%, #3bd4cc 100%);
@@ -221,6 +224,7 @@
   --banner-bg: var(--surface-2);
   --banner-shadow: 0 0 0 transparent;
   --stripe: var(--accent);
+  --avatar-ring: var(--muted-foreground);
 
   --border: rgba(255, 255, 255, 0.08);
   --sidebar: oklch(0.205 0 0);
