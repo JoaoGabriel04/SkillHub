@@ -15,12 +15,12 @@ import { emBreve } from "@/lib/em-breve";
 import { CATEGORIAS_PRODUTO, getDestaques, getProdutos, type CategoriaProduto, type Destaque } from "@/lib/mock/produtos";
 import { cn } from "@/lib/utils";
 
-// Faixa listrada do topo e da base dos banners (no mockup era roxa; segue o ciano da marca)
-const LISTRA = "bg-[repeating-linear-gradient(135deg,var(--accent)_0_4px,transparent_4px_8px)]";
+// Faixa listrada do topo e da base dos banners (no mockup era roxa; segue o ciano da marca, --stripe por tema)
+const LISTRA = "bg-[repeating-linear-gradient(135deg,var(--stripe)_0_4px,transparent_4px_8px)]";
 
 function DestaqueBanner({ destaque }: { destaque: Destaque }) {
   return (
-    <article className="relative flex h-[130px] w-[86%] max-w-[341px] items-center overflow-hidden rounded-[10px] bg-surface-2 pl-[14px] sm:h-[160px] sm:w-[440px] sm:max-w-none sm:pl-6 lg:w-[480px]">
+    <article className="relative flex h-[130px] w-[86%] max-w-[341px] items-center overflow-hidden rounded-[10px] bg-banner pl-[14px] shadow-(--banner-shadow) sm:h-[160px] sm:w-[440px] sm:max-w-none sm:pl-6 lg:w-[480px]">
       <div aria-hidden className={cn("absolute inset-x-0 top-0 h-[6px]", LISTRA)} />
       <div aria-hidden className={cn("absolute inset-x-0 bottom-0 h-[6px]", LISTRA)} />
       <div className="relative z-10 min-w-0 flex-1">

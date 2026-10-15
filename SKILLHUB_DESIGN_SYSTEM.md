@@ -180,7 +180,7 @@ Confirmado: **Google e Discord**, como já implementado no backend. O mockup de 
 
 ### 8.2. Tokens
 
-| Token | Classe | Escuro | Claro (provisório até a 16.5) | Uso |
+| Token | Classe | Escuro | Claro | Uso |
 |---|---|---|---|---|
 | `--background` | `bg-background` | `#101010` | `#f4f7f7` | fundo da página |
 | `--surface` | `bg-surface` | `#0c0c0c` | `#ffffff` | cards sólidos |
@@ -204,6 +204,19 @@ Confirmado: **Google e Discord**, como já implementado no backend. O mockup de 
 
 Vidros, sombras e fundos (valores escuros iguais aos de antes da 16.3): `bg-glass` (vidro claro do `GlassCard`), `bg-glass-strong` e `border-glass-strong-border` (vidro escuro: popovers, diálogos, toasts), `bg-card-fill` (`ContentCard`), `bg-nav` (`NAV_VIDRO`), `bg-overlay` (fundo dos diálogos); sombras por variável com `shadow-(--shadow-glass)`, `--shadow-card`, `--shadow-cta`, `--shadow-popover`, `--shadow-raised`, `--shadow-badge`, `--shadow-check`; brilhos ciano `drop-shadow-(--glow-active)`, `shadow-(--glow-coin)`, `--glow-coin-lg`, `--glow-line`; fundos `--bg-gradient-from/to` (body), `--bg-profile-from/to` (Perfil) e `--curve-from/mid` (curva do Perfil). Marca: `--brand-gradient` (`bg-accent-gradient`), `--brand-title-gradient`, `--brand-spotlight`, `--glow-logo`.
 
+**Valor por tema (Fase 16.5).** Os efeitos acima têm valor próprio no claro, acertado tela a tela:
+- **Brilhos ciano:** com cerca de um terço da força. O `--glow-logo` some no claro.
+- **Borda de vidro:** 18%.
+- **Sidebar e menu inferior (`bg-nav`):** branco a 88%.
+- **Vidro claro (`bg-glass`):** branco a 85%.
+- **Borda e sombra dos popovers:** 12% e 16%.
+
+Três tokens também mudam por tema:
+- `--banner-bg`, `--banner-shadow` e `--stripe` (classe `bg-banner`): o banner de Produtos é um card branco com listras em ciano escuro no claro e `surface-2` com listras em `accent` no escuro.
+- `--avatar-ring` (classe `border-avatar-ring`): o anel do avatar do Perfil fica no tom da curva no claro e em `muted-foreground` no escuro.
+
+O `check-contrast.mjs` também valida os textos sobre `surface-2` nos dois temas.
+
 As variáveis do shadcn (`--primary`, `--ring`, `--card`, `--popover`, `--destructive`, `--input`...) apontam para esses tokens, então os componentes `ui/` herdam a paleta.
 
 ### 8.3. Botão principal
@@ -226,5 +239,6 @@ Iniciais brancas sobre `#2f6f8f`, `#8f5a2f`, `#4a5a8f`, `#7c4a8f`, `#8f2f4a` ou 
   - As telas de entrada (`/`, `/login`, `/cadastro`, recuperação de senha e retorno do OAuth), por um wrapper com a classe `dark` no `app/(auth)/layout.tsx`.
   - O overlay da colmeia da transição de páginas.
 - **O que acompanha o tema:** toasts (`sonner`), `color-scheme` dos campos nativos e a cor da barra do navegador (`COR_BARRA` em `src/lib/brand.ts`, igual ao `--background` de cada tema).
-- **Valores claros:** ainda provisórios; o acabamento é da 16.5.
+- **Barra do navegador nas telas de entrada:** sempre escura, como a própria tela (`lib/tema.ts`, no script do `<head>` e no `aplicarTema`, que o provedor reaplica a cada troca de rota).
+- **Valores claros:** definitivos desde a 16.5 (Seção 8.2).
 

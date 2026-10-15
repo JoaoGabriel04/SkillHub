@@ -326,6 +326,7 @@ const PRIMEIRO_QUADRO = () => requestAnimationFrame(() => {
 ok("tema: padrão é Escuro", (await temaHtml()) === "escuro" && (await marcada()) === "Escuro");
 await aparencia.getByRole("radio", { name: "Claro" }).click();
 ok("tema: Claro troca na hora, sem recarregar", (await temaHtml()) === "claro" && (await page.getByText("Em uso: Claro").isVisible()));
+ok("tema: barra do navegador clara na área logada", (await page.evaluate(() => document.querySelector('meta[name="theme-color"]')?.content)) === "#f4f7f7");
 await page.getByRole("button", { name: /Notificações/ }).click();
 await page.locator("[data-sonner-toast]").first().waitFor();
 ok("tema: toasts seguem o tema", (await page.locator("[data-sonner-toaster]").getAttribute("data-sonner-theme")) === "light");
@@ -360,11 +361,13 @@ const semSessao = async (prepara) => {
   const r = await p.evaluate(() => ({
     html: document.documentElement.classList.contains("dark") ? "escuro" : "claro",
     fundo: getComputedStyle(document.querySelector("main")).getPropertyValue("--background").trim(),
+    barra: document.querySelector('meta[name="theme-color"]')?.content,
   }));
   await c.close(); return { ...r, erros };
 };
 const entrada = await semSessao(() => localStorage.setItem("skillhub-tema", "claro"));
 ok("tema: telas de entrada ficam escuras com o tema claro", entrada.html === "claro" && entrada.fundo === "#101010", JSON.stringify(entrada));
+ok("tema: barra do navegador escura nas telas de entrada, mesmo no claro", entrada.barra === "#101010", JSON.stringify(entrada));
 const bloqueado = await semSessao(() => Object.defineProperty(window, "localStorage", { get() { throw new Error("bloqueado"); } }));
 ok("tema: localStorage bloqueado cai no escuro, sem erro", bloqueado.html === "escuro" && bloqueado.erros.length === 0, bloqueado.erros.join(" | "));
 const invalido = await semSessao(() => localStorage.setItem("skillhub-tema", "roxo"));

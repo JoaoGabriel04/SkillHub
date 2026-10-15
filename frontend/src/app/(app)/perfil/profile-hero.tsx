@@ -68,7 +68,7 @@ export function ProfileHero({ user }: { user: User }) {
         </svg>
 
         <div className="relative">
-          <div className="rounded-full border-[3px] border-muted-foreground bg-background">
+          <div className="rounded-full border-[3px] border-avatar-ring bg-background">
             <Avatar nome={user.fullName} src={user.urlPhoto} size={134} />
           </div>
           {uploading && (

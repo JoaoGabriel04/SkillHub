@@ -9,6 +9,73 @@
 
 ---
 
+## Fase 16.5 — Tema claro (acabamento visual)
+
+**Data:** 2026-10-15
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/tema-claro`
+
+### Contexto
+
+Última subfase do `SKILLHUB_CORES_E_TEMA.md` (plano em `PLANO_16_5.md`). Ela acerta os valores do tema claro tela a tela, em 4 rodadas, cada uma conferida pelo João Gabriel. O tema escuro não mudou.
+
+Decisões tomadas na aprovação do plano: o João Gabriel aprovou sem responder as perguntas uma a uma, então segui as recomendações.
+- **Fundo:** o fundo frio `#f4f7f7` continua, com cards brancos e borda reforçada.
+- **Brilhos ciano no claro:** suaves, e o do logo sai.
+- **Banner de Produtos no claro:** card branco com listras em `accent-text`.
+- **Botão perigoso desabilitado:** fica como está, para uma revisão de estados futura.
+- **`check-contrast.mjs`:** ganha os pares de `surface-2`.
+- **Barra do navegador nas telas de entrada:** escura.
+- **Base da branch:** depois do merge do switch (PR #9).
+
+### Rodadas
+
+| Rodada | Telas | Ajuste |
+|---|---|---|
+| 1. Moldura | todas | Brilhos ciano com valor por tema (escuro igual, claro suave, sem brilho no logo). Borda de vidro de 14% para 18%. Sidebar e menu inferior de 72% para 88% de opacidade. Chip, busca e filtros de 72% para 85%. |
+| 2. Início, Serviços, Produtos | banner de Produtos | Tokens `--banner-bg`, `--banner-shadow` e `--stripe`: no claro, card branco com listras em ciano escuro (antes 1,57:1, as listras sumiam). |
+| 3. Comunidade, Perfil, Configurações | Perfil | Token `--avatar-ring`: no claro, o anel do avatar no tom da curva decorativa. |
+| 4. Sobreposições | filtro, popover de créditos | No claro, borda do vidro escuro de 8% para 12% e sombra dos popovers de 12% para 16%. |
+
+### Arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/app/globals.css` | Valores do claro das rodadas. Brilhos e `--glow-logo` com valor por tema. Tokens novos `--banner-bg`, `--banner-shadow`, `--stripe` e `--avatar-ring`, e as classes `bg-banner` e `border-avatar-ring`. |
+| `frontend/src/app/(app)/produtos/page.tsx` | Banner usa `bg-banner`, `--banner-shadow` e `--stripe`. |
+| `frontend/src/app/(app)/perfil/profile-hero.tsx` | Anel do avatar usa `border-avatar-ring`. |
+| `frontend/src/lib/tema.ts`, `frontend/src/components/tema/tema-provider.tsx` | Barra do navegador escura nas telas de entrada, no script do `<head>` e no `aplicarTema`. O provedor reaplica o tema quando a rota muda. |
+| `frontend/scripts/check-contrast.mjs` | Pares de texto principal, secundário, discreto e `accent-text` sobre `surface-2`, nos dois temas. |
+| `e2e/fluxos.mjs` | Dois fluxos: barra clara na área logada e escura nas telas de entrada, com o tema claro. |
+| `SKILLHUB_DESIGN_SYSTEM.md` | Coluna "Claro" da 8.2 deixa de ser provisória; valores por tema e tokens novos; barra do navegador na 8.5. |
+
+### Validação
+
+- `npm run check:contrast`: todos os pares passaram (48: 21 por tema, mais os 6 avatares). `npm run check:cores` verde.
+- `tsc` (frontend e backend), `eslint` e `next build` sem erros. `./e2e/run.sh`: 104/104.
+- **Escuro sem mudança:** 23 telas capturadas na base e no fim (6 páginas, popover de créditos, filtro, três diálogos e toast, a 375 e 1440px), idênticas byte a byte. A exceção é `servicos_375`, que varia 2 pixels até entre duas capturas da base sem mudança nenhuma (ruído de renderização).
+- **Claro:** comparação de cada rodada entregue ao João Gabriel, e uma página final com todas as telas nos dois temas.
+
+### Decisão em aberto: splash em rede lenta
+
+O achado da 16.4 ("no claro, o carregamento da área logada aparece antes do splash escuro") não vem da ordem do HTML, como o plano supunha. A reordenação foi testada, não teve efeito e foi desfeita.
+
+A causa medida:
+- O HTML com o overlay chega cedo; o que demora são os pacotes de JavaScript.
+- A animação CSS de segurança do overlay o esconde depois de 4s, de propósito, para a tela não travar sem JS.
+- Daí em diante aparece o carregamento da área logada, que segue o tema.
+
+Para mudar isso há duas saídas, e as duas pedem decisão:
+- aumentar o tempo da animação de segurança (a tela fica presa mais tempo se o JS falhar);
+- deixar o carregamento da área logada com o visual do splash (escuro, com o logo grande) nos dois temas.
+
+### Achados fora de escopo
+
+- O "Excluir conta" desabilitado parece rosa desbotado; vale uma revisão de estados (desabilitado, carregando) para todos os botões.
+- Seguem abertos o aviso do GSAP no `/login` sem sessão e o ponto instável do e2e no passo 16 (anotados antes).
+
+---
+
 ## Ajuste pós-16.4 — Switch de tema na sidebar
 
 **Data:** 2026-10-15
