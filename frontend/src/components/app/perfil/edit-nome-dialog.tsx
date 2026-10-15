@@ -72,7 +72,7 @@ export function EditNomeDialog({ user, open, onOpenChange }: Props) {
             <select
               value={genero}
               onChange={(e) => setGenero(e.target.value)}
-              className="mt-1 w-full cursor-pointer border-b border-field bg-transparent pb-2 text-[15px] text-foreground outline-none focus:border-foreground [color-scheme:dark]"
+              className="mt-1 w-full cursor-pointer border-b border-field bg-transparent pb-2 text-[15px] text-foreground outline-none focus:border-foreground"
             >
               <option value="" disabled>
                 Selecione
