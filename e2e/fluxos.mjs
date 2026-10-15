@@ -315,6 +315,59 @@ for (const [label, rota] of [["Serviços", "/servicos"], ["Produtos", "/produtos
   ok(`desktop: ${rota} sem rolagem horizontal`, await semRolagemLateral());
 }
 ok("desktop: créditos da sidebar vêm do usuário", (await sidebar.getByText("Seus créditos").isVisible()) && (await sidebar.getByText("0,00").first().isVisible()));
+
+// 15c. Tema (Fase 16.4): Aparência em Configurações, atalho da sidebar, persistência, "Sistema" e sem piscada
+const temaHtml = () => page.evaluate(() => (document.documentElement.classList.contains("dark") ? "escuro" : "claro"));
+const aparencia = page.getByRole("radiogroup", { name: "Aparência" });
+const marcada = async () => aparencia.locator("[role=radio][aria-checked=true]").textContent();
+const PRIMEIRO_QUADRO = () => requestAnimationFrame(() => {
+  window.__temaPrimeiroQuadro = document.documentElement.classList.contains("dark") ? "escuro" : "claro";
+});
+ok("tema: padrão é Escuro", (await temaHtml()) === "escuro" && (await marcada()) === "Escuro");
+await aparencia.getByRole("radio", { name: "Claro" }).click();
+ok("tema: Claro troca na hora, sem recarregar", (await temaHtml()) === "claro" && (await page.getByText("Em uso: Claro").isVisible()));
+await page.getByRole("button", { name: /Notificações/ }).click();
+await page.locator("[data-sonner-toast]").first().waitFor();
+ok("tema: toasts seguem o tema", (await page.locator("[data-sonner-toaster]").getAttribute("data-sonner-theme")) === "light");
+await page.reload(); await aparencia.waitFor();
+ok("tema: escolha sobrevive a recarregar", (await temaHtml()) === "claro" && (await marcada()) === "Claro");
+const abaTema = await ctx.newPage(); await abaTema.addInitScript(PRIMEIRO_QUADRO);
+await abaTema.goto(B + "/inicio"); await abaTema.getByRole("heading", { name: "SkillHub" }).waitFor();
+ok("tema: sem piscada (aba nova já pinta o primeiro quadro no claro)", (await abaTema.evaluate(() => window.__temaPrimeiroQuadro)) === "claro");
+await abaTema.close();
+await aparencia.getByRole("radio", { name: "Claro" }).focus(); await page.keyboard.press("ArrowRight");
+ok("tema: setas do teclado trocam a opção", (await marcada()) === "Escuro" && (await temaHtml()) === "escuro" &&
+  (await page.evaluate(() => document.activeElement?.textContent)) === "Escuro");
+await page.emulateMedia({ colorScheme: "light" });
+await aparencia.getByRole("radio", { name: "Sistema" }).click();
+ok("tema: Sistema segue o sistema", (await temaHtml()) === "claro" && (await page.getByText("Em uso: Sistema (agora claro)").isVisible()));
+await page.emulateMedia({ colorScheme: "dark" }); await page.waitForTimeout(200);
+ok("tema: Sistema acompanha a troca com a página aberta", (await temaHtml()) === "escuro");
+await page.emulateMedia({ colorScheme: null });
+await aparencia.getByRole("radio", { name: "Escuro" }).click();
+const atalhoTema = sidebar.getByRole("button", { name: /^Tema (claro|escuro)$/ });
+await atalhoTema.click();
+ok("tema: atalho da sidebar alterna", (await temaHtml()) === "claro" && (await atalhoTema.textContent()) === "Tema escuro" && (await marcada()) === "Claro");
+await atalhoTema.click();
+ok("tema: atalho volta ao escuro", (await temaHtml()) === "escuro" && (await atalhoTema.textContent()) === "Tema claro");
+// telas de entrada sempre escuras, localStorage bloqueado e valor inválido: navegadores à parte (sem sessão)
+const semSessao = async (prepara) => {
+  const c = await browser.newContext({ viewport: { width: 440, height: 956 } });
+  await c.addInitScript(prepara);
+  const p = await c.newPage(); const erros = []; p.on("pageerror", (e) => erros.push(e.message));
+  await p.goto(B + "/login"); await p.getByRole("button", { name: "Entrar", exact: true }).waitFor();
+  const r = await p.evaluate(() => ({
+    html: document.documentElement.classList.contains("dark") ? "escuro" : "claro",
+    fundo: getComputedStyle(document.querySelector("main")).getPropertyValue("--background").trim(),
+  }));
+  await c.close(); return { ...r, erros };
+};
+const entrada = await semSessao(() => localStorage.setItem("skillhub-tema", "claro"));
+ok("tema: telas de entrada ficam escuras com o tema claro", entrada.html === "claro" && entrada.fundo === "#101010", JSON.stringify(entrada));
+const bloqueado = await semSessao(() => Object.defineProperty(window, "localStorage", { get() { throw new Error("bloqueado"); } }));
+ok("tema: localStorage bloqueado cai no escuro, sem erro", bloqueado.html === "escuro" && bloqueado.erros.length === 0, bloqueado.erros.join(" | "));
+const invalido = await semSessao(() => localStorage.setItem("skillhub-tema", "roxo"));
+ok("tema: valor inválido cai no escuro", invalido.html === "escuro");
 await sidebar.getByRole("button", { name: "Sair" }).click(); await page.waitForURL("**/login", { timeout: 8000 }).catch(() => {});
 ok("desktop: Sair da sidebar leva ao login", page.url().endsWith("/login"), page.url());
 await page.setViewportSize({ width: 440, height: 956 });
