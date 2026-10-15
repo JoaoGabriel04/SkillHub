@@ -345,11 +345,12 @@ await page.emulateMedia({ colorScheme: "dark" }); await page.waitForTimeout(200)
 ok("tema: Sistema acompanha a troca com a página aberta", (await temaHtml()) === "escuro");
 await page.emulateMedia({ colorScheme: null });
 await aparencia.getByRole("radio", { name: "Escuro" }).click();
-const atalhoTema = sidebar.getByRole("button", { name: /^Tema (claro|escuro)$/ });
+const atalhoTema = sidebar.getByRole("switch", { name: "Tema escuro" });
+ok("tema: switch da sidebar ligado no escuro", (await atalhoTema.getAttribute("aria-checked")) === "true");
 await atalhoTema.click();
-ok("tema: atalho da sidebar alterna", (await temaHtml()) === "claro" && (await atalhoTema.textContent()) === "Tema escuro" && (await marcada()) === "Claro");
-await atalhoTema.click();
-ok("tema: atalho volta ao escuro", (await temaHtml()) === "escuro" && (await atalhoTema.textContent()) === "Tema claro");
+ok("tema: switch da sidebar alterna", (await temaHtml()) === "claro" && (await atalhoTema.getAttribute("aria-checked")) === "false" && (await marcada()) === "Claro");
+await sidebar.locator("label").filter({ hasText: "Tema" }).getByText("Tema", { exact: true }).click();
+ok("tema: clicar no rótulo também alterna", (await temaHtml()) === "escuro" && (await atalhoTema.getAttribute("aria-checked")) === "true");
 // telas de entrada sempre escuras, localStorage bloqueado e valor inválido: navegadores à parte (sem sessão)
 const semSessao = async (prepara) => {
   const c = await browser.newContext({ viewport: { width: 440, height: 956 } });

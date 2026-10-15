@@ -220,7 +220,7 @@ Iniciais brancas sobre `#2f6f8f`, `#8f5a2f`, `#4a5a8f`, `#7c4a8f`, `#8f2f4a` ou 
 - **Mecanismo:** a classe `dark` no `<html>` (as variáveis do `.dark` no `globals.css`). Um script inline no `<head>` aplica o tema antes da primeira pintura, sem piscar. Depois, o `TemaProvider` acompanha as trocas: outra aba e a mudança do sistema com a página aberta, quando a preferência é "Sistema". Lógica e constantes em `src/lib/tema.ts`.
 - **Onde se escolhe:**
   - Configurações, linha "Aparência": as três opções, com teclado.
-  - Sidebar: o atalho "Tema claro" ou "Tema escuro" alterna e grava uma escolha fixa.
+  - Sidebar: a linha "Tema" com um switch compacto (nome acessível "Tema escuro", ligado = escuro). O botão ciano desliza entre o Sol e a Lua e grava uma escolha fixa; no trilho, uma Lua discreta no claro e estrelas no escuro.
   - O header do celular não tem atalho.
 - **Sempre escuros, nos dois temas:**
   - As telas de entrada (`/`, `/login`, `/cadastro`, recuperação de senha e retorno do OAuth), por um wrapper com a classe `dark` no `app/(auth)/layout.tsx`.
