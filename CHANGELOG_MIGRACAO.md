@@ -52,6 +52,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 
 - O overlay da transição e o fundo das telas de entrada usam `bg-background`; no tema claro isso fica claro enquanto o canvas da colmeia desenha ladrilhos escuros. Decidir na 16.4 (telas de entrada) e na 16.5.
 - As variáveis `--sidebar-*` e `--chart-*` do shadcn continuam definidas sem uso.
+- Para o plano da 16.4: atalho de tema na sidebar (recomendado) e no header do celular (não recomendado), além do seletor de Configurações. Detalhes na Seção 9 do `PLANO_16_3.md`.
 
 ---
 

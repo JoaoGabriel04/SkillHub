@@ -246,3 +246,10 @@ Todas vêm do mapa 2.4 ou das perguntas em aberto. Layout, posições e tamanhos
 - O overlay da transição de páginas e o fundo das telas de entrada usam `bg-background`, que no tema claro ficaria claro, enquanto o canvas da colmeia desenha ladrilhos escuros. Isso é para decidir na 16.4 (pergunta 3, telas de entrada) e na 16.5, não aqui.
 - As variáveis `--sidebar-*` e `--chart-*` do shadcn ficam definidas sem uso. Podem sair numa limpeza futura.
 - Na raiz, ao lado do `check-contrast.mjs`, existe um `check-contrast.mjs:Zone.Identifier` (sobra do Windows). Vale apagar antes de começar.
+
+## 9. Registrado para o plano da 16.4
+
+- **Atalho de tema fora de Configurações** (pedido do João Gabriel em 15/10/2026). O documento prevê o seletor só em Configurações ("Aparência": Claro, Escuro, Sistema). Pergunta em aberto para o plano da 16.4, com esta recomendação:
+  - **Sidebar (desktop): sim.** Botão de sol e lua no rodapé, junto de Configurações e Sair. Alterna entre claro e escuro e grava a escolha.
+  - **Header (celular): não.** A 375px já tem logo, chip de créditos e engrenagem, e a engrenagem leva ao seletor completo em Configurações.
+  - **"Sistema" só em Configurações**, porque o switch tem dois estados. Usar o switch transforma "Sistema" numa escolha fixa.
