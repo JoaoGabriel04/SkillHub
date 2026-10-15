@@ -36,6 +36,7 @@
   --color-card-fill: var(--card-bg);
   --color-nav: var(--nav-bg);
   --color-overlay: var(--overlay);
+  --color-banner: var(--banner-bg);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-inter);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -124,6 +125,10 @@
   --glow-coin-lg: 0 0 10px color-mix(in srgb, var(--accent) 25%, transparent);
   --glow-line: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent);
   --glow-logo: 0 0 0 transparent;
+  /* Banner de Produtos: no claro, card branco com listras em ciano escuro (o ciano puro some no claro) */
+  --banner-bg: var(--surface);
+  --banner-shadow: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
+  --stripe: var(--accent-text);
 
   /* Marca (decorativa, sem texto por cima; igual nos dois temas) */
   --brand-gradient: linear-gradient(180deg, #29cffe 0%, #3bd4cc 100%);
@@ -213,6 +218,9 @@
   --glow-coin-lg: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
   --glow-line: 0 0 10px color-mix(in srgb, var(--accent) 80%, transparent);
   --glow-logo: 0 0 6px rgba(41, 195, 220, 0.45);
+  --banner-bg: var(--surface-2);
+  --banner-shadow: 0 0 0 transparent;
+  --stripe: var(--accent);
 
   --border: rgba(255, 255, 255, 0.08);
   --sidebar: oklch(0.205 0 0);
