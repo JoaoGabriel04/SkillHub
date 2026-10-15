@@ -16,6 +16,12 @@ export const TEMA_PADRAO: PreferenciaTema = "escuro";
 const CHAVE = "skillhub-tema";
 const CONSULTA_SISTEMA = "(prefers-color-scheme: dark)";
 
+// Telas de entrada: sempre escuras (wrapper `dark` em app/(auth)/layout.tsx), então a barra do navegador
+// também fica escura nelas, qualquer que seja o tema escolhido
+const ROTAS_ENTRADA = ["/", "/login", "/cadastro", "/esqueci-senha", "/redefinir-senha", "/auth/callback"];
+const ehEntrada = (pathname: string) =>
+  ROTAS_ENTRADA.some((rota) => pathname === rota || (rota !== "/" && pathname.startsWith(rota + "/")));
+
 const ehPreferencia = (valor: unknown): valor is PreferenciaTema => PREFERENCIAS.includes(valor as PreferenciaTema);
 
 // Escolha da sessão quando o localStorage não grava (bloqueado, modo privado): o tema muda, só não é lembrado
@@ -42,7 +48,7 @@ export function aplicarTema(tema: Tema) {
     meta.name = "theme-color";
     document.head.appendChild(meta);
   }
-  meta.content = COR_BARRA[tema];
+  meta.content = COR_BARRA[ehEntrada(window.location.pathname) ? "escuro" : tema];
 }
 
 // Store do useSyncExternalStore: avisa quando a preferência muda (aqui ou em outra aba)
@@ -81,12 +87,14 @@ export const snapshotTema = () => {
 };
 export const SNAPSHOT_SERVIDOR = `${TEMA_PADRAO}:${TEMA_PADRAO}`;
 
-// Script do <head>: mesma regra de lerPreferencia + resolverTema + aplicarTema, em JS puro.
+// Script do <head>: mesma regra de lerPreferencia + resolverTema + aplicarTema (inclusive as telas de entrada), em JS puro.
 // Qualquer erro deixa o que o servidor mandou (classe `dark`, o tema padrão).
-export const scriptTema = `(function(){try{var p;try{p=localStorage.getItem(${JSON.stringify(CHAVE)})}catch(e){}if(${JSON.stringify(
+export const scriptTema = `(function(){try{var p;try{p=localStorage.getItem(${JSON.stringify(CHAVE)})}catch(e){}var r=location.pathname,n=${JSON.stringify(
+  ROTAS_ENTRADA
+)}.some(function(x){return r===x||(x!=="/"&&r.indexOf(x+"/")===0)});if(${JSON.stringify(
   PREFERENCIAS
 )}.indexOf(p)<0)p=${JSON.stringify(TEMA_PADRAO)};var e=p==="sistema"?matchMedia(${JSON.stringify(
   CONSULTA_SISTEMA
-)}).matches:p==="escuro";document.documentElement.classList.toggle("dark",e);var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.name="theme-color";document.head.appendChild(m)}m.content=e?${JSON.stringify(
+)}).matches:p==="escuro";document.documentElement.classList.toggle("dark",e);var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.name="theme-color";document.head.appendChild(m)}m.content=e||n?${JSON.stringify(
   COR_BARRA.escuro
 )}:${JSON.stringify(COR_BARRA.claro)}}catch(e){}})()`;
