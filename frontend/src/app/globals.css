@@ -103,14 +103,14 @@
 
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-strong-bg: rgba(255, 255, 255, 0.92);
-  --glass-strong-border: color-mix(in srgb, #0f1a19 8%, transparent);
+  --glass-strong-border: color-mix(in srgb, #0f1a19 12%, transparent);
   --card-bg: #ffffff;
   --nav-bg: rgba(255, 255, 255, 0.88);
   --overlay: rgba(15, 26, 25, 0.4);
   --shadow-glass: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
   --shadow-card: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
   --shadow-cta: inset 0 -2px 4px rgba(0, 0, 0, 0.15), inset 0 4px 4px rgba(255, 255, 255, 0.3);
-  --shadow-popover: 0 8px 32px rgba(15, 26, 25, 0.12);
+  --shadow-popover: 0 8px 32px rgba(15, 26, 25, 0.16);
   --shadow-raised: 0 4px 14px rgba(15, 26, 25, 0.12);
   --shadow-badge: 0 2px 8px rgba(15, 26, 25, 0.16);
   --shadow-check: 0 2px 6px rgba(15, 26, 25, 0.2);
