@@ -9,6 +9,57 @@
 
 ---
 
+## Fase 16.2 — Início em layout desktop
+
+**Data:** 2026-10-15
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/inicio-desktop`
+
+### Contexto
+
+Segunda subfase do `SKILLHUB_SIDEBAR_E_DOMINIO.md` (plano em `PLANO_16_2.md`). A partir de `xl` (1280px), o Início segue o frame `New Início - Desktop`:
+- busca no topo;
+- eventos na largura toda;
+- duas colunas: colaboradores e 2 serviços à esquerda, 2 produtos numa coluna de 380px à direita.
+
+Abaixo de `xl` nada muda.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **Busca "Buscar no SkillHub":** visível; ao enviar, mostra o `emBreve`.
+- **De 1024 a 1279px:** o Início continua empilhado.
+- **Card de evento:** usa a paleta da 16.3 (título `text-foreground`, botão principal ciano), e não o amarelo e o verde do frame.
+- **"Ver mais...":** fica no fim da fileira de avatares. No frame ele está à direita do título.
+
+### Arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/app/(app)/inicio/page.tsx` | Só classes `xl:` no mesmo markup, mais um `div` de grade em volta de Colaboradores, Serviços e Produtos (sem classes abaixo de `xl`). A saudação fica em linha com a busca. Os cards de evento ocupam a largura toda (208px). As trilhas de Serviços e Produtos viram grade de 2 colunas, e os cards além do 2º somem. Continua Server Component assíncrono lendo de `lib/mock`. |
+| `frontend/src/app/(app)/inicio/busca-global.tsx` | **Novo.** `<form>` com o `SearchBar` (Client Component, porque o campo é controlado), só a partir de `xl`. Ao enviar, chama `emBreve("A busca global")`. |
+| `frontend/src/app/(app)/inicio/mock.ts` | Os 3 títulos dos eventos sem emojis ("Novo Evento!", "Guia essencial", "Maratona Tech"). É a única mudança de dado. |
+| `frontend/src/components/app/scroll-row.tsx` | Prop opcional `trilhaClassName`, acrescentada às classes da trilha. Sem a prop, o componente é idêntico. |
+| `e2e/fluxos.mjs` | Seção 15d, a 1440×900: cabe sem rolar, sem rolagem lateral, 6 colaboradores, 2 serviços e 2 produtos, eventos com 3 dots, e a busca avisa "em breve". |
+
+Não mudaram: `ServicoCard` e `ProdutoCard`. O frame usa os cards do próprio Início, não esses.
+
+### Ajustes durante a implementação
+
+- **Avatares:** 6 a partir de 1400px, não do `xl`. A 1280px, 6 avatares empurravam o "Ver mais..." para fora da coluna esquerda (cerca de 530px). Até 1399px aparecem 4. O link fica dentro da coluna de 1280 a 1920px (medido).
+- **Card de evento:** no `xl`, o conteúdo fica centralizado verticalmente, com o botão logo abaixo da descrição, como no frame.
+
+### Validação
+
+- **Mobile e tablet inalterados:** Início a 375, 440, 768 e 1024px idêntico byte a byte nos dois temas. A captura "antes" foi tirada já sem os emojis, como pede o documento; a remoção dos emojis é a única diferença em relação à versão anterior.
+- **Outras páginas:** Serviços e Produtos idênticas byte a byte a 375 e 1440px, nos dois temas. O `ScrollRow` sem a prop nova não mudou.
+- **Desktop (escuro e claro):**
+  - A 1440×900 e 1920×1080, a página cabe sem rolagem vertical (o conteúdo termina em 844px).
+  - Nenhuma rolagem lateral de 1024 a 1920px.
+  - O carrossel de eventos arrasta com o mouse e os dots levam a cada card.
+  - A busca mostra o "Em breve".
+- `tsc` (frontend e backend), `eslint`, `next build` e `check:cores` sem erros. `./e2e/run.sh`: 109/109 (104 anteriores, mais 5 do Início no desktop).
+
+---
+
 ## Fase 16.5 — Tema claro (acabamento visual)
 
 **Data:** 2026-10-15
