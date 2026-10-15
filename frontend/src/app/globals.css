@@ -6,9 +6,36 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Paleta do SkillHub (Fase 16.3; regra de cor no SKILLHUB_DESIGN_SYSTEM.md, Seção 8).
+   Os valores de texto/fundo/ação abaixo têm de ser IGUAIS aos de frontend/scripts/check-contrast.mjs
+   (fonte da verdade, valida o contraste); `npm run check:cores` reprova se divergirem.
+   Componentes nunca escrevem cor à mão: usam as classes do @theme inline. Cor de marca usada em JS
+   (canvas, GSAP) fica em src/lib/brand.ts. */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-border: var(--accent-soft-border);
+  --color-danger: var(--danger);
+  --color-danger-fill: var(--danger-fill);
+  --color-danger-fill-foreground: var(--danger-fill-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  /* linha de campo (sublinhado dos inputs, bordas de formulário): token --border-input */
+  --color-field: var(--border-input);
+  --color-glass: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --color-glass-strong: var(--glass-strong-bg);
+  --color-glass-strong-border: var(--glass-strong-border);
+  --color-card-fill: var(--card-bg);
+  --color-nav: var(--nav-bg);
+  --color-overlay: var(--overlay);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-inter);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -49,25 +76,74 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Tema claro: valores provisórios (o tema continua fixo em escuro; acertados na tela na 16.5) */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --background: #f4f7f7;
+  --surface: #ffffff;
+  --surface-2: #e9efee;
+  --foreground: #0f1a19;
+  --foreground-secondary: #3f4f4d;
+  --muted-foreground: #5a6866;
+  --accent: #3bd4cc;
+  --accent-foreground: #08201e;
+  --accent-hover: #62e0d9;
+  --accent-text: #0a736e;
+  --accent-soft: color-mix(in srgb, #3bd4cc 16%, transparent);
+  --accent-soft-border: color-mix(in srgb, #0a736e 40%, transparent);
+  --danger: #b3261e;
+  --danger-fill: #c62f2f;
+  --danger-fill-foreground: #ffffff;
+  --success: #137a3f;
+  --warning: #8a5a00;
+  --border-input: #76837f;
+  --glass-border: color-mix(in srgb, #0f1a19 14%, transparent);
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-strong-bg: rgba(255, 255, 255, 0.92);
+  --glass-strong-border: color-mix(in srgb, #0f1a19 8%, transparent);
+  --card-bg: #ffffff;
+  --nav-bg: rgba(255, 255, 255, 0.72);
+  --overlay: rgba(15, 26, 25, 0.4);
+  --shadow-glass: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
+  --shadow-card: 0 1px 2px rgba(15, 26, 25, 0.08), 0 8px 24px rgba(15, 26, 25, 0.06);
+  --shadow-cta: inset 0 -2px 4px rgba(0, 0, 0, 0.15), inset 0 4px 4px rgba(255, 255, 255, 0.3);
+  --shadow-popover: 0 8px 32px rgba(15, 26, 25, 0.12);
+  --shadow-raised: 0 4px 14px rgba(15, 26, 25, 0.12);
+  --shadow-badge: 0 2px 8px rgba(15, 26, 25, 0.16);
+  --shadow-check: 0 2px 6px rgba(15, 26, 25, 0.2);
+  --bg-gradient-from: #f4f7f7;
+  --bg-gradient-to: #e9efee;
+  --bg-profile-from: #f4f7f7;
+  --bg-profile-to: #dfe8e7;
+  --curve-from: #b8c3c1;
+  --curve-mid: #8f9c9a;
+
+  /* Brilhos ciano (acompanham --accent) */
+  --glow-active: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
+  --glow-coin: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+  --glow-coin-lg: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  --glow-line: 0 0 10px color-mix(in srgb, var(--accent) 80%, transparent);
+
+  /* Marca (decorativa, sem texto por cima; igual nos dois temas) */
+  --brand-gradient: linear-gradient(180deg, #29cffe 0%, #3bd4cc 100%);
+  --brand-title-gradient: linear-gradient(180deg, #2dbfda 0%, #3bd4cc 55%, #93e7e2 100%);
+  --brand-spotlight: radial-gradient(circle, rgba(59, 212, 204, 0.1) 0%, rgba(41, 195, 220, 0.04) 40%, transparent 70%);
+  --glow-logo: 0 0 6px rgba(41, 195, 220, 0.45);
+
+  /* shadcn: aponta para os tokens acima */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --destructive: var(--danger);
+  --border: color-mix(in srgb, #0f1a19 10%, transparent);
+  --input: var(--border-input);
+  --ring: var(--accent);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -84,30 +160,49 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Tema escuro (o único em uso). Vidros, sombras e fundos com os valores de antes da 16.3. */
 .dark {
-  --background: #1a1a1a;
-  --foreground: #ffffff;
-  --card: #1b1b1b;
-  --card-foreground: oklch(0.985 0 0);
-  --popover: #282828;
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #3bd4cc;
-  --primary-foreground: #1a1a1a;
-  --secondary: #282828;
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: #282828;
-  --muted-foreground: #9f9f9f;
+  --background: #101010;
+  --surface: #0c0c0c;
+  --surface-2: #1b1b1b;
+  --foreground: #f2f4f4;
+  --foreground-secondary: #b8c0bf;
+  --muted-foreground: #8f9897;
   --accent: #3bd4cc;
-  --accent-foreground: #1a1a1a;
-  --destructive: oklch(0.704 0.191 22.216);
+  --accent-foreground: #08201e;
+  --accent-hover: #62e0d9;
+  --accent-text: #3bd4cc;
+  --accent-soft: color-mix(in srgb, #3bd4cc 12%, transparent);
+  --accent-soft-border: color-mix(in srgb, #3bd4cc 40%, transparent);
+  --danger: #ff7b7b;
+  --danger-fill: #c62f2f;
+  --danger-fill-foreground: #ffffff;
+  --success: #4ade80;
+  --warning: #f5b942;
+  --border-input: #6b7574;
+  --glass-border: rgba(176, 176, 176, 0.33);
+
+  --glass-bg: rgba(89, 89, 89, 0.15);
+  --glass-strong-bg: rgba(28, 28, 28, 0.92);
+  --glass-strong-border: rgba(255, 255, 255, 0.06);
+  --card-bg: rgba(0, 0, 0, 0.3);
+  --nav-bg: rgba(0, 0, 0, 0.35);
+  --overlay: rgba(0, 0, 0, 0.7);
+  --shadow-glass: inset 0 4px 4px rgba(255, 255, 255, 0.1), inset 0 -4px 4px rgba(0, 0, 0, 0.25);
+  --shadow-card: 2px 4px 4px rgba(0, 0, 0, 0.2), inset 0 -4px 4px rgba(0, 0, 0, 0.4), inset 0 6px 5px rgba(255, 255, 255, 0.05);
+  --shadow-cta: inset 0 -2px 4px rgba(0, 0, 0, 0.35), inset 0 4px 4px rgba(255, 255, 255, 0.3);
+  --shadow-popover: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-raised: 0 4px 14px rgba(0, 0, 0, 0.6);
+  --shadow-badge: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-check: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --bg-gradient-from: #1a1a1a;
+  --bg-gradient-to: #222222;
+  --bg-profile-from: #101010;
+  --bg-profile-to: #343434;
+  --curve-from: #6f6f6f;
+  --curve-mid: #9a9a9a;
+
   --border: rgba(255, 255, 255, 0.08);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #3bd4cc;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -124,8 +219,8 @@
   }
   body {
     @apply text-foreground font-sans;
-    background-color: #1a1a1a;
-    background-image: radial-gradient(circle at center, #1a1a1a 0%, #222222 100%);
+    background-color: var(--bg-gradient-from);
+    background-image: radial-gradient(circle at center, var(--bg-gradient-from) 0%, var(--bg-gradient-to) 100%);
     background-attachment: fixed;
   }
   html {

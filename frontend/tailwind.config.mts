@@ -1,18 +1,14 @@
 import type { Config } from "tailwindcss";
 
-// Tokens do SKILLHUB_DESIGN_SYSTEM.md (Seção 6).
+// Fontes e o degradê da marca (SKILLHUB_DESIGN_SYSTEM.md, Seção 6; a paleta está na Seção 8).
 // Carregado pelo Tailwind v4 via `@config` em src/app/globals.css.
 export default {
   darkMode: "class",
   theme: {
     extend: {
-      colors: {
-        base: { DEFAULT: "#1a1a1a", light: "#222222" },
-        surface: { DEFAULT: "#1b1b1b", light: "#282828" },
-        accent: { DEFAULT: "#3bd4cc", from: "#29cffe", to: "#3bd4cc" },
-      },
+      // cores vêm dos tokens de src/app/globals.css (@theme inline), não daqui
       backgroundImage: {
-        "accent-gradient": "linear-gradient(180deg, #29cffe 0%, #3bd4cc 100%)",
+        "accent-gradient": "var(--brand-gradient)",
       },
       fontFamily: {
         // variáveis CSS geradas pelo next/font em src/app/layout.tsx
