@@ -1,9 +1,9 @@
 import Image from "next/image";
-import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { Avatar } from "@/components/app/avatar";
 import { ScrollRow } from "@/components/app/scroll-row";
+import { TransitionLink } from "@/components/motion/page-transition";
 import { ContentCard } from "@/components/ui/content-card";
 import { ctaButtonClass } from "@/components/ui/cta-button";
 import { getProdutos } from "@/lib/mock/produtos";
@@ -22,7 +22,7 @@ export default async function InicioPage() {
     <main className="pb-4">
       <section className="mt-[53px] sm:mt-14">
         <p className="text-[20px] text-[#b3b3b3] sm:text-[24px] lg:text-[28px]">Seja Bem Vindo ao</p>
-        <h1 className="text-[32px] leading-[1.1] font-bold text-[#d9d9d9] sm:text-[40px] lg:text-[46px]">SkillHub</h1>
+        <h1 data-scramble className="text-[32px] leading-[1.1] font-bold text-[#d9d9d9] sm:text-[40px] lg:text-[46px]">SkillHub</h1>
       </section>
 
       {/* Eventos */}
@@ -67,9 +67,9 @@ export default async function InicioPage() {
             </li>
           ))}
           <li>
-            <Link href="/comunidade" className="text-[13px] text-[#656766] transition-colors hover:text-white sm:text-[15px]">
+            <TransitionLink href="/comunidade" className="text-[13px] text-[#656766] transition-colors hover:text-white sm:text-[15px]">
               Ver mais...
-            </Link>
+            </TransitionLink>
           </li>
         </ul>
       </section>
@@ -78,9 +78,9 @@ export default async function InicioPage() {
       <section className="mt-[32px] sm:mt-12">
         <div className="flex items-center justify-between">
           <h2 className="text-[15px] text-[#d9d9d9] sm:text-[18px] lg:text-[20px]">Serviços</h2>
-          <Link href="/servicos" aria-label="Ver todos os serviços" className="text-[#8a8a8a] transition-colors hover:text-white">
+          <TransitionLink href="/servicos" aria-label="Ver todos os serviços" className="text-[#8a8a8a] transition-colors hover:text-white">
             <FontAwesomeIcon icon={faArrowRight} className="text-[17px] sm:text-[20px]" />
-          </Link>
+          </TransitionLink>
         </div>
         <ScrollRow label="Serviços" className="mt-[20px]">
           {servicos.map((servico) => (
@@ -95,9 +95,9 @@ export default async function InicioPage() {
               <p className="mt-[16px] line-clamp-2 text-justify text-[12px] leading-[1.25] text-[#e6e6e6] sm:text-left sm:text-[14px]">
                 {servico.descricao}
               </p>
-              <Link href="/servicos" className={cn(ctaButtonClass, "mt-auto flex h-[27px] items-center justify-center text-[11px] sm:h-8")}>
+              <TransitionLink href="/servicos" className={cn(ctaButtonClass, "mt-auto flex h-[27px] items-center justify-center text-[11px] sm:h-8")}>
                 Saiba Mais
-              </Link>
+              </TransitionLink>
             </ContentCard>
           ))}
         </ScrollRow>
@@ -108,7 +108,7 @@ export default async function InicioPage() {
         <h2 className="text-[15px] text-[#d9d9d9] sm:text-[18px] lg:text-[20px]">Produtos Relevantes</h2>
         <ScrollRow label="Produtos" className="mt-[20px]">
           {produtos.map((produto) => (
-            <Link key={produto.id} href="/produtos" className="group w-[176px] transition-transform hover:-translate-y-1 sm:w-[210px] lg:w-[240px]">
+            <TransitionLink key={produto.id} href="/produtos" className="group w-[176px] transition-transform hover:-translate-y-1 sm:w-[210px] lg:w-[240px]">
               <ContentCard className="flex flex-col overflow-hidden font-secondary">
                 <div className="relative h-[199px] bg-[#5f5f5f] sm:h-[236px] lg:h-[270px]">
                   <Image
@@ -124,7 +124,7 @@ export default async function InicioPage() {
                   <p className="mt-[2px] text-[13px] font-semibold text-accent sm:text-[14px] lg:text-[15px]">{formatPreco(produto.preco)}</p>
                 </div>
               </ContentCard>
-            </Link>
+            </TransitionLink>
           ))}
         </ScrollRow>
       </section>

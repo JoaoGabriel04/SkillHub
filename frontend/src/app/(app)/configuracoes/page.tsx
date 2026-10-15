@@ -1,24 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronRight, faKey, faUserXmark } from "@fortawesome/free-solid-svg-icons";
 import { DeleteAccountDialog } from "@/components/app/delete-account-dialog";
 import { PageTitle } from "@/components/app/page-title";
 import { normalizar, SearchBar } from "@/components/app/search-bar";
+import { usePageTransition } from "@/components/motion/page-transition";
 import { ContentCard } from "@/components/ui/content-card";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useLogout } from "@/hooks/use-logout";
 import { emBreve } from "@/lib/em-breve";
 import { useAuthStore } from "@/stores/auth-store";
 
-type Item = { label: string; descricao: string; acao: () => void };
+// origem: o botão clicado (a transição de página nasce dele)
+type Item = { label: string; descricao: string; acao: (origem: HTMLElement) => void };
 
 // designs/New Configurações.png — 7 itens em ContentCard. Funcionam hoje: Editar Perfil (vai para /perfil),
 // Privacidade e Segurança (onde fica o "Excluir conta") e Sair; os demais avisam "em breve".
 export default function ConfiguracoesPage() {
-  const router = useRouter();
+  const { navigate } = usePageTransition();
   const user = useAuthStore((s) => s.user);
   const [busca, setBusca] = useState("");
   const [privacidadeOpen, setPrivacidadeOpen] = useState(false);
@@ -26,7 +27,7 @@ export default function ConfiguracoesPage() {
   const sair = useLogout();
 
   const itens: Item[] = [
-    { label: "Editar Perfil", descricao: "Dados pessoais, foto e currículo", acao: () => router.push("/perfil") },
+    { label: "Editar Perfil", descricao: "Dados pessoais, foto e currículo", acao: (origem) => navigate("/perfil", { origin: origem }) },
     { label: "Notificações", descricao: "Preferências de alertas e e-mails", acao: () => emBreve("As notificações") },
     { label: "Privacidade e Segurança", descricao: "Senha, sessões e dados da conta", acao: () => setPrivacidadeOpen(true) },
     { label: "Créditos e Pagamentos", descricao: "Histórico e formas de pagamento", acao: () => emBreve("Créditos e Pagamentos") },
@@ -46,7 +47,7 @@ export default function ConfiguracoesPage() {
       <ul className="mt-[25px] flex flex-col gap-[14px] sm:mt-8 sm:gap-4">
         {visiveis.map((item) => (
           <li key={item.label}>
-            <button type="button" onClick={item.acao} className="group w-full text-left">
+            <button type="button" onClick={(e) => item.acao(e.currentTarget)} className="group w-full text-left">
               <ContentCard className="flex h-[64px] items-center px-[19px] transition-colors group-hover:bg-white/[0.04] sm:h-[76px] sm:px-6">
                 <div className="min-w-0 flex-1">
                   <p className="text-[15px] text-white sm:text-[17px]">{item.label}</p>

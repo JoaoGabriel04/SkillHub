@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGear } from "@fortawesome/free-solid-svg-icons";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
+import { TransitionLink, useNavPathname } from "@/components/motion/page-transition";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
 import { CreditsChip } from "./credits-chip";
@@ -13,7 +12,7 @@ import { CreditsChip } from "./credits-chip";
 // que leva para /configuracoes (lá ficam Sair e, em Privacidade e Segurança, Excluir conta).
 // A partir de lg some: logo, créditos e Configurações moram na Sidebar.
 export function AppHeader() {
-  const pathname = usePathname();
+  const pathname = useNavPathname();
   const user = useAuthStore((s) => s.user);
   const naConfig = pathname === "/configuracoes";
 
@@ -24,7 +23,7 @@ export function AppHeader() {
       <div className="flex items-center gap-[20px]">
         <CreditsChip credits={user?.credits ?? 0} />
 
-        <Link
+        <TransitionLink
           href="/configuracoes"
           aria-label="Configurações"
           aria-current={naConfig ? "page" : undefined}
@@ -34,7 +33,7 @@ export function AppHeader() {
           )}
         >
           <FontAwesomeIcon icon={faGear} className="text-[23px]" />
-        </Link>
+        </TransitionLink>
       </div>
     </header>
   );
