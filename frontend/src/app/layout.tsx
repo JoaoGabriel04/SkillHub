@@ -4,7 +4,9 @@ import { config } from "@fortawesome/fontawesome-svg-core";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { PageTransitionProvider } from "@/components/motion/page-transition";
+import { TemaProvider } from "@/components/tema/tema-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { scriptTema } from "@/lib/tema";
 import "./globals.css";
 
 // o CSS do Font Awesome já vem importado acima (evita ícone gigante no primeiro paint)
@@ -27,16 +29,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // "dark" fixo: o design system só tem tema escuro
+    // "dark" é só o valor do servidor (o tema padrão): o script do <head> põe o tema escolhido antes da
+    // primeira pintura, e o suppressHydrationWarning faz o React aceitar a classe que ele mudou (lib/tema.ts)
     <html
       lang="pt-BR"
+      suppressHydrationWarning
       className={`dark ${inter.variable} ${poppins.variable} ${jersey15.variable} ${jersey20.variable} ${jersey25.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: scriptTema }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <SessionProvider>
-          <PageTransitionProvider>{children}</PageTransitionProvider>
-        </SessionProvider>
-        <Toaster position="top-center" />
+        <TemaProvider>
+          <SessionProvider>
+            <PageTransitionProvider>{children}</PageTransitionProvider>
+          </SessionProvider>
+          <Toaster position="top-center" />
+        </TemaProvider>
       </body>
     </html>
   );
