@@ -372,6 +372,19 @@ const bloqueado = await semSessao(() => Object.defineProperty(window, "localStor
 ok("tema: localStorage bloqueado cai no escuro, sem erro", bloqueado.html === "escuro" && bloqueado.erros.length === 0, bloqueado.erros.join(" | "));
 const invalido = await semSessao(() => localStorage.setItem("skillhub-tema", "roxo"));
 ok("tema: valor inválido cai no escuro", invalido.html === "escuro");
+// 15d. Início no desktop (Fase 16.2, designs/New Início - Desktop.png): a 1440×900 cabe sem rolar
+await page.setViewportSize({ width: 1440, height: 900 });
+await page.goto(B + "/inicio"); await page.getByRole("heading", { name: "SkillHub" }).waitFor(); await page.waitForTimeout(800);
+const visiveis = (sel) => page.evaluate((s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length).length, sel);
+ok("início desktop: cabe em 1440×900 sem rolar", await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight));
+ok("início desktop: sem rolagem horizontal", await semRolagemLateral());
+ok("início desktop: 6 colaboradores, 2 serviços e 2 produtos",
+  (await page.locator("main ul [role=img]").evaluateAll((els) => els.filter((e) => e.getClientRects().length).length)) === 6 &&
+  (await visiveis('[aria-label="Serviços"] > *')) === 2 && (await visiveis('[aria-label="Produtos"] > *')) === 2);
+ok("início desktop: eventos seguem em carrossel com dots", (await page.getByRole("button", { name: /Ir para o item/ }).count()) === 3);
+await page.getByRole("searchbox", { name: "Buscar no SkillHub" }).fill("design"); await page.keyboard.press("Enter");
+ok("início desktop: busca global avisa 'em breve'", ((await page.locator("[data-sonner-toast]").first().textContent({ timeout: 3000 }).catch(() => "")) ?? "").includes("A busca global"));
+await page.setViewportSize({ width: 1280, height: 800 });
 await sidebar.getByRole("button", { name: "Sair" }).click(); await page.waitForURL("**/login", { timeout: 8000 }).catch(() => {});
 ok("desktop: Sair da sidebar leva ao login", page.url().endsWith("/login"), page.url());
 await page.setViewportSize({ width: 440, height: 956 });
