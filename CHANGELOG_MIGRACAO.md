@@ -9,6 +9,52 @@
 
 ---
 
+## Fase 16.3 — Paleta de marca e contraste (tema escuro)
+
+**Data:** 2026-10-15
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/paleta-cores`
+
+### Contexto
+
+Primeira subfase do `SKILLHUB_CORES_E_TEMA.md` (plano em `PLANO_16_3.md`). Cria a camada de tokens de cor e troca **todas** as cores escritas à mão dos componentes por eles, corrigindo os pares que reprovavam no contraste (o "Saiba Mais" tinha texto branco sobre ciano, 1,83:1). O tema continua fixo em escuro; os valores claros entram provisórios no `:root` para a 16.4 e a 16.5. Nenhum tamanho, posição, texto ou rota mudou, além do texto dos botões (decisão 2).
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- Banners de Produtos seguem a marca: cartão escuro (`surface-2`) com listras ciano e o botão principal.
+- Texto do botão principal sobe de 10px para 12px no celular.
+- Título dos eventos do Início em `text-foreground` (sai o amarelo).
+- As classes da paleta fixa do Tailwind (`text-white`, `bg-black/35`, `bg-zinc-100`...) também viram tokens, e o varredor as reprova.
+- Os dois selos (câmera do Perfil e check do cadastro) mantêm sombras separadas, para o escuro não mudar.
+- A branch parte da `main` depois do merge do PR #6 (`4c6897c`).
+
+### Arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/app/globals.css` | Tokens do documento (`.dark` e `:root` claro provisório), vidros, sombras, brilhos e fundos por variável (valores escuros iguais aos anteriores), seção de marca e `@theme inline` com as classes novas. As variáveis do shadcn apontam para os tokens. Gradiente do `body` por variável. |
+| `frontend/src/lib/brand.ts` | **Novo** — cores de marca usadas em JavaScript: escala dos hexágonos, degradê e ladrilho da colmeia, brilhos do GSAP, `rgbCss` para o canvas, `AVATAR_CORES` (6 cores, 4,5:1 ou mais com branco) e `EVENTO_FUNDOS` (ciano, azul da marca, petróleo). |
+| `frontend/scripts/check-contrast.mjs` | Movido da raiz, sem mudar valores (`npm run check:contrast`). |
+| `frontend/scripts/check-cores.mjs` | **Novo** — `npm run check:cores`: reprova `#hex`, `rgb()` e classes da paleta fixa do Tailwind em `src/` (exceções: `globals.css` e `lib/brand.ts`) e confere se os tokens do `globals.css` e as cores dos avatares batem com o `check-contrast.mjs`. |
+| `frontend/tailwind.config.mts` | Sai o bloco `colors` (código morto: o `@theme inline` já vencia); `accent-gradient` passa a `var(--brand-gradient)`. |
+| `frontend/package.json` | Só os scripts `check:contrast` e `check:cores`. |
+| Componentes compartilhados (`ui/cta-button`, `ui/content-card`, `ui/glass-card`, `ui/button`, `ui/dialog`, `ui/sonner`, `app/navegacao`, `app/sidebar`, `app/bottom-nav`, `app/credits-chip`, `app/app-header` e os demais de `components/`) | Cores pelo mapa 2.4. `ctaButtonClass`: texto escuro sobre ciano, hover `accent-hover`. Item ativo da sidebar com `accent-soft`. Iniciais dos avatares brancas fixas (`AVATAR_INICIAL`). |
+| Páginas (`app/(app)/*`, `app/(auth)/*`) | Cores pelo mapa 2.4. Botões dos eventos e do banner de Produtos passam a usar `ctaButtonClass`. Perfil selecionado no cadastro e selo da câmera em ciano. `inicio/mock.ts` guarda a chave do fundo do evento. |
+| `SKILLHUB_DESIGN_SYSTEM.md` | Seção 8 (regra de cor, tokens, botão principal, avatares); Seções 1, 2.2, 4 e 6 marcadas como substituídas no que ficou obsoleto. |
+| `e2e/fluxos.mjs` | Só a linha 63: o helper `errTexts` procurava as mensagens pela classe da cor antiga (`p.text-[#ff6b6b]`) e passa a `p.text-danger`. Exceção ao plano aprovada durante a implementação. |
+
+### Validação
+
+- `npm run check:contrast`: todos os pares passaram (escuro, claro e avatares). `npm run check:cores`: nenhuma cor escrita à mão; teste negativo com um arquivo temporário (hex, `rgba()` dentro de classe e `text-white`) e com um token divergente reprova como esperado.
+- `tsc --noEmit` (frontend e backend), `eslint` e `next build` sem erros. `./e2e/run.sh`: 88/88 (antes do ajuste do seletor, 83/88: os 5 fluxos que usam `errTexts`). As classes novas (`shadow-(--…)`, `drop-shadow-(--…)`, `bg-(image:--…)`) conferidas no CSS gerado.
+- Capturas de página inteira antes e depois das 6 páginas e de `/`, `/login` e `/cadastro` a 375, 440, 1280 e 1440px (36 pares, "menos movimento" ligado): **nenhuma altura de página mudou**. Diferenças são as da Seção 5 do plano.
+
+### Achados fora de escopo
+
+- O overlay da transição e o fundo das telas de entrada usam `bg-background`; no tema claro isso fica claro enquanto o canvas da colmeia desenha ladrilhos escuros. Decidir na 16.4 (telas de entrada) e na 16.5.
+- As variáveis `--sidebar-*` e `--chart-*` do shadcn continuam definidas sem uso.
+
+---
+
 ## Fase 16.1 — Casca do desktop com sidebar
 
 **Data:** 2026-10-13
