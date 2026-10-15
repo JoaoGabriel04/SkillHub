@@ -16,3 +16,7 @@ export const NAV_VIDRO =
 
 // Ativo também nas subrotas (/servicos/123), sem confundir /perfil com /perfilx.
 export const rotaAtiva = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
+
+// Páginas do menu (os dois menus + Configurações): navegar entre elas usa a transição suave, não a colmeia
+const ROTAS_MENU = [...Object.values(NAV_ITENS).map((item) => item.href), "/configuracoes"];
+export const rotaDoMenu = (pathname: string) => ROTAS_MENU.some((href) => rotaAtiva(pathname, href));

@@ -144,3 +144,8 @@
     pointer-events: none;
   }
 }
+/* Transição suave (page-transition.tsx): entre o fim da saída e a entrada animada, a página nova
+   monta escondida. O JS tira o atributo no mesmo instante em que esconde as seções uma a uma. */
+[data-page-swap] [data-page-exit] main {
+  opacity: 0;
+}

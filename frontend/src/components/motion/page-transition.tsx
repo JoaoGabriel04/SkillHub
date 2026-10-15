@@ -13,23 +13,33 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { rotaDoMenu } from "@/components/app/navegacao";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
-import { gsap, prefersReducedMotion, useGSAP } from "@/lib/gsap";
+import { gsap, prefersReducedMotion, SCRAMBLE_CHARS, useGSAP } from "@/lib/gsap";
 
 // Transição entre páginas: uma colmeia de hexágonos (os mesmos do logo) cobre a tela
 // a partir do ponto do clique, a rota troca por baixo e a colmeia se desfaz do centro
 // pra fora numa onda ciano. Na primeira carga a tela já nasce coberta (splash) e só revela.
 //
 // Fases: intro (splash SSR) → idle ⇄ covering → covered → revealing → idle
+//
+// Entre páginas do menu da área logada (rotaDoMenu) a colmeia fica de fora: a transição é "suave".
+// Só o <main> da página se mexe (header, sidebar e menu inferior ficam parados): ele sobe e desfoca,
+// o traço ciano dos campos do login vira barra de progresso no topo da coluna, e a página nova entra
+// em cascata com o título decodificando. A colmeia fica pra entrar e sair da área logada.
 
 type Phase = "intro" | "idle" | "covering" | "covered" | "revealing";
+type Mode = "hex" | "soft";
 type Point = { x: number; y: number };
-type NavigateOptions = { origin?: Point | Element | null; replace?: boolean };
+// onCovered: roda com a tela já coberta, logo antes de trocar a rota (ex.: o Sair limpa a sessão aqui,
+// senão o guard da área logada redireciona antes da transição)
+type NavigateOptions = { origin?: Point | Element | null; replace?: boolean; onCovered?: () => void };
 
 type Cell = { x: number; y: number; s: number; glow: number; d: number; rgb: [number, number, number] };
 
 type TransitionContext = {
   phase: Phase;
+  target: string | null; // pathname de destino durante uma transição suave (os menus marcam o item já no clique)
   navigate: (href: string, options?: NavigateOptions) => void;
 };
 
@@ -73,6 +83,8 @@ function hexPath(ctx: CanvasRenderingContext2D, x: number, y: number, r: number)
 
 // quem marca data-page-exit (o <main> dos layouts) afunda junto com a saída
 const pageExitTargets = () => gsap.utils.toArray<HTMLElement>("[data-page-exit]");
+// na transição suave, só o conteúdo da página (o header logado fica fora do <main>)
+const pageMain = () => document.querySelector<HTMLElement>("[data-page-exit] main");
 
 // distância normalizada (0..1) de cada célula até a origem, com um pouco de ruído pra onda não ficar geométrica demais
 function measureFrom(cells: Cell[], origin: Point) {
@@ -117,6 +129,10 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
   const fallbackRef = useRef<gsap.core.Tween | null>(null);
   const pulseRef = useRef<gsap.core.Tween | null>(null);
   const reducedRef = useRef(false);
+  const modeRef = useRef<Mode>("hex");
+  const lineRef = useRef<HTMLDivElement>(null);
+  const softRevealRef = useRef<gsap.core.Timeline[]>([]); // entrada suave em curso (conteúdo e barra)
+  const [navTarget, setNavTarget] = useState<string | null>(null);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -186,14 +202,68 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Página nova do menu: as seções do <main> sobem em cascata, o título decodifica e a barra
+  // completa e se recolhe pra direita (como o traço de foco dos campos no blur).
+  const revealSoft = useCallback(() => {
+    const done = () => {
+      setNavTarget(null);
+      setPhase("idle");
+    };
+    const line = lineRef.current!;
+    const main = pageMain();
+    const unhide = () => document.documentElement.removeAttribute("data-page-swap");
+
+    // se a rota não trocou (fallback, só a query mudou) o <main> ainda é o que saiu
+    if (main) gsap.set(main, { clearProps: "opacity,transform,filter" });
+
+    if (reducedRef.current || !main) {
+      unhide();
+      gsap.set(line, { autoAlpha: 0 });
+      done();
+      return;
+    }
+
+    const lineTl = gsap
+      .timeline()
+      .to(line, { scaleX: 1, duration: 0.15, ease: "power2.out", overwrite: true })
+      .to(line, { scaleX: 0, transformOrigin: "100% 50%", duration: 0.4, ease: "power3.in" })
+      .set(line, { autoAlpha: 0 });
+
+    const tl = gsap.timeline({ onComplete: done });
+    softRevealRef.current = [tl, lineTl];
+    // fromTo esconde as seções na hora (immediateRender), então já dá pra tirar o véu do <main>.
+    // Só opacity (não autoAlpha): visibility hidden tiraria as seções da árvore de acessibilidade durante a entrada
+    tl.fromTo(
+      main.children,
+      { opacity: 0, y: 18 },
+      { opacity: 1, y: 0, duration: 0.45, ease: "power3.out", stagger: 0.05, clearProps: "opacity,transform" }
+    );
+    unhide();
+    // só títulos que pedem (data-scramble): o texto precisa ser um texto só, que o React troca por inteiro
+    const title = main.querySelector<HTMLElement>("[data-scramble]");
+    if (title?.textContent) {
+      tl.to(
+        title,
+        {
+          duration: 0.6,
+          ease: "none",
+          scrambleText: { text: title.textContent, chars: SCRAMBLE_CHARS, revealDelay: 0.2, speed: 0.6, tweenLength: false },
+        },
+        0.05
+      );
+    }
+  }, [setPhase]);
+
   const reveal = useCallback(() => {
     if (phaseRef.current !== "covered" && phaseRef.current !== "intro") return;
     fallbackRef.current?.kill();
     pendingRef.current = null;
-    const wait = Math.max(0, coveredAtRef.current + MIN_COVERED_MS - performance.now()) / 1000;
+    const soft = phaseRef.current === "covered" && modeRef.current === "soft";
+    const wait = soft ? 0 : Math.max(0, coveredAtRef.current + MIN_COVERED_MS - performance.now()) / 1000;
 
     gsap.delayedCall(wait, () => {
       setPhase("revealing");
+      if (soft) return revealSoft();
       pulseRef.current?.kill();
       // a página antiga pode ter deixado o layout borrado (ver cover)
       gsap.set(pageExitTargets(), { clearProps: "transform,filter,opacity" });
@@ -220,29 +290,52 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
         .to(cellsRef.current, { glow: 1, duration: 0.14, ease: "power1.out", stagger }, 0.05)
         .to(cellsRef.current, { s: 0, duration: 0.42, ease: "power3.in", stagger }, 0.12);
     });
-  }, [draw, setPhase]);
+  }, [draw, revealSoft, setPhase]);
 
   const navigate = useCallback(
-    (href: string, { origin, replace = false }: NavigateOptions = {}) => {
+    (href: string, { origin, replace = false, onCovered: beforeGo }: NavigateOptions = {}) => {
       const target = new URL(href, window.location.href);
       const go = () => (replace ? router.replace(href) : router.push(href));
-      // durante uma transição (ou mesma URL) não empilha outra
-      if (phaseRef.current !== "idle") return;
+      // durante uma transição (ou mesma URL) não empilha outra. Exceção: a entrada suave não cobre a tela,
+      // então um clique nela é aceito: a entrada termina na hora (progress(1) volta pra idle) e a nova começa
+      const interrompe = phaseRef.current === "revealing" && modeRef.current === "soft";
+      if (phaseRef.current !== "idle" && !interrompe) return;
       if (target.pathname === window.location.pathname && target.search === window.location.search) return;
+      if (interrompe) softRevealRef.current.forEach((tl) => tl.progress(1));
 
+      const soft = rotaDoMenu(window.location.pathname) && rotaDoMenu(target.pathname);
+      modeRef.current = soft ? "soft" : "hex";
       setPhase("covering");
+      if (soft) setNavTarget(target.pathname);
       const overlay = overlayRef.current;
       const point = resolveOrigin(origin);
 
       const onCovered = () => {
+        // a página nova monta escondida (globals.css) até o revealSoft assumir: sem piscar antes da animação
+        if (soft) document.documentElement.setAttribute("data-page-swap", "");
         setPhase("covered");
         coveredAtRef.current = performance.now();
         pendingRef.current = { from: window.location.pathname, to: target.pathname };
+        beforeGo?.();
         go();
         // só a query mudou: o pathname não muda, então não há sinal de "chegou"
         if (target.pathname === window.location.pathname) gsap.delayedCall(0.35, reveal);
         fallbackRef.current = gsap.delayedCall(FALLBACK_MS / 1000, reveal);
       };
+
+      if (soft) {
+        const main = pageMain();
+        if (reducedRef.current || !main) return onCovered();
+        // a barra ocupa o topo da coluna da página e avança rápido no começo, devagar se a rota demorar
+        const col = main.closest("[data-page-exit]")!.getBoundingClientRect();
+        gsap.fromTo(
+          lineRef.current,
+          { left: Math.max(0, col.left), width: Math.min(col.width, window.innerWidth), autoAlpha: 1, scaleX: 0, transformOrigin: "0% 50%" },
+          { scaleX: 0.9, duration: 3, ease: "expo.out", overwrite: true }
+        );
+        gsap.to(main, { opacity: 0, y: -10, filter: "blur(4px)", duration: 0.22, ease: "power2.in", onComplete: onCovered });
+        return;
+      }
 
       if (reducedRef.current) {
         gsap.fromTo(
@@ -295,8 +388,13 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
   }, [buildGrid]);
 
   return (
-    <Ctx.Provider value={{ phase, navigate }}>
+    <Ctx.Provider value={{ phase, target: navTarget, navigate }}>
       {children}
+      <div
+        ref={lineRef}
+        aria-hidden
+        className="invisible pointer-events-none fixed top-0 z-[150] h-[2px] bg-accent shadow-[0_0_10px_rgba(59,212,204,0.8)]"
+      />
       <div
         ref={overlayRef}
         aria-hidden
@@ -327,6 +425,13 @@ export function useEntered() {
   const [entered, setEntered] = useState(visible);
   if (visible && !entered) setEntered(true);
   return entered;
+}
+
+// Rota que os menus marcam como ativa: o destino durante a transição suave, senão a atual
+export function useNavPathname() {
+  const { target } = usePageTransition();
+  const pathname = usePathname();
+  return target ?? pathname;
 }
 
 // <Link> que passa pela transição. Ctrl/Cmd/Shift/clique do meio seguem o comportamento normal.

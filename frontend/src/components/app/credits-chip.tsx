@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBagShopping, faChevronRight, faCoins, faScrewdriverWrench } from "@fortawesome/free-solid-svg-icons";
+import { TransitionLink } from "@/components/motion/page-transition";
 import { GlassCard } from "@/components/ui/glass-card";
 import { useDismiss } from "@/hooks/use-dismiss";
 
@@ -89,7 +89,7 @@ export function CreditsChip({ credits }: { credits: number }) {
 
           <nav className="flex flex-col">
             {ATALHOS.map(({ href, label, icon }) => (
-              <Link
+              <TransitionLink
                 key={href}
                 href={href}
                 onClick={close}
@@ -101,7 +101,7 @@ export function CreditsChip({ credits }: { credits: number }) {
                   icon={faChevronRight}
                   className="ml-auto text-[10px] text-[#9f9f9f] transition-transform group-hover/item:translate-x-0.5"
                 />
-              </Link>
+              </TransitionLink>
             ))}
           </nav>
         </GlassCard>
