@@ -12,7 +12,7 @@
 ## Fase 17D — Avaliações entre as partes
 
 **Data:** 2026-10-16
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/avaliacoes`
 
 ### Contexto
