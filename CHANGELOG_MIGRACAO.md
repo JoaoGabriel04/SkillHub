@@ -12,7 +12,7 @@
 ## Fase 17C — Créditos (reserva, pagamento, estorno e extrato)
 
 **Data:** 2026-10-16
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/creditos`
 
 ### Contexto
@@ -82,7 +82,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 ## Fase 17B — Candidaturas e contratação
 
 **Data:** 2026-10-16
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/servicos-candidaturas`
 
 ### Contexto
@@ -156,7 +156,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 ## Fase 17A — Domínio de Serviços (modelo, API, telas ligadas e seed)
 
 **Data:** 2026-10-15
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/servicos-dominio`
 
 ### Contexto
@@ -241,7 +241,7 @@ O `lib/mock/servicos.ts` ficou sem uso. A remoção fica para quando os outros m
 ## Fase 16.2 — Início em layout desktop
 
 **Data:** 2026-10-15
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/inicio-desktop`
 
 ### Contexto
@@ -292,7 +292,7 @@ Não mudaram: `ServicoCard` e `ProdutoCard`. O frame usa os cards do próprio In
 ## Fase 16.5 — Tema claro (acabamento visual)
 
 **Data:** 2026-10-15
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/tema-claro`
 
 ### Contexto
@@ -387,7 +387,7 @@ Pedido do João Gabriel depois do merge da 16.4: o atalho de tema da sidebar dei
 ## Fase 16.4 — Infraestrutura do tema claro/escuro
 
 **Data:** 2026-10-15
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/tema-infra`
 
 ### Contexto
@@ -454,7 +454,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 ## Fase 16.3 — Paleta de marca e contraste (tema escuro)
 
 **Data:** 2026-10-15
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/paleta-cores`
 
 ### Contexto
@@ -501,7 +501,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 ## Fase 16.1 — Casca do desktop com sidebar
 
 **Data:** 2026-10-13
-**Status:** Implementada, aguardando conferência visual e PR
+**Status:** Implementada, conferida, PR aberto
 **Branch:** `feat/sidebar-desktop`
 
 ### Contexto
