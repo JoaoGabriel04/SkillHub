@@ -486,6 +486,117 @@ const secaoServicos = page.getByRole("region", { name: "Serviços" });
 await secaoServicos.locator("h3").first().waitFor({ timeout: 8000 }).catch(() => {});
 ok("serviços (tela): Início mostra pedidos do banco", (await secaoServicos.getByText("Servicos autor E2E").count()) > 0);
 
+// 15f. Candidaturas e contratação (Fase 17B): fluxo completo, corrida de aceitações, permissões e a tela
+const contaPerfil = async (nome, cpf, perfil) => {
+  const email = `e2e.candidaturas.${nome}@example.com`;
+  const { corpo } = await chamar("POST", `/auth/register/${perfil}`, null, {
+    fullName: `Candidaturas ${nome} E2E`, phone: "11987654321", cpf, dataNascimento: "1990-01-01", genero: "Outro",
+    cep: "01310-100", rua: "Rua Teste", numero: "1", bairro: "Centro", cidade: "São Paulo", estado: "SP",
+    email, confirmEmail: email, password: "senha123", confirmPassword: "senha123",
+  });
+  return corpo.accessToken;
+};
+const autorB = await contaPerfil("autor", "900.000.001-01", "cliente");
+const colabA = await contaPerfil("colaba", "900.000.001-02", "colaborador");
+const colabB = await contaPerfil("colabb", "900.000.001-03", "colaborador");
+const clienteB = await contaPerfil("cliente", "900.000.001-04", "cliente");
+const novoPedido = async (titulo) => (await chamar("POST", "/servicos", autorB, pedido({ titulo }))).corpo.servico.id;
+const candidatarB = (servicoId, token, mensagem = "Posso fazer isso nesta semana.") => chamar("POST", `/servicos/${servicoId}/candidaturas`, token, { mensagem, valorProposto: 40 });
+const semDadosPessoais = (corpo) => !/email|cpf|cnpj|phone|cidade|password|googleId|dataNascimento/.test(JSON.stringify(corpo));
+
+// fluxo completo
+const pFluxo = await novoPedido("Pedido E2E de candidaturas");
+const cA = await candidatarB(pFluxo, colabA);
+ok("candidaturas: colaborador se candidata (201, Pendente)", cA.status === 201 && cA.corpo.candidatura.status === "Pendente" && semDadosPessoais(cA.corpo));
+const cB = await candidatarB(pFluxo, colabB);
+ok("candidaturas: só Colaborador se candidata (403)", (await candidatarB(pFluxo, clienteB)).status === 403);
+ok("candidaturas: não no próprio pedido (403)", (await candidatarB(pFluxo, autorB)).status === 403);
+ok("candidaturas: uma por colaborador (409)", (await candidatarB(pFluxo, colabA)).status === 409);
+ok("candidaturas: mensagem curta dá 400", (await chamar("POST", `/servicos/${pFluxo}/candidaturas`, colabB, { mensagem: "oi" })).status === 400);
+ok("candidaturas: sem token dá 401", (await chamar("GET", "/candidaturas/minhas")).status === 401);
+const listaAutor = await chamar("GET", `/servicos/${pFluxo}/candidaturas`, autorB);
+ok("candidaturas: o autor vê as duas, só com id, nome e foto", listaAutor.status === 200 && listaAutor.corpo.candidaturas.length === 2 &&
+  JSON.stringify(Object.keys(listaAutor.corpo.candidaturas[0].colaborador).sort()) === '["fullName","id","urlPhoto"]' && semDadosPessoais(listaAutor.corpo));
+ok("candidaturas: só o autor vê a lista (403)", (await chamar("GET", `/servicos/${pFluxo}/candidaturas`, colabA)).status === 403);
+const meusB = await chamar("GET", "/servicos/meus", autorB);
+ok("candidaturas: Seus pedidos conta as pendentes", meusB.corpo.servicos.find((x) => x.id === pFluxo)?.candidaturasPendentes === 2);
+ok("candidaturas: só o autor aceita (403)", (await chamar("POST", `/candidaturas/${cA.corpo.candidatura.id}/aceitar`, colabB)).status === 403);
+ok("candidaturas: só o dono retira (403)", (await chamar("PATCH", `/candidaturas/${cA.corpo.candidatura.id}/retirar`, colabB)).status === 403);
+ok("candidaturas: concluir pedido aberto dá 409", (await chamar("POST", `/servicos/${pFluxo}/concluir`, autorB)).status === 409);
+const aceita = await chamar("POST", `/candidaturas/${cA.corpo.candidatura.id}/aceitar`, autorB);
+const [stServ, colabId, aceitoEm] = sql(`select status, "colaboradorId" is not null, "aceitoEm" is not null from "Servico" where id = '${pFluxo}'`).split("|");
+ok("candidaturas: aceitar põe o pedido em andamento com colaborador e aceitoEm", aceita.status === 200 && aceita.corpo.candidatura.status === "Aceita" &&
+  stServ === "EM_ANDAMENTO" && colabId === "t" && aceitoEm === "t");
+const minhasB = await chamar("GET", "/candidaturas/minhas", colabB);
+ok("candidaturas: a outra vira Recusada (e /minhas traz o resumo do serviço)", minhasB.corpo.candidaturas.find((c) => c.servico.id === pFluxo)?.status === "Recusada" && semDadosPessoais(minhasB.corpo));
+ok("candidaturas: aceitar uma recusada dá 409", (await chamar("POST", `/candidaturas/${cB.corpo.candidatura.id}/aceitar`, autorB)).status === 409);
+ok("candidaturas: retirar uma não pendente dá 409", (await chamar("PATCH", `/candidaturas/${cA.corpo.candidatura.id}/retirar`, colabA)).status === 409);
+ok("candidaturas: candidatar a pedido em andamento dá 409", (await candidatarB(pFluxo, await contaPerfil("tarde", "900.000.001-05", "colaborador"))).status === 409);
+ok("candidaturas: só o autor conclui (403)", (await chamar("POST", `/servicos/${pFluxo}/concluir`, colabA)).status === 403);
+const concluido = await chamar("POST", `/servicos/${pFluxo}/concluir`, autorB);
+ok("candidaturas: concluir preenche concluidoEm", concluido.status === 200 && concluido.corpo.servico.status === "Concluído" &&
+  sql(`select "concluidoEm" is not null from "Servico" where id = '${pFluxo}'`) === "t");
+ok("candidaturas: concluído continua sem cancelar (409)", (await chamar("DELETE", `/servicos/${pFluxo}`, autorB)).status === 409);
+
+// retirar e cancelar
+const pRetirar = await novoPedido("Pedido E2E para retirar");
+const cRet = await candidatarB(pRetirar, colabA);
+const retirada = await chamar("PATCH", `/candidaturas/${cRet.corpo.candidatura.id}/retirar`, colabA);
+ok("candidaturas: o colaborador retira a pendente", retirada.status === 200 && retirada.corpo.candidatura.status === "Retirada");
+ok("candidaturas: aceitar uma retirada dá 409", (await chamar("POST", `/candidaturas/${cRet.corpo.candidatura.id}/aceitar`, autorB)).status === 409);
+await candidatarB(pRetirar, colabB);
+await chamar("DELETE", `/servicos/${pRetirar}`, autorB);
+ok("candidaturas: cancelar o pedido recusa as pendentes", (await chamar("GET", "/candidaturas/minhas", colabB)).corpo.candidaturas.find((c) => c.servico.id === pRetirar)?.status === "Recusada");
+const pAndamento = await novoPedido("Pedido E2E em andamento para cancelar");
+const cAnd = await candidatarB(pAndamento, colabB);
+await chamar("POST", `/candidaturas/${cAnd.corpo.candidatura.id}/aceitar`, autorB);
+const cancelAnd = await chamar("DELETE", `/servicos/${pAndamento}`, autorB);
+ok("candidaturas: o autor cancela um pedido em andamento (a aceita fica no histórico)", cancelAnd.status === 200 && cancelAnd.corpo.servico.status === "Cancelado" &&
+  sql(`select status from "Candidatura" where id = '${cAnd.corpo.candidatura.id}'`) === "ACEITA");
+
+// corrida: duas aceitações ao mesmo tempo no mesmo pedido
+const pCorrida = await novoPedido("Pedido E2E da corrida");
+const [r1, r2] = [await candidatarB(pCorrida, colabA), await candidatarB(pCorrida, colabB)];
+const corrida = await Promise.all([r1, r2].map((c) => chamar("POST", `/candidaturas/${c.corpo.candidatura.id}/aceitar`, autorB)));
+ok("candidaturas: corrida de duas aceitações (uma 200, outra 409, um colaborador só)", corrida.map((r) => r.status).sort().join() === "200,409" &&
+  sql(`select count(*) from "Candidatura" where "servicoId" = '${pCorrida}' and status = 'ACEITA'`) === "1",
+  corrida.map((r) => r.status).join());
+
+// exclusão do colaborador aceito: o serviço continua, sem colaborador; as candidaturas dele somem
+const pExcl = await novoPedido("Pedido E2E do colaborador que sai");
+const cExcl = await candidatarB(pExcl, colabA);
+await chamar("POST", `/candidaturas/${cExcl.corpo.candidatura.id}/aceitar`, autorB);
+const saiuColab = await chamar("DELETE", "/user", colabA, { password: "senha123" });
+ok("candidaturas: colaborador aceito exclui a conta e o serviço continua sem ele", saiuColab.status === 204 &&
+  sql(`select status || '|' || coalesce("colaboradorId", 'null') from "Servico" where id = '${pExcl}'`) === "EM_ANDAMENTO|null" &&
+  sql(`select count(*) from "Candidatura" where id = '${cExcl.corpo.candidatura.id}'`) === "0");
+
+// tela: um colaborador se candidata ao pedido que o Cliente publicou pela tela (15e); o Cliente aceita
+const ctxColab = await browser.newContext({ viewport: { width: 440, height: 956 } });
+const tokenColabTela = await contaPerfil("tela", "900.000.001-06", "colaborador");
+await ctxColab.request.post(`${API}/api/auth/login`, { data: { email: "e2e.candidaturas.tela@example.com", password: "senha123" } });
+const pageColab = await ctxColab.newPage(); pageColab.on("pageerror", (e) => pageErrors.push(e.message));
+await pageColab.goto(B + "/servicos"); await pageColab.getByRole("heading", { name: "Serviços", level: 1 }).waitFor();
+const cardTela = pageColab.getByRole("region", { name: "Educação" }).locator("div", { has: pageColab.getByText("Pedido pela tela E2E", { exact: true }) }).last();
+await cardTela.getByRole("button", { name: "Saiba Mais" }).first().click();
+const detalheColab = pageColab.getByRole("dialog", { name: "Pedido pela tela E2E" });
+await detalheColab.getByRole("button", { name: "Candidatar-se" }).click();
+await detalheColab.getByLabel("Mensagem para quem publicou").fill("Sou professor e posso ajudar nesta semana.");
+await detalheColab.getByRole("button", { name: "Enviar candidatura" }).click();
+await detalheColab.getByText("Candidatura").filter({ hasText: "pendente" }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("candidaturas (tela): o colaborador se candidata pelo detalhe", await detalheColab.getByText("pendente").isVisible());
+await ctxColab.close();
+await page.goto(B + "/servicos"); await page.getByRole("region", { name: "Seus pedidos" }).waitFor();
+const cardMeu = page.getByRole("region", { name: "Seus pedidos" }).locator("div", { has: page.getByText("Pedido pela tela E2E", { exact: true }) }).last();
+await cardMeu.getByText("1 candidatura").waitFor({ timeout: 8000 }).catch(() => {});
+ok("candidaturas (tela): o card de Seus pedidos mostra a contagem", await cardMeu.getByText("1 candidatura").isVisible());
+await cardMeu.getByRole("button", { name: "Saiba Mais" }).first().click();
+const detalheAutor = page.getByRole("dialog", { name: "Pedido pela tela E2E" });
+await detalheAutor.getByRole("button", { name: "Aceitar" }).click();
+await detalheAutor.getByRole("button", { name: "Marcar como concluído" }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("candidaturas (tela): o autor aceita e o pedido fica em andamento", await detalheAutor.getByRole("button", { name: "Marcar como concluído" }).isVisible());
+await page.keyboard.press("Escape");
+
 // 16. Excluir conta com senha (o Cliente, já com a senha nova), com uma segunda aba aberta
 await page.goto(B + "/perfil"); await page.locator("h1").waitFor();
 ok("Cliente vê só as estatísticas no perfil", (await page.locator("main h2").allTextContents()).join(",") === "Experiências Profissionais");
