@@ -98,6 +98,9 @@ const servicoService = {
     return toServicoResposta(cancelado);
   },
 
+  // a exclusão de conta (módulo user) não pode apagar um pedido em andamento nem tirar dele o colaborador
+  temPedidoEmAndamento: async (usuarioId: string) => (await servicoRepository.emAndamentoDoUsuario(usuarioId)) > 0,
+
   // Fase 17B: o autor marca como concluído um pedido em andamento (KPI: concluidoEm)
   // Fase 17C: o colaborador recebe a reserva (menos a taxa) na mesma transação
   concluir: async (id: string, usuarioId: string) => {

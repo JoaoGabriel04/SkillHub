@@ -90,6 +90,10 @@ const servicoRepository = {
       await aoConcluir(tx, colaboradorId!);
     }),
 
+  // autor ou colaborador aceito de algum pedido em andamento (bloqueia a exclusão da conta)
+  emAndamentoDoUsuario: (userId: string) =>
+    prisma.servico.count({ where: { status: "EM_ANDAMENTO", OR: [{ autorId: userId }, { colaboradorId: userId }] } }),
+
   // quem publica precisa ter o perfil completo (o módulo user não é alterado: a leitura fica aqui)
   perfilDoUsuario: (id: string) => prisma.user.findUnique({ where: { id }, select: { profileComplete: true } }),
 };
