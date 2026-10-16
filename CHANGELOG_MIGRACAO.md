@@ -63,17 +63,17 @@ O `PLATFORM_FEE_PERCENT` ainda não é usado (é da 17C).
 | `src/lib/validation/servico.ts` | **Novo.** As mesmas regras do backend para o formulário. |
 | `src/components/app/publicar-servico-dialog.tsx` | **Novo.** Publicar pedido na casca dos modais do Perfil (`ProfileDialog`). |
 | `src/components/app/servico-card-esqueleto.tsx` | **Novo.** Estado "carregando" (`GlassCard`, sem spinner). |
-| `src/app/(app)/servicos/page.tsx` | <br>• **Dados:** SWR sobre a API; categoria, busca (com debounce de 300ms) e cidade vão na requisição. <br>• **Estados:** carregando, vazio e erro com "Tentar de novo". <br>• **Novidades na tela:** botão "Publicar", linha "Seus pedidos" e "Serviços na sua área" pela cidade. |
+| `src/app/(app)/servicos/page.tsx` | <br>• **Dados:** SWR sobre a API; categoria, busca (com debounce de 300ms) e cidade vão na requisição. <br>• **Estados:** carregando, vazio e erro com "Tentar de novo". <br>• **Novidades na tela:** botão "Publicar", linha "Seus pedidos" (sempre visível; sem pedidos, mostra o convite "Você ainda não publicou nenhum pedido" com o botão "Publicar pedido") e "Serviços na sua área" pela cidade. |
 | `src/components/app/servico-card.tsx` | Esconde a distância `null`. Em "Seus pedidos", mostra o status no lugar dela. |
 | `src/app/(app)/inicio/servicos-recentes.tsx`, `grade.ts`, `page.tsx` | A seção "Serviços" do Início vira Client Component com SWR (8 pedidos), com o mesmo markup da 16.2. A página continua Server Component. |
-| `e2e/fluxos.mjs` | Seção 15e com 25 fluxos (ver Validação). |
+| `e2e/fluxos.mjs` | Seção 15e com 26 fluxos (ver Validação). |
 
 O `lib/mock/servicos.ts` ficou sem uso. A remoção fica para quando os outros mocks forem trocados, porque o `pessoas.ts` ainda serve Produtos e Comunidade.
 
 ### Validação
 
 - `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build` e `check:cores` sem erros.
-- **`./e2e/run.sh`: 134/134.** Os 25 fluxos novos cobrem:
+- **`./e2e/run.sh`: 135/135.** Os 26 fluxos novos cobrem:
   - **Publicar:** 201, e o autor sai só com id, nome e foto.
   - **Validação:** 400 nos 5 campos.
   - **Sem token:** 401.
@@ -84,7 +84,7 @@ O `lib/mock/servicos.ts` ficou sem uso. A remoção fica para quando os outros m
   - **Cancelado:** fica no banco, sai da lista e dá 404 para os outros; não se edita (409).
   - **Concluído:** não se cancela (409).
   - **Exclusão de conta:** apaga os pedidos do autor.
-  - **Tela:** publicar pelo diálogo, "Seus pedidos", busca de outro usuário e o Início com dados do banco.
+  - **Tela:** o convite de "Seus pedidos" vazio, publicar pelo diálogo, "Seus pedidos", busca de outro usuário e o Início com dados do banco.
 - **Mesmo visual com o seed:** a 375, 440, 768 e 1440px, nos dois temas. As diferenças são as previstas: o botão "Publicar", sem "à X km", a ordem por pedidos mais recentes e "Seus pedidos". Os estados de carregando, vazio e erro foram forçados no navegador e capturados, e o "Tentar de novo" recupera a lista.
 
 ### Achados fora de escopo
