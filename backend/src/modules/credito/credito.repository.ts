@@ -36,6 +36,12 @@ const creditoRepository = {
   titulosDosServicos: (ids: string[]) =>
     prisma.servico.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true } }),
 
+  // fora de transação, para o teste da taxa (scripts/verificar-taxa.ts). A soma é a invariante: reservar, pagar e
+  // estornar só movem saldo entre contas
+  saldoAtual: async (userId: string) => (await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { credits: true } })).credits,
+
+  somaDosSaldos: async () => (await prisma.user.aggregate({ _sum: { credits: true } }))._sum.credits ?? 0,
+
   usuarioPorEmail: (email: string) => prisma.user.findUnique({ where: { email }, select: { id: true } }),
 
   transacao: <T>(fn: (tx: Tx) => Promise<T>) => prisma.$transaction(fn),
