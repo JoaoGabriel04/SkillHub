@@ -7,6 +7,7 @@ import { faCircleNotch, faTriangleExclamation } from "@fortawesome/free-solid-sv
 import { FormAlert, LineInput } from "@/components/auth/auth-ui";
 import { GlassCard } from "@/components/ui/glass-card";
 import { api, getApiErrorMessage } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { User } from "@/types/user";
 
 // Contas só com Google/Discord não têm senha: a confirmação é digitar esta palavra
@@ -104,7 +105,13 @@ export function DeleteAccountDialog({ user, onClose }: { user: User; onClose: ()
             <button
               type="submit"
               disabled={!canSubmit || submitting}
-              className="flex items-center gap-2 rounded-[6px] bg-danger-fill px-4 py-2 font-semibold text-danger-fill-foreground transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              // sem a confirmação, superfície neutra (inativo, não erro); enviando, o vermelho fica com opacidade
+              className={cn(
+                "flex items-center gap-2 rounded-[6px] px-4 py-2 font-semibold transition-[filter] disabled:cursor-not-allowed",
+                canSubmit
+                  ? "bg-danger-fill text-danger-fill-foreground hover:brightness-110 disabled:opacity-60"
+                  : "bg-foreground/10 text-foreground-secondary"
+              )}
             >
               {submitting && <FontAwesomeIcon icon={faCircleNotch} spin />}
               Excluir conta
