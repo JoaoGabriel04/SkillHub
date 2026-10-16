@@ -9,12 +9,14 @@ import { cn } from "@/lib/utils";
 import type { Servico } from "@/types/servico";
 
 // O que aparece à direita do autor, no lugar da distância:
-// a etiqueta do pai ("Suas candidaturas"), as candidaturas pendentes ("Seus pedidos"), o status quando
-// o pedido não está aberto, ou a distância (null até existir localização: some).
+// a etiqueta do pai ("Suas candidaturas"), as candidaturas pendentes ("Seus pedidos"), "Não avaliado" num
+// concluído que você ainda não avaliou (Fase 17D), o status quando o pedido não está aberto, ou a distância
+// (null até existir localização: some).
 function etiquetaDoCard(servico: Servico, etiqueta?: string) {
   if (etiqueta) return etiqueta;
   const pendentes = servico.candidaturasPendentes ?? 0;
   if (servico.status === "Aberto" && pendentes > 0) return pendentes === 1 ? "1 candidatura" : `${pendentes} candidaturas`;
+  if (servico.avaliacaoPendente) return "Não avaliado";
   if (servico.status !== "Aberto") return servico.status;
   return null;
 }

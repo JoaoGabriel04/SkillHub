@@ -1,17 +1,16 @@
 import { api } from "@/lib/api";
-import type { Avaliacao, AvaliacoesDoUsuario } from "@/types/avaliacao";
+import type { Avaliacao, ResumoUsuario } from "@/types/avaliacao";
 
 // Cliente da API de avaliações (Fase 17D). Depois de avaliar, dê mutate na chave do pedido.
 
 export const chaveAvaliacoesDoServico = (servicoId: string) => ["avaliacoes", servicoId] as const;
-export const chaveAvaliacoesDoUsuario = (usuarioId: string) => ["avaliacoes/usuario", usuarioId] as const;
+export const chaveResumoDoUsuario = (usuarioId: string) => ["usuarios/resumo", usuarioId] as const;
 
 export const getAvaliacoesDoServico = (servicoId: string) =>
   api.get<{ avaliacoes: Avaliacao[] }>(`/servicos/${servicoId}/avaliacoes`).then((r) => r.data.avaliacoes);
 
-// o Perfil só precisa de média e total: uma avaliação por página basta
-export const getAvaliacoesDoUsuario = (usuarioId: string, limit = 1) =>
-  api.get<AvaliacoesDoUsuario>(`/usuarios/${usuarioId}/avaliacoes`, { params: { limit } }).then((r) => r.data);
+// o resumo público do Perfil: colaborações, média e total
+export const getResumoDoUsuario = (usuarioId: string) => api.get<ResumoUsuario>(`/usuarios/${usuarioId}/resumo`).then((r) => r.data);
 
 export const avaliar = (servicoId: string, dados: { nota: number; comentario: string | null }) =>
   api.post<{ avaliacao: Avaliacao }>(`/servicos/${servicoId}/avaliacoes`, dados).then((r) => r.data.avaliacao);

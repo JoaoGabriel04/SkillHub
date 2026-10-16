@@ -90,7 +90,8 @@ function SecaoAvaliacao({ servicoId, usuarioId, outro }: { servicoId: string; us
     setEnviando(true);
     try {
       await avaliar(servicoId, { nota, comentario: comentario.trim() || null });
-      await mutate(chaveAvaliacoesDoServico(servicoId));
+      // a seção e os cards ("Não avaliado" vira "Concluído" em Seus pedidos e Suas candidaturas)
+      await Promise.all([mutate(chaveAvaliacoesDoServico(servicoId)), revalidarServicos()]);
       toast.success("Avaliação enviada");
     } catch (err) {
       setErro(getApiErrorMessage(err, "Não foi possível enviar a avaliação."));

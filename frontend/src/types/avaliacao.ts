@@ -11,7 +11,14 @@ export type Avaliacao = {
   servico: { id: string; titulo: string };
 };
 
-// GET /usuarios/:id/avaliacoes: o resumo público das avaliações recebidas
+// GET /usuarios/:id/resumo: o resumo público do Perfil
+export type ResumoUsuario = {
+  colaboracoes: number; // pedidos concluídos em que a pessoa participou (autor ou colaborador)
+  media: number | null; // uma casa decimal; null sem avaliações
+  total: number;
+};
+
+// GET /usuarios/:id/avaliacoes: as avaliações recebidas, com média e total
 export type AvaliacoesDoUsuario = {
   media: number | null; // uma casa decimal; null sem avaliações
   total: number;

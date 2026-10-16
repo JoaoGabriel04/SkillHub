@@ -2,26 +2,25 @@
 
 import useSWR from "swr";
 import { ContentCard } from "@/components/ui/content-card";
-import { chaveAvaliacoesDoUsuario, formatMedia, getAvaliacoesDoUsuario } from "@/lib/avaliacoes";
+import { chaveResumoDoUsuario, formatMedia, getResumoDoUsuario } from "@/lib/avaliacoes";
 import { useAuthStore } from "@/stores/auth-store";
 import { CompetenciasSection } from "./competencias-section";
 import { CurriculoSection } from "./curriculo-section";
 import { ProfileHero } from "./profile-hero";
 
-// ⚠️ "Colaborações" e "Experiência" ainda sem backend: mostram zero até esses dados existirem.
-// "Avaliações" é a média real das avaliações recebidas (Fase 17D); sem nenhuma, "–".
-const PLACEHOLDERS = { colaboracoes: "00", experiencia: "00" };
+// Fase 17D: "Colaborações" (pedidos concluídos, como autor ou colaborador) e "Avaliações" (a média; sem
+// nenhuma, "–") vêm do resumo público. ⚠️ "Experiência" ainda não tem backend: mostra 0.
 
 // designs/New Perfil.png — cada seção editável abre o seu modal (components/app/perfil/)
 export default function PerfilPage() {
   const user = useAuthStore((s) => s.user);
-  const avaliacoes = useSWR(user ? chaveAvaliacoesDoUsuario(user.id) : null, () => getAvaliacoesDoUsuario(user!.id));
+  const resumo = useSWR(user ? chaveResumoDoUsuario(user.id) : null, () => getResumoDoUsuario(user!.id));
   if (!user) return null; // o layout só renderiza a página com usuário carregado
 
   const estatisticas = [
-    { label: "Colaborações", valor: PLACEHOLDERS.colaboracoes },
-    { label: "Avaliações", valor: formatMedia(avaliacoes.data?.media ?? null) },
-    { label: "Experiência", valor: PLACEHOLDERS.experiencia },
+    { label: "Colaborações", valor: resumo.data ? String(resumo.data.colaboracoes) : "–" },
+    { label: "Avaliações", valor: formatMedia(resumo.data?.media ?? null) },
+    { label: "Experiência", valor: "0" },
   ];
 
   return (

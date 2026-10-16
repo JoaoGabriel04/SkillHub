@@ -24,4 +24,5 @@ export type Servico = {
   concluidoEm: string | null; // ISO
   createdAt: string; // ISO
   candidaturasPendentes?: number; // só em /servicos/meus
+  avaliacaoPendente?: boolean; // Fase 17D, só em /servicos/meus e /candidaturas/minhas: concluído e você ainda não avaliou
 };
