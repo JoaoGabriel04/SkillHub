@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCoins, faGear } from "@fortawesome/free-solid-svg-icons";
 import { LogOut } from "lucide-react";
 import { SkillHubLogo } from "@/components/brand/skillhub-logo";
 import { TransitionLink, useNavPathname } from "@/components/motion/page-transition";
 import { AlternarTema } from "@/components/tema/alternar-tema";
+import { ExtratoDialog } from "@/components/app/extrato-dialog";
 import { ContentCard } from "@/components/ui/content-card";
 import { useLogout } from "@/hooks/use-logout";
 import { gsap, prefersReducedMotion, useGSAP } from "@/lib/gsap";
@@ -42,6 +43,7 @@ export function Sidebar() {
   const credits = useAuthStore((s) => s.user?.credits ?? 0);
   const shown = useCountUp(credits);
   const sair = useLogout();
+  const [extrato, setExtrato] = useState(false);
   const naConfig = rotaAtiva(pathname, "/configuracoes");
   const navRef = useRef<HTMLElement>(null);
   const anterior = useRef<string | null>(null); // rota marcada antes (a troca só anima quando ela muda)
@@ -91,18 +93,26 @@ export function Sidebar() {
           <span className="text-[22px] font-bold text-foreground">SkillHub</span>
         </TransitionLink>
 
-        <ContentCard className="shrink-0 px-4 py-3">
-          <p className="font-secondary text-[11px] text-muted-foreground">Seus créditos</p>
-          <div className="mt-1.5 flex items-center gap-2">
-            <span className="flex size-[24px] items-center justify-center rounded-full bg-accent-gradient shadow-(--glow-coin)">
-              <FontAwesomeIcon icon={faCoins} className="text-[12px] text-accent-foreground" />
-            </span>
-            <span aria-hidden className="font-jersey-15 text-[24px] leading-none text-foreground tabular-nums">
-              {formatCredits(shown)}
-            </span>
-            <span className="sr-only">{formatCredits(credits)}</span>
-          </div>
-        </ContentCard>
+        {/* Fase 17C: o card abre o extrato */}
+        <button
+          type="button"
+          onClick={() => setExtrato(true)}
+          className="group shrink-0 rounded-[10px] text-left outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+        >
+          <ContentCard className="px-4 py-3 transition-colors group-hover:border-accent/60">
+            <p className="font-secondary text-[11px] text-muted-foreground">Seus créditos</p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="flex size-[24px] items-center justify-center rounded-full bg-accent-gradient shadow-(--glow-coin)">
+                <FontAwesomeIcon icon={faCoins} className="text-[12px] text-accent-foreground" />
+              </span>
+              <span aria-hidden className="font-jersey-15 text-[24px] leading-none text-foreground tabular-nums">
+                {formatCredits(shown)}
+              </span>
+              <span className="sr-only">{formatCredits(credits)}. Ver extrato</span>
+            </div>
+          </ContentCard>
+        </button>
+        {extrato && <ExtratoDialog open onOpenChange={setExtrato} />}
 
         <p className="shrink-0 font-secondary text-[11px] font-medium tracking-[0.12em] text-muted-foreground">MENU</p>
 

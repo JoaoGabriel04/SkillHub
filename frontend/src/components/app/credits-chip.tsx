@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBagShopping, faChevronRight, faCoins, faScrewdriverWrench } from "@fortawesome/free-solid-svg-icons";
+import { faBagShopping, faChevronRight, faCoins, faReceipt, faScrewdriverWrench } from "@fortawesome/free-solid-svg-icons";
+import { ExtratoDialog } from "@/components/app/extrato-dialog";
 import { TransitionLink } from "@/components/motion/page-transition";
 import { GlassCard } from "@/components/ui/glass-card";
 import { useDismiss } from "@/hooks/use-dismiss";
+import { formatCredits } from "@/lib/creditos";
 
-export const formatCredits = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+// formatCredits mora em lib/creditos (o extrato também usa); fica reexportado aqui para quem já importava do chip
+export { formatCredits };
 
 // Anima o número do valor anterior até o novo (ease-out); sem animação se o usuário pede menos movimento.
 export function useCountUp(target: number, duration = 700) {
@@ -45,6 +47,7 @@ const ATALHOS = [
 // no degradê de marca e valor em Jersey, como no designs/New Início.png. Abre um resumo do saldo.
 export function CreditsChip({ credits }: { credits: number }) {
   const [open, setOpen] = useState(false);
+  const [extrato, setExtrato] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useDismiss(ref, open, close);
@@ -103,9 +106,26 @@ export function CreditsChip({ credits }: { credits: number }) {
                 />
               </TransitionLink>
             ))}
+            {/* Fase 17C: extrato aprovado no plano (diálogo) */}
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                setExtrato(true);
+              }}
+              className="group/item flex items-center gap-3 rounded-lg px-2 py-2 text-left font-secondary text-sm text-foreground transition-colors hover:bg-foreground/10"
+            >
+              <FontAwesomeIcon icon={faReceipt} className="w-4 text-accent-text" />
+              Ver extrato
+              <FontAwesomeIcon
+                icon={faChevronRight}
+                className="ml-auto text-[10px] text-muted-foreground transition-transform group-hover/item:translate-x-0.5"
+              />
+            </button>
           </nav>
         </GlassCard>
       )}
+      {extrato && <ExtratoDialog open onOpenChange={setExtrato} />}
     </div>
   );
 }

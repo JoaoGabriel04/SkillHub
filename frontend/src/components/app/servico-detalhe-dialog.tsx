@@ -19,6 +19,7 @@ import {
   getMinhasCandidaturas,
   retirarCandidatura,
 } from "@/lib/candidaturas";
+import { atualizarUsuario } from "@/lib/creditos";
 import { cancelarServico, chaveServico, concluirServico, getServico, revalidarServicos } from "@/lib/servicos";
 import { cn } from "@/lib/utils";
 import { fieldErrors } from "@/lib/validation/auth";
@@ -65,9 +66,14 @@ export function ServicoDetalheDialog({ servico: inicial, open, onOpenChange, onE
   const { data: servico = inicial } = useSWR(chaveServico(inicial.id), () => getServico(inicial.id), { fallbackData: inicial });
   const ehAutor = usuario?.id === servico.autor.id;
   const ehColaborador = usuario?.perfil === "Colaborador";
-  const candidaturas = useSWR(ehAutor && servico.status === "Aberto" ? chaveCandidaturasDoServico(servico.id) : null, () =>
-    getCandidaturasDoServico(servico.id)
+  // em andamento, a lista ainda serve para saber o valor da candidatura aceita (o reservado, Fase 17C)
+  const candidaturas = useSWR(
+    ehAutor && (servico.status === "Aberto" || servico.status === "Em andamento") ? chaveCandidaturasDoServico(servico.id) : null,
+    () => getCandidaturasDoServico(servico.id)
   );
+  const aceita = candidaturas.data?.find((c) => c.status === "Aceita");
+  // valor combinado: o proposto pela candidatura ou, sem proposta, a remuneração do pedido (null = sem créditos)
+  const valorCombinado = (valorProposto: number | null) => valorProposto ?? servico.remuneracao;
   const minhas = useSWR(!ehAutor && ehColaborador ? CHAVE_MINHAS_CANDIDATURAS : null, getMinhasCandidaturas);
   const minha = minhas.data?.find((c) => c.servico.id === servico.id);
 
@@ -83,7 +89,8 @@ export function ServicoDetalheDialog({ servico: inicial, open, onOpenChange, onE
     setOcupado(acao);
     try {
       await fazer();
-      await revalidarServicos();
+      // aceitar, concluir e cancelar mexem em créditos: o saldo do chip e da sidebar é relido junto
+      await Promise.all([revalidarServicos(), atualizarUsuario()]);
       toast.success(sucesso);
       return true;
     } catch (err) {
@@ -152,6 +159,13 @@ export function ServicoDetalheDialog({ servico: inicial, open, onOpenChange, onE
                   <p className="mt-1 text-[12px] text-muted-foreground">
                     {c.valorProposto === null ? "Aceita a remuneração do pedido" : `Propõe ${c.valorProposto} créditos`}
                   </p>
+                  {c.status === "Pendente" && (
+                    <p className="mt-0.5 text-[12px] text-accent-text">
+                      {valorCombinado(c.valorProposto) === null
+                        ? "Aceitar não reserva créditos (a combinar)"
+                        : `Aceitar reserva ${valorCombinado(c.valorProposto)} créditos do seu saldo`}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -160,6 +174,13 @@ export function ServicoDetalheDialog({ servico: inicial, open, onOpenChange, onE
       )}
       {ehAutor && servico.status === "Em andamento" && (
         <Secao titulo="Em andamento">
+          {aceita && (
+            <p className="mb-3 font-secondary text-[12px] text-muted-foreground">
+              {valorCombinado(aceita.valorProposto) === null
+                ? "Sem créditos reservados (a combinar)."
+                : `${valorCombinado(aceita.valorProposto)} créditos reservados do seu saldo: vão para o colaborador ao concluir, ou voltam para você se cancelar.`}
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               {servico.colaborador ? (
