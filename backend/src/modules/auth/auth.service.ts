@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { ehContaPlataforma } from "../../configs/creditos.js";
 import { sendMail } from "../../configs/mailer.js";
 import { AppError } from "../../utils/AppError.js";
 import { toSafeUser } from "../../utils/safeUser.js";
@@ -21,6 +22,9 @@ const INVALID_RESET_LINK = "Link inválido ou expirado. Peça um novo em \"Esque
 
 // o banco guarda só o hash: quem ler a tabela não consegue usar os links
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+// login social com o e-mail da conta da plataforma: não vincula nem cria (o e-mail já é dela)
+const contaIndisponivel = () => new AppError("Este e-mail não pode ser usado para entrar", 403);
 
 // remember = false → cookie de sessão (some ao fechar o navegador)
 function issueTokens(userId: string, remember = true) {
@@ -82,7 +86,8 @@ const authService = {
 
   login: async (email: string, password: string, remember = true) => {
     const user = await userRepository.findByEmail(email.toLowerCase());
-    if (!user || !user.password) throw new AppError("E-mail ou senha incorretos", 400);
+    // a conta da plataforma não tem senha; mesmo assim é tratada como inexistente, como no resto do auth
+    if (!user || !user.password || ehContaPlataforma(user.id)) throw new AppError("E-mail ou senha incorretos", 400);
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new AppError("E-mail ou senha incorretos", 400);
@@ -110,7 +115,8 @@ const authService = {
   // O envio não é aguardado, para o tempo de resposta também não denunciar isso.
   forgotPassword: async (email: string) => {
     const user = await userRepository.findByEmail(email.toLowerCase());
-    if (!user) return;
+    // a conta da plataforma nunca ganha senha por aqui
+    if (!user || ehContaPlataforma(user.id)) return;
 
     const latest = await passwordResetRepository.findLatestByUser(user.id);
     if (latest && Date.now() - latest.createdAt.getTime() < RESET_RESEND_INTERVAL_MS) return;
@@ -193,6 +199,7 @@ async function findOrLinkGoogleUser(profile: { providerId: string; email: string
   if (byGoogleId) return byGoogleId;
 
   const byEmail = await userRepository.findByEmail(profile.email);
+  if (byEmail && ehContaPlataforma(byEmail.id)) throw contaIndisponivel();
   if (byEmail) return userRepository.linkGoogleId(byEmail.id, profile.providerId);
 
   return userRepository.create({
@@ -232,6 +239,7 @@ async function findOrLinkDiscordUser(profile: { providerId: string; email: strin
   if (byDiscordId) return byDiscordId;
 
   const byEmail = await userRepository.findByEmail(profile.email);
+  if (byEmail && ehContaPlataforma(byEmail.id)) throw contaIndisponivel();
   if (byEmail) return userRepository.linkDiscordId(byEmail.id, profile.providerId);
 
   return userRepository.create({

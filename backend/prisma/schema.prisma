@@ -132,6 +132,7 @@ enum TipoTransacao {
   ESTORNO
   RECEBIMENTO
   TAXA
+  TAXA_RECEBIDA // a taxa entrando na conta da plataforma (contaPlataforma em configs/creditos.ts)
 }
 
 model TransacaoCredito {

@@ -8,10 +8,12 @@
 // para testar candidaturas localmente (sem candidaturas prontas).
 // Créditos (Fase 17C): cada Cliente recebe um bônus de 500 uma vez, pelo mesmo caminho do script
 // creditos:conceder (BONUS no extrato), para conseguir aceitar candidaturas.
+// Conta da plataforma (faxina antes da Fase 18): criada aqui também, pela mesma função do npm run plataforma:garantir.
 // O e2e não depende deste seed (cria os próprios dados).
 import bcrypt from "bcryptjs";
 import { PrismaClient, type CategoriaServico } from "@prisma/client";
 import creditoService from "../src/modules/credito/credito.service.js";
+import { garantirContaPlataforma } from "../src/modules/credito/plataforma.js";
 
 if (process.env.NODE_ENV === "production") {
   console.error("Seed de desenvolvimento: não roda com NODE_ENV=production.");
@@ -53,6 +55,7 @@ const PEDIDOS: { n: number; titulo: string; descricao: string; categoria: Catego
 ];
 
 async function main() {
+  await garantirContaPlataforma();
   const senha = await bcrypt.hash(SENHA_DEV, 10);
   const ids = {} as Record<Pessoa, string>;
   for (const [chave, p] of Object.entries(PESSOAS) as [Pessoa, (typeof PESSOAS)[Pessoa]][]) {

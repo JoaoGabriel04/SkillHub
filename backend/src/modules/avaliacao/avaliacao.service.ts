@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { ehContaPlataforma } from "../../configs/creditos.js";
 import { AppError } from "../../utils/AppError.js";
 import { toAutorResumo } from "../../utils/autorResumo.js";
 import avaliacaoRepository, { type AvaliacaoCompleta } from "./avaliacao.repository.js";
@@ -63,7 +64,8 @@ const avaliacaoService = {
 
   // o resumo público das avaliações recebidas: média (uma casa), total e a lista paginada
   doUsuario: async (usuarioId: string, { limit, cursor }: ListarAvaliacoesInput) => {
-    if (!(await avaliacaoRepository.usuarioExiste(usuarioId))) throw new AppError("Usuário não encontrado", 404);
+    // a conta da plataforma não tem perfil público
+    if (ehContaPlataforma(usuarioId) || !(await avaliacaoRepository.usuarioExiste(usuarioId))) throw new AppError("Usuário não encontrado", 404);
     const [linhas, agregado] = await Promise.all([avaliacaoRepository.listarRecebidas(usuarioId, limit, cursor), mediaETotal(usuarioId)]);
     const temMais = linhas.length > limit;
     const pagina = temMais ? linhas.slice(0, limit) : linhas;
