@@ -54,8 +54,13 @@ const servicoService = {
     return { servicos: pagina.map(toServicoResposta), nextCursor: temMais ? pagina[pagina.length - 1].id : null };
   },
 
+  // avaliacaoPendente (Fase 17D): concluído, com colaborador para avaliar, e o autor ainda não avaliou
   meus: async (usuarioId: string) =>
-    (await servicoRepository.listarDoAutor(usuarioId)).map((s) => ({ ...toServicoResposta(s), candidaturasPendentes: s._count.candidaturas })),
+    (await servicoRepository.listarDoAutor(usuarioId)).map((s) => ({
+      ...toServicoResposta(s),
+      candidaturasPendentes: s._count.candidaturas,
+      avaliacaoPendente: s.status === "CONCLUIDO" && !!s.colaboradorId && s.avaliacoes.length === 0,
+    })),
 
   detalhe: async (id: string, usuarioId: string) => {
     const servico = await servicoRepository.buscarPorId(id);

@@ -43,11 +43,15 @@ const servicoRepository = {
       ...(cursor && { cursor: { id: cursor }, skip: 1 }),
     }),
 
-  // com a contagem de candidaturas pendentes, para o card de "Seus pedidos"
+  // com a contagem de candidaturas pendentes e a avaliação do próprio autor (se já fez), para o card de "Seus pedidos"
   listarDoAutor: (autorId: string) =>
     prisma.servico.findMany({
       where: { autorId },
-      include: { ...comAutor, _count: { select: { candidaturas: { where: { status: "PENDENTE" } } } } },
+      include: {
+        ...comAutor,
+        _count: { select: { candidaturas: { where: { status: "PENDENTE" } } } },
+        avaliacoes: { where: { avaliadorId: autorId }, select: { id: true } },
+      },
       orderBy: [...ORDEM],
     }),
 

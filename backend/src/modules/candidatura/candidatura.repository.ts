@@ -6,7 +6,8 @@ import { comAutor } from "../servico/servico.repository.js";
 
 // Pessoas saem do banco só com id, nome e foto (toAutorResumo no service)
 const comColaborador = { colaborador: { select: AUTOR_RESUMO_SELECT } } as const;
-const servicoResumo = { include: comAutor } as const; // o mesmo do módulo servico (toServicoResposta)
+// o mesmo do módulo servico (toServicoResposta), mais a avaliação do colaborador no pedido (filtrada na consulta)
+const servicoResumo = { include: { ...comAutor, avaliacoes: { select: { id: true } } } } as const;
 
 export type CandidaturaComColaborador = Prisma.CandidaturaGetPayload<{ include: typeof comColaborador }>;
 export type CandidaturaComServico = Prisma.CandidaturaGetPayload<{ include: { servico: typeof servicoResumo } }>;
@@ -17,8 +18,13 @@ const candidaturaRepository = {
   listarDoServico: (servicoId: string) =>
     prisma.candidatura.findMany({ where: { servicoId }, include: comColaborador, orderBy: { createdAt: "asc" } }),
 
+  // com a avaliação do próprio colaborador no pedido (se já fez), para o card de "Suas candidaturas" (Fase 17D)
   listarDoColaborador: (colaboradorId: string) =>
-    prisma.candidatura.findMany({ where: { colaboradorId }, include: { servico: servicoResumo }, orderBy: { createdAt: "desc" } }),
+    prisma.candidatura.findMany({
+      where: { colaboradorId },
+      include: { servico: { include: { ...servicoResumo.include, avaliacoes: { where: { avaliadorId: colaboradorId }, select: { id: true } } } } },
+      orderBy: { createdAt: "desc" },
+    }),
 
   buscarPorId: (id: string) => prisma.candidatura.findUnique({ where: { id }, include: { servico: { select: { autorId: true } } } }),
 

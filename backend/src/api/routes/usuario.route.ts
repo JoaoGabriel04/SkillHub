@@ -1,5 +1,6 @@
 import { Router } from "express";
 import avaliacaoController from "../../modules/avaliacao/avaliacao.controller.js";
+import usuarioController from "../../modules/usuario/usuario.controller.js";
 import { authenticate } from "../../middlewares/authenticate.js";
 
 // Fase 17D: dados públicos de outros usuários. "usuario", e não "user", para não se confundir
@@ -8,6 +9,7 @@ const usuarioRouter = Router();
 
 usuarioRouter.use(authenticate);
 
+usuarioRouter.get("/:id/resumo", usuarioController.resumo);
 usuarioRouter.get("/:id/avaliacoes", avaliacaoController.doUsuario);
 
 export default usuarioRouter;
