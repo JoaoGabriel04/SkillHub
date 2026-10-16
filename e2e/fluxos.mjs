@@ -391,6 +391,101 @@ await page.setViewportSize({ width: 440, height: 956 });
 await page.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await page.getByPlaceholder("Senha").fill(NOVA_SENHA);
 await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 8000 }).catch(() => {});
 
+// 15e. Serviços (Fase 17A): API com os casos de erro, privacidade do autor, exclusão em cascata e a tela
+const sql = (q) => execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "postgres", "psql", "-U", "skillhub", "-d", "skillhub", "-tAc", q], { encoding: "utf8" }).trim();
+const chamar = async (metodo, rota, token, corpo) => {
+  const r = await fetch(`${API}/api${rota}`, {
+    method: metodo,
+    headers: { ...(corpo && { "Content-Type": "application/json" }), ...(token && { Authorization: `Bearer ${token}` }) },
+    body: corpo && JSON.stringify(corpo),
+  });
+  return { status: r.status, corpo: r.status === 204 ? null : await r.json() };
+};
+const contaServicos = async (nome, cpf, cidade) => {
+  const email = `e2e.servicos.${nome}@example.com`;
+  const { corpo } = await chamar("POST", "/auth/register/cliente", null, {
+    fullName: `Servicos ${nome} E2E`, phone: "11987654321", cpf, dataNascimento: "1990-01-01", genero: "Outro",
+    cep: "01310-100", rua: "Rua Teste", numero: "1", bairro: "Centro", cidade, estado: "SP",
+    email, confirmEmail: email, password: "senha123", confirmPassword: "senha123",
+  });
+  return corpo.accessToken;
+};
+const [autor, outro, excluido] = [await contaServicos("autor", "900.000.000-01", "Recife"), await contaServicos("outro", "900.000.000-02", "São Paulo"), await contaServicos("excluido", "900.000.000-03", "São Paulo")];
+const pedido = (extra = {}) => ({ titulo: "Pedido E2E de fumaça", descricao: "Descrição do pedido de teste do e2e", categoria: "Tecnologia", remuneracao: 50, ...extra });
+const ids = (lista) => lista.corpo.servicos.map((s) => s.id);
+
+ok("serviços: sem token dá 401", (await chamar("GET", "/servicos")).status === 401);
+const criado = await chamar("POST", "/servicos", autor, pedido());
+ok("serviços: publicar dá 201 com status Aberto", criado.status === 201 && criado.corpo.servico.status === "Aberto", JSON.stringify(criado.corpo));
+const p1 = criado.corpo.servico.id;
+ok("serviços: autor só com id, nome e foto", JSON.stringify(Object.keys(criado.corpo.servico.autor).sort()) === '["fullName","id","urlPhoto"]' &&
+  !/email|cpf|cnpj|phone|cidade|password|googleId|dataNascimento/.test(JSON.stringify(criado.corpo)));
+const pedidoInvalido = await chamar("POST", "/servicos", autor, { titulo: "ab", descricao: "curta", categoria: "Roxo", remuneracao: -1, prazo: "2020-01-01" });
+ok("serviços: validação dá 400 com os 5 campos", pedidoInvalido.status === 400 && pedidoInvalido.corpo.details?.length === 5, JSON.stringify(pedidoInvalido.corpo));
+sql(`update "User" set "profileComplete" = false where email = 'e2e.servicos.excluido@example.com'`);
+ok("serviços: perfil incompleto não publica (403)", (await chamar("POST", "/servicos", excluido, pedido())).status === 403);
+sql(`update "User" set "profileComplete" = true where email = 'e2e.servicos.excluido@example.com'`);
+
+ok("serviços: o pedido aparece para os outros", ids(await chamar("GET", "/servicos?limit=50", outro)).includes(p1));
+ok("serviços: e não na lista geral do autor (está em /meus)", !ids(await chamar("GET", "/servicos?limit=50", autor)).includes(p1) &&
+  ids(await chamar("GET", "/servicos/meus", autor)).includes(p1));
+ok("serviços: filtro de categoria", ids(await chamar("GET", `/servicos?limit=50&categoria=${encodeURIComponent("Tecnologia")}`, outro)).includes(p1) &&
+  !ids(await chamar("GET", `/servicos?limit=50&categoria=${encodeURIComponent("Educação")}`, outro)).includes(p1));
+ok("serviços: busca sem diferenciar maiúsculas", ids(await chamar("GET", "/servicos?limit=50&q=FUMA%C3%87A", outro)).includes(p1));
+ok("serviços: filtro de cidade do autor", ids(await chamar("GET", "/servicos?limit=50&cidade=recife", outro)).includes(p1) &&
+  !ids(await chamar("GET", "/servicos?limit=50&cidade=Natal", outro)).includes(p1));
+for (let i = 0; i < 2; i++) await chamar("POST", "/servicos", autor, pedido({ titulo: `Pedido E2E página ${i}` }));
+const pag1 = await chamar("GET", "/servicos?limit=2&cidade=Recife", outro);
+const pag2 = await chamar("GET", `/servicos?limit=2&cidade=Recife&cursor=${pag1.corpo.nextCursor}`, outro);
+ok("serviços: paginação por cursor", ids(pag1).length === 2 && pag1.corpo.nextCursor && ids(pag2).length === 1 && pag2.corpo.nextCursor === null &&
+  !ids(pag2).some((id) => ids(pag1).includes(id)));
+
+ok("serviços: detalhe dá 200", (await chamar("GET", `/servicos/${p1}`, outro)).corpo.servico?.id === p1);
+ok("serviços: detalhe inexistente dá 404", (await chamar("GET", "/servicos/00000000-0000-4000-8000-999999999999", outro)).status === 404 &&
+  (await chamar("GET", "/servicos/abc", outro)).status === 404);
+const editado = await chamar("PATCH", `/servicos/${p1}`, autor, { titulo: "Pedido E2E editado" });
+ok("serviços: o autor edita", editado.status === 200 && editado.corpo.servico.titulo === "Pedido E2E editado");
+ok("serviços: outro usuário não edita (403)", (await chamar("PATCH", `/servicos/${p1}`, outro, { titulo: "Invasão" })).status === 403);
+ok("serviços: outro usuário não cancela (403)", (await chamar("DELETE", `/servicos/${p1}`, outro)).status === 403);
+const cancelado = await chamar("DELETE", `/servicos/${p1}`, autor);
+ok("serviços: o autor cancela (vira Cancelado, a linha fica)", cancelado.status === 200 && cancelado.corpo.servico.status === "Cancelado" &&
+  sql(`select status from "Servico" where id = '${p1}'`) === "CANCELADO");
+ok("serviços: cancelado sai da lista e some para os outros", !ids(await chamar("GET", "/servicos?limit=50", outro)).includes(p1) &&
+  (await chamar("GET", `/servicos/${p1}`, outro)).status === 404 && (await chamar("GET", `/servicos/${p1}`, autor)).status === 200);
+ok("serviços: cancelado não se edita (409)", (await chamar("PATCH", `/servicos/${p1}`, autor, { titulo: "Depois de cancelar" })).status === 409);
+// concluir pela API só existe na 17B: o teste marca direto no banco
+const pConcluido = (await chamar("POST", "/servicos", autor, pedido({ titulo: "Pedido E2E concluído" }))).corpo.servico.id;
+sql(`update "Servico" set status = 'CONCLUIDO', "concluidoEm" = now() where id = '${pConcluido}'`);
+ok("serviços: concluído não se cancela (409)", (await chamar("DELETE", `/servicos/${pConcluido}`, autor)).status === 409);
+const pExcluido = (await chamar("POST", "/servicos", excluido, pedido({ titulo: "Pedido de quem vai sair" }))).corpo.servico.id;
+const saiu = await chamar("DELETE", "/user", excluido, { password: "senha123" });
+ok("serviços: excluir a conta apaga os pedidos do autor", saiu.status === 204 && (await chamar("GET", `/servicos/${pExcluido}`, outro)).status === 404 &&
+  sql(`select count(*) from "Servico" where id = '${pExcluido}'`) === "0");
+
+// tela: o Cliente logado publica pelo diálogo; o pedido aparece em "Seus pedidos" e para outro usuário
+await page.goto(B + "/servicos"); await page.getByRole("heading", { name: "Serviços", level: 1 }).waitFor();
+const convite = page.getByText("Você ainda não publicou nenhum pedido.", { exact: false });
+await convite.waitFor({ timeout: 8000 }).catch(() => {});
+ok("serviços (tela): sem pedidos, Seus pedidos aparece vazio com o convite", await convite.isVisible());
+await page.getByRole("button", { name: "Publicar pedido", exact: true }).click();
+const dialogo = page.getByRole("dialog", { name: "Publicar pedido" });
+await dialogo.getByRole("button", { name: "Publicar" }).click();
+ok("serviços (tela): formulário vazio mostra os erros", await dialogo.getByText("O título precisa ter ao menos 3 caracteres").isVisible());
+await dialogo.getByLabel("Título").fill("Pedido pela tela E2E");
+await dialogo.getByLabel("Descrição").fill("Pedido publicado pelo diálogo no teste e2e");
+await dialogo.getByLabel("Categoria").selectOption("Educação");
+await dialogo.getByLabel("Remuneração (créditos)").fill("80");
+await dialogo.getByRole("button", { name: "Publicar" }).click();
+await dialogo.waitFor({ state: "detached", timeout: 8000 }).catch(() => {});
+const seus = page.getByRole("region", { name: "Seus pedidos" });
+await seus.waitFor({ timeout: 8000 }).catch(() => {});
+ok("serviços (tela): publicado aparece em Seus pedidos", (await seus.getByText("Pedido pela tela E2E").count()) === 1);
+ok("serviços (tela): e para outro usuário na busca", (await chamar("GET", `/servicos?limit=50&q=${encodeURIComponent("pela tela E2E")}`, outro)).corpo.servicos.length === 1);
+await page.goto(B + "/inicio"); await page.getByRole("heading", { name: "SkillHub" }).waitFor();
+const secaoServicos = page.getByRole("region", { name: "Serviços" });
+await secaoServicos.locator("h3").first().waitFor({ timeout: 8000 }).catch(() => {});
+ok("serviços (tela): Início mostra pedidos do banco", (await secaoServicos.getByText("Servicos autor E2E").count()) > 0);
+
 // 16. Excluir conta com senha (o Cliente, já com a senha nova), com uma segunda aba aberta
 await page.goto(B + "/perfil"); await page.locator("h1").waitFor();
 ok("Cliente vê só as estatísticas no perfil", (await page.locator("main h2").allTextContents()).join(",") === "Experiências Profissionais");
