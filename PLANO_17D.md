@@ -167,3 +167,11 @@ Verificação da Seção 1.4: `tsc` (frontend e backend), `eslint`, `next build`
 - **Corpo com `avaliadoId`** é aceito e ignorado (o Zod descarta chaves desconhecidas). O e2e confere que o avaliado gravado é sempre a outra parte.
 - **Comparação visual com a `seed.bruna`.** Os pedidos do `seed.carlos` estão concluídos no banco local e, por isso, ganham a seção nova de propósito.
 
+## 7. Ajustes pedidos na conferência visual (16/10/2026)
+
+O João Gabriel pediu três mudanças:
+
+- **"Não avaliado" nos cards.** `/servicos/meus` e `/candidaturas/minhas` ganham `avaliacaoPendente`: o pedido está concluído, há a outra parte para avaliar e quem lista ainda não avaliou. Só a candidatura aceita conta. Enquanto ele valer, o card mostra "Não avaliado" no lugar de "Concluído" (em "Suas candidaturas", no lugar de "Candidatura aceita"). Depois de avaliar, as listas são relidas e o card passa a "Concluído". Com o colaborador que excluiu a conta, não há quem avaliar, e o card fica "Concluído".
+- **Colaborações reais no Perfil.** Novo resumo público `GET /usuarios/:id/resumo` → `{ colaboracoes, media, total }`, no módulo novo `src/modules/usuario/`, separado do `user`, que continua sem alteração. Colaborações são os pedidos concluídos em que a pessoa participou, como autor ou como colaborador. A média vem do mesmo cálculo de `GET /usuarios/:id/avaliacoes`, que continua igual. O Perfil passa a usar o resumo.
+- **Sem zero à esquerda.** As estatísticas do Perfil mostram "0", e não "00". "Experiência" continua placeholder, agora "0". Por isso o Perfil deixa de ser idêntico byte a byte ao da 17C; as outras telas continuam.
+
