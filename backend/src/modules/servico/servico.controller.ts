@@ -51,6 +51,12 @@ const servicoController = {
     } catch (err) { handleError(res, err); }
   },
 
+  concluir: async (req: Request, res: Response) => {
+    try {
+      res.json({ servico: await servicoService.concluir(String(req.params.id), req.userId!) });
+    } catch (err) { handleError(res, err); }
+  },
+
   cancelar: async (req: Request, res: Response) => {
     try {
       res.json({ servico: await servicoService.cancelar(String(req.params.id), req.userId!) });
