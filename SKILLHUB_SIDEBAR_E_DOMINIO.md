@@ -101,7 +101,25 @@ Branch sugerida: `feat/sidebar-desktop`.
 
 - `BottomNav` ganha `lg:hidden` (e perde o `lg:max-w-[520px]`, que deixa de ter efeito). Seu visual e a ordem dos itens **não mudam**.
 - No `app/(app)/layout.tsx`, a partir de `lg` o conteúdo vira uma linha (`flex`): sidebar + coluna principal. O `pb-[90px]` (espaço do menu inferior) vira `lg:pb-0`.
-- A sidebar fica **fixa na viewport enquanto a página rola** (`sticky top-4`, altura `calc(100dvh - 32px)`), com 16px de margem em volta, como no Figma.
+- A sidebar fica **fixa na viewport enquanto a página rola**, com 16px de margem em volta, como no Figma.
+
+**Receita de layout (obrigatória, testada em um protótipo isolado).** Dois erros clássicos de flexbox quebram esta tela, e os dois já aconteceram na primeira implementação:
+
+1. **Rolagem horizontal da página.** O filho `flex-1` da linha (a coluna principal) tem `min-width: auto` por padrão, então ele cresce até a largura do conteúdo. Os carrosséis (`ScrollRow`, com `overflow-x-auto`) têm uma trilha larga, a coluna se estica até ela e a página ganha barra de rolagem lateral. **Correção:** a coluna principal precisa de `min-w-0` (e, por segurança, `overflow-x-clip`, que corta sem criar um contêiner de rolagem).
+2. **Sidebar que rola junto com a página.** Em uma linha flex, o `aside` esticaria até a altura de todo o conteúdo (`align-items: stretch`), e um elemento `sticky` não tem para onde "grudar" dentro de um pai que ele mesmo preenche. **Correção:** o `aside` precisa de `self-start` e de **altura própria** (`h-[calc(100dvh-32px)]`), com `sticky top-4`. Nenhum ancestral do `aside` pode ter `overflow` diferente de `visible` (isso desativa o `sticky`). Por isso, **não** aplique `overflow-hidden`, `overflow-x-auto` ou similar na linha nem no wrapper do layout; o corte horizontal vai só na coluna principal.
+
+Estrutura esperada, a partir de `lg`:
+
+```tsx
+<div className="lg:flex lg:gap-8 lg:p-4">
+  <aside className="hidden lg:flex lg:sticky lg:top-4 lg:h-[calc(100dvh-32px)] lg:w-[248px] lg:shrink-0 lg:self-start ...">...</aside>
+  <div className="min-w-0 flex-1 lg:overflow-x-clip">
+    {/* PageContainer + header + children */}
+  </div>
+</div>
+```
+
+A rolagem continua sendo a **da janela** (`window`), e não a de um contêiner interno. Isso preserva o comportamento padrão do Next (voltar ao topo ao trocar de página, restaurar a posição ao voltar) e a barra de rolagem normal do navegador. Se mesmo assim o João Gabriel preferir a alternativa de dividir a tela em dois blocos com `h-dvh overflow-hidden` no pai e rolagem só no filho, ela é aceitável, mas **exige** resetar o `scrollTop` do contêiner a cada mudança de `pathname` e é aplicada só em `lg+` (abaixo disso a rolagem da janela continua).
 - Fundo da página continua o atual (`#101010` chapado, e o degradê no `/perfil`).
 
 ### Especificação da sidebar (do Figma, node `719:131`)
@@ -152,6 +170,8 @@ Alterar: `app/(app)/layout.tsx`, `components/app/bottom-nav.tsx`, `components/ap
 - [ ] A 375, 440 e 768px as 6 páginas estão **idênticas byte a byte** às de antes.
 - [ ] De 1024px para cima: sidebar visível, menu pill e header ocultos, nenhuma página com barra de rolagem horizontal.
 - [ ] Item ativo correto em cada uma das 6 rotas (inclusive Configurações).
+- [ ] **Sem rolagem horizontal da página** em nenhuma das 6 rotas, de 1024px a 1920px (conferir com `document.documentElement.scrollWidth <= clientWidth` e visualmente). Os carrosséis continuam rolando **dentro** de si mesmos.
+- [ ] **Sidebar imóvel:** com a página rolada até o fim, o topo da sidebar continua a 16px da borda da janela (testar com Playwright: `getBoundingClientRect().top` do `aside` antes e depois de `scrollTo(0, 800)` precisa ser igual).
 - [ ] A sidebar acompanha a rolagem e nunca passa da altura da tela; a 1024x600 (tela baixa) o conteúdo da sidebar continua acessível (se faltar altura, a área de navegação rola, o rodapé Conta nunca some).
 - [ ] Sair e Configurações funcionam igual ao que já funcionava.
 - [ ] Saldo de créditos da sidebar vem do usuário logado.
