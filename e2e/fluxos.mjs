@@ -497,6 +497,11 @@ const contaPerfil = async (nome, cpf, perfil) => {
   return corpo.accessToken;
 };
 const autorB = await contaPerfil("autor", "900.000.001-01", "cliente");
+// desde a Fase 17C aceitar reserva créditos do autor: os autores de teste recebem saldo pelo script de concessão
+const conceder = (email, valor) =>
+  execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "backend", "npm", "run", "-s", "creditos:conceder", "--", "--email", email, "--valor", String(valor)], { encoding: "utf8" });
+conceder("e2e.candidaturas.autor@example.com", 1000);
+conceder("e2e.cliente@example.com", 500);
 const colabA = await contaPerfil("colaba", "900.000.001-02", "colaborador");
 const colabB = await contaPerfil("colabb", "900.000.001-03", "colaborador");
 const clienteB = await contaPerfil("cliente", "900.000.001-04", "cliente");
@@ -595,6 +600,102 @@ const detalheAutor = page.getByRole("dialog", { name: "Pedido pela tela E2E" });
 await detalheAutor.getByRole("button", { name: "Aceitar" }).click();
 await detalheAutor.getByRole("button", { name: "Marcar como concluído" }).waitFor({ timeout: 8000 }).catch(() => {});
 ok("candidaturas (tela): o autor aceita e o pedido fica em andamento", await detalheAutor.getByRole("button", { name: "Marcar como concluído" }).isVisible());
+await page.keyboard.press("Escape");
+
+// 15g. Créditos (Fase 17C): reserva ao aceitar, pagamento ao concluir, estorno ao cancelar, extrato e corrida
+const contaCreditos = async (nome, cpf, perfil) => {
+  const email = `e2e.creditos.${nome}@example.com`;
+  const { corpo } = await chamar("POST", `/auth/register/${perfil}`, null, {
+    fullName: `Creditos ${nome} E2E`, phone: "11987654321", cpf, dataNascimento: "1990-01-01", genero: "Outro",
+    cep: "01310-100", rua: "Rua Teste", numero: "1", bairro: "Centro", cidade: "São Paulo", estado: "SP",
+    email, confirmEmail: email, password: "senha123", confirmPassword: "senha123",
+  });
+  return { email, token: corpo.accessToken };
+};
+const saldoDe = (email) => Number(sql(`select credits from "User" where email = '${email}'`));
+// extrato x saldo: a soma das movimentações e o último saldoApos batem com User.credits
+const extratoBate = (email) =>
+  sql(`select (u.credits = coalesce((select sum(valor) from "TransacaoCredito" t where t."userId" = u.id), 0))
+        and (u.credits = coalesce((select "saldoApos" from "TransacaoCredito" t where t."userId" = u.id order by "createdAt" desc, id desc limit 1), 0))
+       from "User" u where email = '${email}'`) === "t";
+const autorC = await contaCreditos("autor", "900.000.002-11", "cliente");
+const colabC = await contaCreditos("colab", "900.000.002-12", "colaborador");
+conceder(autorC.email, 100);
+const pedidoC = async (remuneracao, titulo) =>
+  (await chamar("POST", "/servicos", autorC.token, { titulo, descricao: "Pedido de teste dos créditos", categoria: "Tecnologia", remuneracao })).corpo.servico.id;
+const candidatarC = async (servicoId, valorProposto = null) =>
+  (await chamar("POST", `/servicos/${servicoId}/candidaturas`, colabC.token, { mensagem: "Posso fazer isso nesta semana.", valorProposto })).corpo.candidatura.id;
+const aceitarC = (candidaturaId, token = autorC.token) => chamar("POST", `/candidaturas/${candidaturaId}/aceitar`, token);
+
+ok("créditos: bônus pelo script entra no saldo e no extrato", saldoDe(autorC.email) === 100 && extratoBate(autorC.email));
+const pReserva = await pedidoC(100, "Créditos: reserva");
+const aceiteReserva = await aceitarC(await candidatarC(pReserva, 60));
+ok("créditos: aceitar reserva o valor proposto do autor", aceiteReserva.status === 200 && saldoDe(autorC.email) === 40 &&
+  sql(`select valor || '|' || "saldoApos" from "TransacaoCredito" where "servicoId" = '${pReserva}' and tipo = 'RESERVA'`) === "-60|40" && extratoBate(autorC.email));
+const pCaro = await pedidoC(500, "Créditos: caro demais");
+const cCaro = await candidatarC(pCaro);
+const semSaldo = await aceitarC(cCaro);
+ok("créditos: sem saldo dá 409 e a aceitação não acontece", semSaldo.status === 409 && semSaldo.corpo.error === "Créditos insuficientes" &&
+  sql(`select status from "Servico" where id = '${pCaro}'`) === "ABERTO" && sql(`select status from "Candidatura" where id = '${cCaro}'`) === "PENDENTE" &&
+  saldoDe(autorC.email) === 40);
+await chamar("POST", `/servicos/${pReserva}/concluir`, autorC.token);
+ok("créditos: concluir paga o colaborador (sem linha de taxa com taxa 0)", saldoDe(colabC.email) === 60 &&
+  sql(`select count(*) from "TransacaoCredito" where "servicoId" = '${pReserva}' and tipo = 'TAXA'`) === "0" && extratoBate(colabC.email));
+const pEstorno = await pedidoC(30, "Créditos: estorno");
+await aceitarC(await candidatarC(pEstorno));
+const saldoAntesEstorno = saldoDe(autorC.email);
+await chamar("DELETE", `/servicos/${pEstorno}`, autorC.token);
+ok("créditos: cancelar em andamento devolve a reserva", saldoAntesEstorno === 10 && saldoDe(autorC.email) === 40 && extratoBate(autorC.email));
+const pCombinar = await pedidoC(null, "Créditos: a combinar");
+await aceitarC(await candidatarC(pCombinar));
+await chamar("POST", `/servicos/${pCombinar}/concluir`, autorC.token);
+ok("créditos: a combinar sem proposta não move créditos", saldoDe(autorC.email) === 40 && saldoDe(colabC.email) === 60 &&
+  sql(`select count(*) from "TransacaoCredito" where "servicoId" = '${pCombinar}'`) === "0");
+const pCombinarProposta = await pedidoC(null, "Créditos: a combinar com proposta");
+await aceitarC(await candidatarC(pCombinarProposta, 20));
+ok("créditos: a combinar com proposta reserva o valor proposto", saldoDe(autorC.email) === 20);
+// colaborador aceito que sai: concluir dá 409, cancelar estorna
+const colabSai = await contaCreditos("sai", "900.000.002-13", "colaborador");
+const pSai = await pedidoC(10, "Créditos: colaborador sai");
+const cSai = (await chamar("POST", `/servicos/${pSai}/candidaturas`, colabSai.token, { mensagem: "Posso fazer isso amanhã." })).corpo.candidatura.id;
+await aceitarC(cSai);
+await chamar("DELETE", "/user", colabSai.token, { password: "senha123" });
+const concluirSemColab = await chamar("POST", `/servicos/${pSai}/concluir`, autorC.token);
+ok("créditos: sem colaborador, concluir dá 409", concluirSemColab.status === 409 && /Cancele o pedido/.test(concluirSemColab.corpo.error));
+await chamar("DELETE", `/servicos/${pSai}`, autorC.token);
+ok("créditos: e cancelar devolve a reserva", saldoDe(autorC.email) === 20 && extratoBate(autorC.email));
+// corrida: saldo para um pedido só, duas aceitações em pedidos diferentes ao mesmo tempo
+const autorR = await contaCreditos("corrida", "900.000.002-14", "cliente");
+conceder(autorR.email, 50);
+const pedidoR = async (titulo) => (await chamar("POST", "/servicos", autorR.token, { titulo, descricao: "Pedido da corrida de créditos", categoria: "Tecnologia", remuneracao: 50 })).corpo.servico.id;
+const [pr1, pr2] = [await pedidoR("Corrida 1"), await pedidoR("Corrida 2")];
+const [cr1, cr2] = [await candidatarC(pr1), await candidatarC(pr2)];
+const corridaC = await Promise.all([aceitarC(cr1, autorR.token), aceitarC(cr2, autorR.token)]);
+ok("créditos: corrida de duas aceitações sem saldo para as duas (200 e 409, saldo nunca negativo)",
+  corridaC.map((x) => x.status).sort().join() === "200,409" && saldoDe(autorR.email) === 0 &&
+  sql(`select count(*) from "TransacaoCredito" t join "User" u on u.id = t."userId" where u.email = '${autorR.email}' and tipo = 'RESERVA'`) === "1" &&
+  extratoBate(autorR.email), corridaC.map((x) => x.status).join());
+ok("créditos: extrato bate com o saldo de todos os usuários de teste", [autorC.email, colabC.email, autorR.email, "e2e.candidaturas.autor@example.com"].every(extratoBate));
+// extrato
+ok("créditos: extrato sem token dá 401", (await chamar("GET", "/creditos/extrato")).status === 401);
+const ext1 = await chamar("GET", "/creditos/extrato?limit=2", autorC.token);
+const ext2 = await chamar("GET", `/creditos/extrato?limit=50&cursor=${ext1.corpo.nextCursor}`, autorC.token);
+ok("créditos: extrato paginado, mais recentes primeiro", ext1.corpo.transacoes.length === 2 && !!ext1.corpo.nextCursor &&
+  ext1.corpo.transacoes[0].createdAt >= ext1.corpo.transacoes[1].createdAt && ext2.corpo.transacoes.at(-1).tipo === "Bônus" &&
+  !ext2.corpo.transacoes.some((t) => ext1.corpo.transacoes.some((u) => u.id === t.id)));
+ok("créditos: extrato só do próprio usuário e sem dados pessoais", (await chamar("GET", "/creditos/extrato?limit=50", colabC.token)).corpo.transacoes.every((t) => t.tipo === "Recebimento") &&
+  semDadosPessoais(ext1.corpo));
+// tela: o Cliente aceitou pela tela na 15f (reserva de 80 dos 500): o chip já mostra o saldo novo e o extrato abre
+await page.goto(B + "/inicio"); await page.getByRole("heading", { name: "SkillHub" }).waitFor();
+const chip = page.getByRole("button", { name: /^Créditos: / });
+ok("créditos (tela): o chip mostra o saldo depois de aceitar", (await chip.getAttribute("aria-label")) === "Créditos: 420,00", await chip.getAttribute("aria-label"));
+await chip.click(); await page.getByRole("button", { name: "Ver extrato" }).click();
+const extratoTela = page.getByRole("dialog", { name: "Extrato de créditos" });
+await extratoTela.getByText("Reserva").first().waitFor({ timeout: 8000 }).catch(() => {});
+ok("créditos (tela): o extrato abre pelo chip com a reserva e o bônus", (await extratoTela.getByText("Reserva").count()) > 0 && (await extratoTela.getByText("Bônus").count()) > 0);
+await page.keyboard.press("Escape");
+await page.goto(B + "/configuracoes"); await page.getByRole("button", { name: /Créditos e Pagamentos/ }).click();
+ok("créditos (tela): Configurações abre o extrato", await page.getByRole("dialog", { name: "Extrato de créditos" }).isVisible());
 await page.keyboard.press("Escape");
 
 // 16. Excluir conta com senha (o Cliente, já com a senha nova), com uma segunda aba aberta
