@@ -2,10 +2,11 @@ import type { Prisma } from "@prisma/client";
 import prisma from "../../configs/prisma.js";
 import { AUTOR_RESUMO_SELECT } from "../../utils/autorResumo.js";
 import { AppError } from "../../utils/AppError.js";
+import { comAutor } from "../servico/servico.repository.js";
 
 // Pessoas saem do banco só com id, nome e foto (toAutorResumo no service)
 const comColaborador = { colaborador: { select: AUTOR_RESUMO_SELECT } } as const;
-const servicoResumo = { include: { autor: { select: AUTOR_RESUMO_SELECT }, colaborador: { select: AUTOR_RESUMO_SELECT } } } as const;
+const servicoResumo = { include: comAutor } as const; // o mesmo do módulo servico (toServicoResposta)
 
 export type CandidaturaComColaborador = Prisma.CandidaturaGetPayload<{ include: typeof comColaborador }>;
 export type CandidaturaComServico = Prisma.CandidaturaGetPayload<{ include: { servico: typeof servicoResumo } }>;

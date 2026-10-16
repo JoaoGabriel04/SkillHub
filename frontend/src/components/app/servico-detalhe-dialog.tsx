@@ -124,7 +124,7 @@ export function ServicoDetalheDialog({ servico: inicial, open, onOpenChange, onE
       </div>
       <p className="mt-4 font-secondary text-[14px] leading-relaxed whitespace-pre-line text-foreground-secondary">{servico.descricao}</p>
       <dl className="mt-4 grid grid-cols-2 gap-3 font-secondary">
-        <Info rotulo="Remuneração">{creditos(servico.remuneracao, "A combinar")}</Info>
+        <Info rotulo="Remuneração">{creditos(servico.valorCombinado, "A combinar")}</Info>
         <Info rotulo="Prazo">{data(servico.prazo)}</Info>
       </dl>
 

@@ -51,16 +51,18 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 | `src/lib/creditos.ts`, `src/types/credito.ts` | **Novos.** `getExtrato`, `atualizarUsuario` (relê o `/auth/me`, sem um segundo estado de saldo) e o `formatCredits`, que saiu do chip. |
 | `src/components/app/servico-detalhe-dialog.tsx` | Mostra "Aceitar reserva X créditos do seu saldo" e, em andamento, quanto está reservado. O saldo é relido depois de aceitar, concluir e cancelar. |
 | `src/components/app/credits-chip.tsx`, `sidebar.tsx`, `app/(app)/configuracoes/page.tsx` | "Ver extrato" no popover; o card de créditos da sidebar abre o extrato; "Créditos e Pagamentos" deixa de ser "em breve". |
-| `e2e/fluxos.mjs` | Seção 15g, com 17 fluxos. Na 15f, os autores recebem saldo antes de aceitar. |
+| `src/types/servico.ts` + backend `servico.repository.ts`, `servico.service.ts`, `candidatura.repository.ts` | **Achado na conferência visual:** o detalhe mostrava a remuneração publicada, e não a combinada. A resposta do pedido ganhou `valorCombinado`: o proposto pela candidatura aceita ou, sem proposta, a remuneração. O detalhe mostra esse valor. |
+| `e2e/fluxos.mjs` | Seção 15g, com 18 fluxos. Na 15f, os autores recebem saldo antes de aceitar. |
 
 ### Validação
 
 - `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
-- **`./e2e/run.sh`: 181/181 (17 novos).** Cobrem:
+- **`./e2e/run.sh`: 182/182 (18 novos).** Cobrem:
   - **Bônus:** entra no saldo pelo script.
   - **Reserva:** usa o valor proposto, com `saldoApos` igual ao saldo.
   - **Saldo insuficiente:** 409, e o pedido continua aberto e a candidatura pendente.
   - **Pagamento:** sem linha de taxa.
+  - **Valor combinado:** o pedido concluído mostra o proposto (60), e não o publicado (100), para o autor e para o colaborador.
   - **Estorno.**
   - **"A combinar":** com e sem proposta.
   - **Colaborador que saiu:** concluir dá 409, e cancelar estorna.

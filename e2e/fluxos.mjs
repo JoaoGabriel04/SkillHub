@@ -638,7 +638,9 @@ const semSaldo = await aceitarC(cCaro);
 ok("créditos: sem saldo dá 409 e a aceitação não acontece", semSaldo.status === 409 && semSaldo.corpo.error === "Créditos insuficientes" &&
   sql(`select status from "Servico" where id = '${pCaro}'`) === "ABERTO" && sql(`select status from "Candidatura" where id = '${cCaro}'`) === "PENDENTE" &&
   saldoDe(autorC.email) === 40);
-await chamar("POST", `/servicos/${pReserva}/concluir`, autorC.token);
+const concluidoReserva = await chamar("POST", `/servicos/${pReserva}/concluir`, autorC.token);
+ok("créditos: o pedido concluído mostra o valor combinado, não o publicado", concluidoReserva.corpo.servico.remuneracao === 100 &&
+  concluidoReserva.corpo.servico.valorCombinado === 60 && (await chamar("GET", `/servicos/${pReserva}`, colabC.token)).corpo.servico.valorCombinado === 60);
 ok("créditos: concluir paga o colaborador (sem linha de taxa com taxa 0)", saldoDe(colabC.email) === 60 &&
   sql(`select count(*) from "TransacaoCredito" where "servicoId" = '${pReserva}' and tipo = 'TAXA'`) === "0" && extratoBate(colabC.email));
 const pEstorno = await pedidoC(30, "Créditos: estorno");

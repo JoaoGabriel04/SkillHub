@@ -20,6 +20,8 @@ export function toServicoResposta(s: ServicoComAutor) {
     autor: toAutorResumo(s.autor),
     distanciaKm: null,
     remuneracao: s.remuneracao,
+    // o que vale depois de aceitar: o proposto pela candidatura aceita ou, sem proposta, a remuneração
+    valorCombinado: s.candidaturas[0] ? (s.candidaturas[0].valorProposto ?? s.remuneracao) : s.remuneracao,
     prazo: s.prazo?.toISOString() ?? null,
     status: STATUS[s.status],
     colaborador: s.colaborador ? toAutorResumo(s.colaborador) : null,

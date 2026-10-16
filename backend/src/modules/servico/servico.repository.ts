@@ -3,8 +3,13 @@ import { AppError } from "../../utils/AppError.js";
 import prisma from "../../configs/prisma.js";
 import { AUTOR_RESUMO_SELECT } from "../../utils/autorResumo.js";
 
-// Autor e colaborador saem do banco só com id, nome e foto (toAutorResumo no service)
-const comAutor = { autor: { select: AUTOR_RESUMO_SELECT }, colaborador: { select: AUTOR_RESUMO_SELECT } } as const;
+// Autor e colaborador saem do banco só com id, nome e foto (toAutorResumo no service).
+// A candidatura aceita vem só com o valor proposto: é dela o valor combinado (valorCombinado na resposta).
+export const comAutor = {
+  autor: { select: AUTOR_RESUMO_SELECT },
+  colaborador: { select: AUTOR_RESUMO_SELECT },
+  candidaturas: { where: { status: "ACEITA" }, select: { valorProposto: true }, take: 1 },
+} as const;
 const ORDEM = [{ createdAt: "desc" }, { id: "desc" }] as const satisfies Prisma.ServicoOrderByWithRelationInput[];
 
 export type ServicoComAutor = Prisma.ServicoGetPayload<{ include: typeof comAutor }>;
