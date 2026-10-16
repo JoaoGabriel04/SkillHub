@@ -21,6 +21,21 @@ export const getServico = (id: string) => api.get<{ servico: Servico }>(`/servic
 
 export const criarServico = (dados: NovoServico) => api.post<{ servico: Servico }>("/servicos", dados).then((r) => r.data.servico);
 
-// Depois de publicar (e, na 17B, editar ou cancelar): recarrega todas as listas de serviços
+// Fase 17B: o autor edita (só aberto), cancela (aberto ou em andamento) e conclui (em andamento)
+export const atualizarServico = (id: string, dados: Partial<NovoServico>) =>
+  api.patch<{ servico: Servico }>(`/servicos/${id}`, dados).then((r) => r.data.servico);
+export const cancelarServico = (id: string) => api.delete<{ servico: Servico }>(`/servicos/${id}`).then((r) => r.data.servico);
+export const concluirServico = (id: string) => api.post<{ servico: Servico }>(`/servicos/${id}/concluir`).then((r) => r.data.servico);
+
+// Detalhe de um pedido (o diálogo do "Saiba Mais" mantém o próprio cache, para refletir as ações)
+export const chaveServico = (id: string) => ["servico", id] as const;
+
+// Depois de publicar, editar, cancelar, concluir ou mexer numa candidatura: recarrega tudo o que
+// depende de serviços e candidaturas (listas, "Seus pedidos", "Suas candidaturas" e o detalhe aberto)
 export const revalidarServicos = () =>
-  mutate((chave) => chave === CHAVE_MEUS_SERVICOS || (Array.isArray(chave) && chave[0] === "servicos"));
+  mutate(
+    (chave) =>
+      chave === CHAVE_MEUS_SERVICOS ||
+      chave === "candidaturas/minhas" ||
+      (Array.isArray(chave) && ["servicos", "servico", "candidaturas"].includes(chave[0]))
+  );

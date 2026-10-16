@@ -18,5 +18,9 @@ export type Servico = {
   remuneracao: number | null; // em créditos; null = "a combinar"
   prazo: string | null; // ISO; null = sem prazo
   status: StatusServico;
+  colaborador: AutorResumo | null; // quem foi aceito (Fase 17B); null enquanto aberto
+  aceitoEm: string | null; // ISO
+  concluidoEm: string | null; // ISO
   createdAt: string; // ISO
+  candidaturasPendentes?: number; // só em /servicos/meus
 };

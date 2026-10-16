@@ -9,6 +9,80 @@
 
 ---
 
+## Fase 17B — Candidaturas e contratação
+
+**Data:** 2026-10-16
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/servicos-candidaturas`
+
+### Contexto
+
+Segunda subfase da Fase 17 (plano em `PLANO_17B.md`). Colaboradores se candidatam aos pedidos, o autor aceita um, o pedido fica em andamento e depois concluído. As datas `aceitoEm` e `concluidoEm` passam a ser preenchidas: são a base dos KPIs de latência de contratação e de volume de transações.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **O autor chega ao pedido** pela linha "Seus pedidos", e o card mostra "N candidaturas".
+- **Linha "Suas candidaturas"** em Serviços, só para colaboradores.
+- **Editar e cancelar pela tela** entram agora, no detalhe do autor.
+- **Ao cancelar um pedido,** as candidaturas pendentes viram "Recusada", e a "Aceita" fica como histórico.
+- **O "Saiba Mais" do Início** abre o mesmo detalhe.
+- **Seed:** mais 2 colaboradores.
+- **Quem não é colaborador** vê no detalhe o aviso "Só colaboradores podem se candidatar a pedidos".
+
+### Backend
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261016013313_candidatura` | Enum `StatusCandidatura` e model `Candidatura`, exatamente os da Seção 17B, com `@@unique([servicoId, colaboradorId])`. No `User`, só `candidaturasEnviadas`; no `Servico`, `candidaturas`. Criada dentro do container, e as migrations antigas ficaram intactas. |
+| `src/modules/candidatura/*`, `src/api/routes/candidatura.route.ts` | **Novos.** Rotas: `POST`/`GET /servicos/:id/candidaturas`, `GET /candidaturas/minhas`, `PATCH /candidaturas/:id/retirar` e `POST /candidaturas/:id/aceitar`. |
+| `src/modules/servico/*`, `servico.route.ts`, `routes/index.ts` | `POST /servicos/:id/concluir`. Cancelar passa a valer também para pedidos em andamento e recusa as pendentes na mesma transação. A resposta ganha `colaborador`, `aceitoEm`, `concluidoEm` e, em `/meus`, `candidaturasPendentes`. |
+| `prisma/seed.ts` | Mais `seed.ana` e `seed.pedro` (Colaboradores, senha `seed1234`), sem candidaturas. |
+
+- **Aceitar:** tudo numa única transação.
+  - O serviço só passa para em andamento se ainda estiver aberto, e essa condição fica no próprio `UPDATE`. Se a linha não muda, a resposta é 409. Isso resolve a corrida entre duas aceitações.
+  - A candidatura escolhida vira "Aceita", e as outras pendentes viram "Recusada".
+- **Privacidade:** pessoas saem sempre só com id, nome e foto.
+
+### Frontend
+
+| Arquivo | Alteração |
+|---|---|
+| `src/components/app/servico-detalhe-dialog.tsx` | **Novo.** O detalhe do pedido (o "Saiba Mais"), na casca dos modais do Perfil. O conteúdo muda conforme quem abre: <br>• **Colaborador:** "Candidatar-se", com mensagem e valor, ou o status da candidatura com "Retirar". <br>• **Autor:** as candidaturas com "Aceitar"; em andamento, o colaborador e "Marcar como concluído"; e ainda "Editar" e "Cancelar pedido", com confirmação. <br>• **Outros perfis:** o aviso. <br>Também tem o `ServicoModais`, que alterna entre o detalhe e a edição. |
+| `src/types/candidatura.ts`, `src/lib/candidaturas.ts`, `src/lib/validation/candidatura.ts` | **Novos.** |
+| `src/components/app/servico-card.tsx` | "Saiba Mais" abre o detalhe. No lugar da distância, o card mostra "N candidaturas", o status do pedido ou o da candidatura. |
+| `src/components/app/publicar-servico-dialog.tsx` | Modo de edição (`servico` opcional, `PATCH`). |
+| `src/app/(app)/servicos/page.tsx` | Linha "Suas candidaturas", só para colaboradores. |
+| `src/app/(app)/inicio/servicos-recentes.tsx` | "Saiba Mais" abre o mesmo detalhe. |
+| `src/types/servico.ts`, `src/lib/servicos.ts` | Os campos novos; `atualizarServico`, `cancelarServico` e `concluirServico`; `revalidarServicos` passa a cobrir também as candidaturas e o detalhe aberto. |
+| `src/components/app/servico-card-esqueleto.tsx` | Correção de um conflito de classes (ver Ajustes). |
+| `e2e/fluxos.mjs` | Seção 15f, com 29 fluxos. |
+
+### Ajustes durante a implementação
+
+- O formulário de candidatura deixou de ser um `<form>` dentro do `<form>` do `ProfileDialog`, que gerava erro do React no console.
+- **O `cn` do projeto (pacote `cn`) não resolve conflitos de classe.** O "Cancelar pedido" saía cinza, e o esqueleto somava tamanhos. As duas coisas foram corrigidas sem trocar a biblioteca (ver Achados).
+
+### Validação
+
+- `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build` e `check:cores` sem erros.
+- **`./e2e/run.sh`: 164/164 (29 novos).** Cobrem:
+  - **Fluxo completo:** publicar → duas candidaturas → aceitar → em andamento com `colaboradorId` e `aceitoEm` → a outra recusada → concluir com `concluidoEm` (datas conferidas no banco).
+  - **Corrida:** duas aceitações em paralelo dão um 200 e um 409, e fica uma única "Aceita".
+  - **Permissões e status:** 403 para cliente, autor, quem não é dono e quem não é autor; 409 para repetida, pedido não aberto, recusada, retirada e conclusão de pedido aberto; 400 e 401.
+  - **Retirar e cancelar:** retirar uma pendente; cancelar um aberto recusa as pendentes; cancelar em andamento mantém a "Aceita".
+  - **Privacidade** nas respostas de candidatura.
+  - **Exclusão do colaborador aceito:** o serviço continua com `colaboradorId = null`, e as candidaturas dele somem.
+  - **Tela:** candidatar-se pelo detalhe; o card com "1 candidatura"; o autor aceita pela tela.
+- **Visual:**
+  - Serviços e Início de quem não tem pedidos nem candidaturas ficaram idênticos byte a byte aos da 17A (375 e 1440px, dois temas).
+  - O diálogo de detalhe foi capturado nos três papéis e nos estados aberto, em andamento e concluído, a 375 e 1440px, nos dois temas, sem erros no console.
+
+### Achados fora de escopo
+
+- O `cn` do projeto (`export { cn } from "cn"`) não resolve conflitos de classes do Tailwind. Usos antigos que sobrescrevem classes pelo `className`, como o `ServicoCard` com `w-full` na lista de resultados, dependem da ordem das regras no CSS. Vale avaliar trocar pelo `clsx` + `tailwind-merge`, que é o padrão do shadcn; seria uma dependência nova, então precisa de aprovação.
+- A 17C (créditos) vai precisar de um ponto para debitar e creditar no "concluir"; a 17B só muda o status e as datas.
+
+---
+
 ## Fase 17A — Domínio de Serviços (modelo, API, telas ligadas e seed)
 
 **Data:** 2026-10-15

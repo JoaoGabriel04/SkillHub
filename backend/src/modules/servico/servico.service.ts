@@ -7,9 +7,10 @@ import type { AtualizarServicoInput, CriarServicoInput, ListarServicosInput } fr
 const STATUS = { ABERTO: "Aberto", EM_ANDAMENTO: "Em andamento", CONCLUIDO: "Concluído", CANCELADO: "Cancelado" } as const;
 const naoEncontrado = () => new AppError("Pedido não encontrado", 404);
 
-// Resposta da API: rótulos no lugar dos enums, datas em ISO e o autor só com id, nome e foto.
+// Resposta da API: rótulos no lugar dos enums, datas em ISO e autor/colaborador só com id, nome e foto.
 // distanciaKm fica null até existir localização (decisão da 17A; o cálculo vem numa subfase própria).
-function toServicoResposta(s: ServicoComAutor) {
+// Também usada pelas candidaturas (resumo do serviço em /candidaturas/minhas).
+export function toServicoResposta(s: ServicoComAutor) {
   return {
     id: s.id,
     titulo: s.titulo,
@@ -20,6 +21,9 @@ function toServicoResposta(s: ServicoComAutor) {
     remuneracao: s.remuneracao,
     prazo: s.prazo?.toISOString() ?? null,
     status: STATUS[s.status],
+    colaborador: s.colaborador ? toAutorResumo(s.colaborador) : null,
+    aceitoEm: s.aceitoEm?.toISOString() ?? null,
+    concluidoEm: s.concluidoEm?.toISOString() ?? null,
     createdAt: s.createdAt.toISOString(),
   };
 }
@@ -47,7 +51,8 @@ const servicoService = {
     return { servicos: pagina.map(toServicoResposta), nextCursor: temMais ? pagina[pagina.length - 1].id : null };
   },
 
-  meus: async (usuarioId: string) => (await servicoRepository.listarDoAutor(usuarioId)).map(toServicoResposta),
+  meus: async (usuarioId: string) =>
+    (await servicoRepository.listarDoAutor(usuarioId)).map((s) => ({ ...toServicoResposta(s), candidaturasPendentes: s._count.candidaturas })),
 
   detalhe: async (id: string, usuarioId: string) => {
     const servico = await servicoRepository.buscarPorId(id);
@@ -72,12 +77,21 @@ const servicoService = {
     return toServicoResposta(atualizado);
   },
 
-  // não apaga a linha: o histórico alimenta os KPIs (latência de contratação, volume)
+  // não apaga a linha: o histórico alimenta os KPIs (latência de contratação, volume).
+  // Desde a 17B, um pedido em andamento também pode ser cancelado pelo autor.
   cancelar: async (id: string, usuarioId: string) => {
     const servico = await servicoDoAutor(id, usuarioId);
     if (servico.status === "CONCLUIDO") throw new AppError("Um pedido concluído não pode ser cancelado", 409);
     if (servico.status === "CANCELADO") return toServicoResposta(servico);
-    return toServicoResposta(await servicoRepository.mudarStatus(id, "CANCELADO"));
+    return toServicoResposta(await servicoRepository.cancelar(id));
+  },
+
+  // Fase 17B: o autor marca como concluído um pedido em andamento (KPI: concluidoEm)
+  concluir: async (id: string, usuarioId: string) => {
+    await servicoDoAutor(id, usuarioId);
+    const { count } = await servicoRepository.concluir(id);
+    if (count === 0) throw new AppError("Só dá para concluir um pedido em andamento", 409);
+    return toServicoResposta((await servicoRepository.buscarPorId(id))!);
   },
 };
 

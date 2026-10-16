@@ -4,12 +4,20 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { DialogField, ProfileDialog } from "@/components/app/perfil/profile-dialog";
 import { getApiErrorMessage } from "@/lib/api";
-import { criarServico, revalidarServicos } from "@/lib/servicos";
+import { atualizarServico, criarServico, revalidarServicos } from "@/lib/servicos";
 import { fieldErrors } from "@/lib/validation/auth";
 import { novoServicoSchema } from "@/lib/validation/servico";
-import { CATEGORIAS_SERVICO } from "@/types/servico";
+import { CATEGORIAS_SERVICO, type Servico } from "@/types/servico";
 
-type Props = { open: boolean; onOpenChange: (open: boolean) => void };
+// servico: editar esse pedido (PATCH) em vez de publicar um novo (Fase 17B)
+type Props = { open: boolean; onOpenChange: (open: boolean) => void; servico?: Servico };
+
+// prazo ISO -> AAAA-MM-DD do <input type="date">, no fuso de quem edita
+const paraCampoData = (iso: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 const campoClass =
   "mt-1 w-full border-b border-field bg-transparent pb-2 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus:border-foreground";
@@ -18,10 +26,16 @@ function Erro({ children }: { children?: string }) {
   return children ? <p className="mt-1 text-[12px] text-danger">{children}</p> : null;
 }
 
-// Publicar um pedido de serviço (POST /servicos), na casca dos modais do Perfil.
-// O pai monta o modal só enquanto aberto, então o formulário sempre começa vazio.
-export function PublicarServicoDialog({ open, onOpenChange }: Props) {
-  const [form, setForm] = useState({ titulo: "", descricao: "", categoria: "", remuneracao: "", prazo: "" });
+// Publicar um pedido de serviço (POST /servicos), ou editar um (PATCH, Fase 17B), na casca dos modais
+// do Perfil. O pai monta o modal só enquanto aberto, então o formulário sempre começa vazio (ou do pedido).
+export function PublicarServicoDialog({ open, onOpenChange, servico }: Props) {
+  const [form, setForm] = useState({
+    titulo: servico?.titulo ?? "",
+    descricao: servico?.descricao ?? "",
+    categoria: servico?.categoria ?? "",
+    remuneracao: servico?.remuneracao?.toString() ?? "",
+    prazo: paraCampoData(servico?.prazo ?? null),
+  });
   const [erros, setErros] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -37,12 +51,18 @@ export function PublicarServicoDialog({ open, onOpenChange }: Props) {
     setError(null);
     setSaving(true);
     try {
-      await criarServico(parsed.data);
-      await revalidarServicos();
-      toast.success("Pedido publicado", { description: "Ele já aparece em Serviços, na linha Seus pedidos." });
+      if (servico) {
+        await atualizarServico(servico.id, parsed.data);
+        await revalidarServicos();
+        toast.success("Pedido atualizado");
+      } else {
+        await criarServico(parsed.data);
+        await revalidarServicos();
+        toast.success("Pedido publicado", { description: "Ele já aparece em Serviços, na linha Seus pedidos." });
+      }
       onOpenChange(false);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Não foi possível publicar o pedido."));
+      setError(getApiErrorMessage(err, servico ? "Não foi possível salvar o pedido." : "Não foi possível publicar o pedido."));
     } finally {
       setSaving(false);
     }
@@ -52,12 +72,12 @@ export function PublicarServicoDialog({ open, onOpenChange }: Props) {
     <ProfileDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Publicar pedido"
-      description="Descreva o serviço de que você precisa. O pedido aparece para os outros usuários em Serviços."
+      title={servico ? "Editar pedido" : "Publicar pedido"}
+      description={servico ? "Só dá para editar enquanto o pedido está aberto." : "Descreva o serviço de que você precisa. O pedido aparece para os outros usuários em Serviços."}
       error={error}
       saving={saving}
       onSubmit={publicar}
-      submitLabel="Publicar"
+      submitLabel={servico ? "Salvar" : "Publicar"}
     >
       <div className="flex flex-col gap-5">
         <div>

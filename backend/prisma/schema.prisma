@@ -44,6 +44,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   servicosPublicados  Servico[] @relation("ServicosPublicados")
   servicosExecutados  Servico[] @relation("ServicosExecutados")
+  candidaturasEnviadas Candidatura[] @relation("CandidaturasEnviadas")
 }
 
 // Link de "esqueci a senha": guarda só o hash SHA-256 do token enviado por e-mail
@@ -90,8 +91,32 @@ model Servico {
   concluidoEm   DateTime?        // KPI: volume de transações concluídas
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  candidaturas  Candidatura[]
 
   @@index([status, categoria, createdAt])
   @@index([autorId])
+  @@index([colaboradorId])
+}
+
+// Candidaturas a um pedido (Fase 17B): colaboradores se oferecem; o autor aceita uma
+enum StatusCandidatura {
+  PENDENTE
+  ACEITA
+  RECUSADA
+  RETIRADA
+}
+
+model Candidatura {
+  id             String            @id @default(uuid())
+  servicoId      String
+  servico        Servico           @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+  colaboradorId  String
+  colaborador    User              @relation("CandidaturasEnviadas", fields: [colaboradorId], references: [id], onDelete: Cascade)
+  mensagem       String
+  valorProposto  Int?              // em créditos; null = aceita a remuneração do pedido
+  status         StatusCandidatura @default(PENDENTE)
+  createdAt      DateTime          @default(now())
+
+  @@unique([servicoId, colaboradorId])
   @@index([colaboradorId])
 }

@@ -16,6 +16,7 @@ import { ServicoCardEsqueleto } from "@/components/app/servico-card-esqueleto";
 import { ContentCard } from "@/components/ui/content-card";
 import { CtaButton } from "@/components/ui/cta-button";
 import { CHAVE_MEUS_SERVICOS, chaveServicos, getMeusServicos, getServicos, type FiltrosServicos } from "@/lib/servicos";
+import { CHAVE_MINHAS_CANDIDATURAS, getMinhasCandidaturas } from "@/lib/candidaturas";
 import { useAuthStore } from "@/stores/auth-store";
 import { CATEGORIAS_SERVICO, type CategoriaServico, type Servico } from "@/types/servico";
 
@@ -82,6 +83,7 @@ function LinhaEsqueleto() {
 // prazo e ordem filtram no cliente o que veio (a API da 17A não tem esses filtros).
 export default function ServicosPage() {
   const cidade = useAuthStore((s) => s.user?.cidade ?? null);
+  const ehColaborador = useAuthStore((s) => s.user?.perfil === "Colaborador");
   const [busca, setBusca] = useState("");
   const [organizar, setOrganizar] = useState<Organizar | null>(null);
   const [categoria, setCategoria] = useState<CategoriaServico | null>(null);
@@ -102,6 +104,8 @@ export default function ServicosPage() {
   // linha "Serviços na sua área": pedidos de quem mora na mesma cidade (sem distância ainda)
   const naArea = useSWR(!filtrando && cidade ? chaveServicos({ limit: LIMITE, cidade }) : null, buscarServicos);
   const meus = useSWR(CHAVE_MEUS_SERVICOS, getMeusServicos);
+  // Fase 17B: só colaboradores se candidatam, então só eles têm "Suas candidaturas"
+  const minhas = useSWR(ehColaborador ? CHAVE_MINHAS_CANDIDATURAS : null, getMinhasCandidaturas);
 
   const ordem = ORDENACAO[organizar ?? "Mais recentes"];
   const resultados = useMemo(
@@ -121,8 +125,18 @@ export default function ServicosPage() {
   }
 
   // "Seus pedidos" não tem seta: a lista inteira já está na linha (editar e cancelar pela tela vêm na 17B)
-  const linhas: { titulo: string; itens: Servico[]; abrir?: () => void }[] = [
+  const linhas: { titulo: string; itens: Servico[]; abrir?: () => void; etiquetas?: Record<string, string> }[] = [
     ...(meus.data?.length ? [{ titulo: "Seus pedidos", itens: [...meus.data].sort(ordem) }] : []),
+    // o card mostra o status da candidatura no lugar da distância
+    ...(minhas.data?.length
+      ? [
+          {
+            titulo: "Suas candidaturas",
+            itens: minhas.data.map((c) => c.servico),
+            etiquetas: Object.fromEntries(minhas.data.map((c) => [c.servico.id, `Candidatura ${c.status.toLowerCase()}`])),
+          },
+        ]
+      : []),
     { titulo: "Serviços na sua área", itens: [...(naArea.data ?? [])].sort(ordem), abrir: () => setSoNaArea(true) },
     ...CATEGORIAS_SERVICO.map((c) => ({
       titulo: c as string,
@@ -209,7 +223,7 @@ export default function ServicosPage() {
                 <SectionHeader title={linha.titulo} onMore={linha.abrir} />
                 <ScrollRow label={linha.titulo} className="mt-[10px] sm:mt-4">
                   {linha.itens.map((s) => (
-                    <ServicoCard key={s.id} servico={s} />
+                    <ServicoCard key={s.id} servico={s} etiqueta={linha.etiquetas?.[s.id]} />
                   ))}
                 </ScrollRow>
               </section>
