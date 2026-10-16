@@ -61,6 +61,22 @@ const openPrivacidade = async () => { await openConfig(); await page.getByRole("
 const loggedAs = async (email) => { await page.getByRole("heading", { name: "SkillHub" }).waitFor({ timeout: 8000 }).catch(() => {}); await openPrivacidade(); const ok = await page.getByText(email).isVisible().catch(() => false); await page.keyboard.press("Escape"); return ok; };
 const sair = async () => { await openConfig(); await page.getByRole("button", { name: /^Sair/ }).click(); };
 const errTexts = async () => (await page.locator("p.text-danger").allTextContents());
+// Entrar com erro esperado: a mensagem entra "decodificando" (ScrambleText). O React escreve o texto final e, no quadro
+// seguinte, o GSAP o embaralha; esperar só pelo texto passaria nesse primeiro quadro. Espera embaralhar e voltar ao final.
+const entrarComErro = async (texto) => {
+  await page.evaluate(() => { window.__embaralhou = false; });
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.waitForFunction((t) => {
+    const s = document.querySelector("[data-alert] [role=alert]")?.textContent ?? "";
+    if (s && !s.includes(t)) window.__embaralhou = true;
+    return window.__embaralhou && s.includes(t);
+  }, texto, { polling: "raf", timeout: 8000 }).catch(() => {}); // o ok abaixo reprova com o texto
+};
+// A colmeia (entrar/sair da área logada) bloqueia cliques até a fase voltar a "idle" (pointer-events: none no overlay).
+// Interagir com a tela antes disso, ou seguir depois de um waitForURL que estourou em silêncio, corre com a transição:
+// era a causa do passo 16 instável (login logo depois do Sair pela sidebar, numa máquina lenta).
+const transicaoParada = (p = page) =>
+  p.waitForFunction(() => getComputedStyle(document.querySelector(".page-transition-overlay")).pointerEvents === "none");
 
 // 1. login vazio
 await page.goto(B + "/login"); await page.getByRole("button", { name: "Entrar", exact: true }).click();
@@ -295,11 +311,38 @@ await outroNavegador.close();
 
 await page.goto(B + "/login");
 await page.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await page.getByPlaceholder("Senha").fill("senha123");
-await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForTimeout(1000);
+await entrarComErro("incorretos");
 ok("senha antiga não entra mais", (await alertText()).includes("incorretos"), await alertText());
 await page.getByPlaceholder("Senha").fill(NOVA_SENHA);
-await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 8000 }).catch(() => {});
+await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 8000 }); await transicaoParada();
 ok("entra com a senha nova", page.url().endsWith("/inicio"), page.url());
+
+// 15a2. Console limpo: nenhum aviso ou erro em /login, /cadastro (com foco em cada campo, inclusive os sem ícone),
+// na casca logada e no diálogo de exclusão. Falha de rede esperada (o 401 do refresh sem sessão) não conta.
+const ctxConsole = await browser.newContext({ viewport: { width: 440, height: 956 } });
+const pc = await ctxConsole.newPage();
+const avisosConsole = [];
+pc.on("console", (m) => {
+  if (["warning", "error"].includes(m.type()) && !m.text().startsWith("Failed to load resource"))
+    avisosConsole.push(`${new URL(pc.url()).pathname}: ${m.text()}`);
+});
+pc.on("pageerror", (e) => pageErrors.push(e.message));
+await pc.goto(B + "/cadastro"); await pc.getByRole("radio", { name: "Cliente" }).click(); await pc.getByRole("button", { name: "Continuar" }).click();
+await pc.getByPlaceholder("Nome completo").waitFor();
+for (const campo of await pc.locator("input:visible, select:visible").all()) await campo.focus();
+await pc.goto(B + "/login");
+await pc.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await pc.getByPlaceholder("Senha").fill(NOVA_SENHA);
+await pc.getByRole("button", { name: "Entrar", exact: true }).click(); await pc.waitForURL("**/inicio");
+for (const [nome, rota] of [["Serviços", "/servicos"], ["Produtos", "/produtos"], ["Comunidade", "/comunidade"], ["Perfil", "/perfil"]]) {
+  await pc.getByRole("link", { name: nome }).last().click(); await pc.waitForURL("**" + rota);
+}
+await pc.getByRole("link", { name: "Configurações" }).click(); await pc.waitForURL("**/configuracoes");
+await pc.getByRole("button", { name: /Privacidade e Segurança/ }).click();
+await pc.getByRole("dialog").getByRole("button", { name: "Excluir conta" }).click();
+await pc.getByRole("dialog", { name: "Privacidade e Segurança" }).waitFor({ state: "detached" });
+await pc.getByRole("dialog").locator("input").focus(); // o aviso do GSAP sai na hora, dentro do onFocus
+ok("console sem avisos em /login, /cadastro, na casca e no diálogo de exclusão", avisosConsole.length === 0, avisosConsole.join(" | "));
+await ctxConsole.close();
 
 // 15b. Desktop (lg+): a sidebar substitui o menu inferior e o header; navega, marca o item ativo e sai por ela
 await page.setViewportSize({ width: 1280, height: 800 });
@@ -387,9 +430,10 @@ ok("início desktop: busca global avisa 'em breve'", ((await page.locator("[data
 await page.setViewportSize({ width: 1280, height: 800 });
 await sidebar.getByRole("button", { name: "Sair" }).click(); await page.waitForURL("**/login", { timeout: 8000 }).catch(() => {});
 ok("desktop: Sair da sidebar leva ao login", page.url().endsWith("/login"), page.url());
+await transicaoParada();
 await page.setViewportSize({ width: 440, height: 956 });
 await page.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await page.getByPlaceholder("Senha").fill(NOVA_SENHA);
-await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 8000 }).catch(() => {});
+await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 8000 }); await transicaoParada();
 
 // 15e. Serviços (Fase 17A): API com os casos de erro, privacidade do autor, exclusão em cascata e a tela
 const sql = (q) => execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "postgres", "psql", "-U", "skillhub", "-d", "skillhub", "-tAc", q], { encoding: "utf8" }).trim();
@@ -899,7 +943,7 @@ ok("outra aba aberta cai no login ao editar", outraAba.url().endsWith("/login"),
 await outraAba.close();
 
 await page.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await page.getByPlaceholder("Senha").fill(NOVA_SENHA);
-await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForTimeout(1000);
+await entrarComErro("incorretos");
 ok("conta excluída não entra de novo", (await alertText()).includes("incorretos"), await alertText());
 
 ok("sem erros de JavaScript na página", pageErrors.length === 0, pageErrors.join(" | "));
