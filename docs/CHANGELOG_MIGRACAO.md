@@ -9,6 +9,75 @@
 
 ---
 
+## Ajustes de domínio antes da Fase 18 (PR B)
+
+**Data:** 2026-10-16
+**Status:** Implementada, PR aberto
+**Branch:** `feat/ajustes-dominio`
+
+### Contexto
+
+Segunda parte da faxina pedida em `SKILLHUB_FAXINA_PRE_FASE_18.md` (plano em `PLANO_FAXINA.md`, Seção 2). Muda regras de negócio e tem duas migrations.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **`SetNull` também em `Avaliacao.servico`.** Sem isso, a avaliação ainda sumiria quando quem sai é o autor, porque os pedidos dele caem em cascata.
+- **Checagem mínima no `auth.service`**, para o "esqueci a senha" e o login social não abrirem a conta da plataforma.
+
+### B1. Conta da plataforma para a taxa
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261016194710_taxa_recebida` | `TAXA_RECEBIDA` no enum `TipoTransacao`. |
+| `src/configs/creditos.ts` | `contaPlataforma()`: id `00000000-0000-4000-8000-000000000001`, e-mail `plataforma@skillhub.invalid` e nome "SkillHub", com padrão no código. `PLATFORM_ACCOUNT_ID` e `PLATFORM_ACCOUNT_EMAIL` só mudam para o teste da taxa usar uma conta própria. O `.env` não mudou. |
+| `src/modules/credito/plataforma.ts`, `scripts/garantir-conta-plataforma.ts`, `prisma/seed.ts`, `package.json` | **Novos.** `garantirContaPlataforma()` faz um `upsert` pelo id, sem senha. É chamada pelo seed e por `npm run plataforma:garantir`, e é idempotente. O `e2e/run.sh` também a chama antes dos testes. |
+| `src/modules/credito/credito.service.ts`, `credito.repository.ts` | `pagar`: com taxa maior que 0, `TAXA -taxa` no colaborador e `TAXA_RECEBIDA +taxa` na plataforma, na mesma transação e pelo `movimentar`. Com taxa 0, nenhuma linha extra. Sem a conta da plataforma, o `concluir` dá 500 e a transação volta inteira. Rótulo "Taxa recebida" no extrato. |
+| `src/modules/auth/auth.service.ts` | A conta da plataforma é tratada como inexistente: o login dá "E-mail ou senha incorretos", o "esqueci a senha" não gera link, e o login social com o e-mail dela dá 403 "Este e-mail não pode ser usado para entrar", sem vincular nem criar conta. |
+| `src/modules/usuario/usuario.service.ts`, `avaliacao.service.ts` | `GET /usuarios/:id/resumo` e `GET /usuarios/:id/avaliacoes` dão 404 para ela. Não há listagem nem busca de usuários hoje; quando houver (Fase 18+), elas devem filtrar `ehContaPlataforma`. |
+| `scripts/verificar-taxa.ts` | **Novo.** O teste com 15%, rodado pelo e2e no container com a taxa e uma conta da plataforma de teste só naquele processo. Ele chama os services direto e apaga o que criou. |
+| `frontend/src/types/credito.ts` | "Taxa recebida" no tipo do extrato. |
+
+### B2. Avaliações sobrevivem à exclusão de conta
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261016194454_avaliacao_sobrevive` | `avaliadorId` e `servicoId` opcionais, com `onDelete: SetNull`; `avaliado` continua `Cascade`. O `@@unique([servicoId, avaliadorId])` ficou: no PostgreSQL, `NULL` não colide em índice único, e as linhas novas sempre têm os dois preenchidos. |
+| `src/modules/avaliacao/avaliacao.service.ts` | `avaliador: null` quando a conta foi excluída, e `servico: null` quando o pedido sumiu, sem nenhum dado de quem saiu. A média segue por `avaliadoId`, então continua contando. |
+| `frontend/src/types/avaliacao.ts`, `components/app/servico-detalhe-dialog.tsx` | `avaliador` e `servico` opcionais. O detalhe do pedido mostra "Avaliação de Usuário removido". O plano falava em avatar de iniciais, mas essa seção não tem avatar, então ficou só o nome. |
+
+### B3. Exclusão bloqueada com pedido em andamento
+
+| Arquivo | Alteração |
+|---|---|
+| `src/modules/user/user.service.ts` | `deleteAccount`: 409 "Conclua ou cancele seus pedidos em andamento antes de excluir a conta" para quem for autor ou colaborador aceito de um pedido em andamento. A checagem vem depois da senha, para o 409 não dizer nada a quem não a tem. Pedidos abertos e candidaturas pendentes continuam caindo em cascata. |
+| `src/modules/servico/servico.service.ts`, `servico.repository.ts` | `temPedidoEmAndamento(userId)`. |
+| Tela | O `delete-account-dialog.tsx` já mostrava o erro da API no `FormAlert`; não mudou. |
+
+### Testes ajustados
+
+- **"Colaborador aceito que sai"** (15f e 15g): pela API, agora dá 409. O estado continua possível em dados antigos, então é reconstruído com `delete from "User"` por SQL, que dispara o mesmo `ON DELETE` que a exclusão pelo app disparava. Os testes de "concluir dá 409" e "cancelar estorna" continuam cobrindo esse estado.
+- **Autor que exclui a conta** (15h): a avaliação continua, a média do colaborador fica em 3,5 com total 4, e a lista pública mostra `avaliador: null` e `servico: null`.
+- **Colaborador que saiu** (15h): a nota 2 que ele deu continua, e o resumo do autor passa a média 3 e total 2.
+- **`orfas()`** conta só avaliação sem o avaliado.
+- **Taxa 0:** também sem `TAXA_RECEBIDA`.
+
+### Validação
+
+- `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
+- **`./e2e/run.sh`: 228/228** (antes: 211/211; 17 novos). Os novos cobrem:
+  - **B1:** os 6 casos do script da taxa; a conta da plataforma existe, mas o login e o "esqueci a senha" a tratam como inexistente; ela não tem resumo nem avaliações públicas (404); e o saldo e o extrato dela não mudam com o resto da suíte.
+  - **B2:** a avaliação de quem saiu continua na lista pública, sem nenhum dado da pessoa, e o detalhe do pedido mostra "Usuário removido".
+  - **B3:** 409 para o autor e para o colaborador aceito; senha errada continua 403; 204 depois de cancelar e depois de concluir; o pedido aberto e a candidatura pendente somem; e, na tela, o diálogo mostra o 409 e continua aberto.
+- **Rodadas:** 4 de 5 passaram inteiras. A primeira parou no meio, logo depois de "extrato bate com o saldo de todos os usuários de teste", com `fetch failed: other side closed` vindo do backend. O backend não reiniciou nem registrou erro nesse intervalo. Tentei reproduzir isolando o keep-alive (conexão ociosa perto dos 5s do Node, com e sem `execFileSync` travando o event loop), em 70 tentativas, sem nenhuma falha. A causa não foi encontrada. O `chamar` do e2e agora diz qual rota caiu, para a próxima ocorrência apontar o ponto exato.
+- **Visual:** o diálogo com o 409 a 375px, nos dois temas: a frase quebra em duas linhas, sem rolagem horizontal, e o diálogo continua utilizável.
+- **Invariante da taxa:** a soma só dos saldos **não** se conserva na reserva, porque o crédito sai do autor e fica preso no pedido até concluir ou cancelar. O que se conserva é **saldos + reservas em aberto** (pedidos em andamento), e é isso que o `verificar-taxa.ts` confere em cada passo.
+
+### Achados fora de escopo
+
+- A queda intermitente da rodada 1 do e2e (`other side closed`), ainda sem causa encontrada.
+- Entre a checagem do 409 e a exclusão da conta, uma aceitação simultânea ainda passaria. Fechar isso pede travar as linhas na mesma transação da exclusão, no `user.repository`.
+
+---
+
 ## Faxina antes da Fase 18 (PR A)
 
 **Data:** 2026-10-16
