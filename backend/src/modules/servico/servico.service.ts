@@ -1,4 +1,5 @@
 import { AppError } from "../../utils/AppError.js";
+import creditoService from "../credito/credito.service.js";
 import { toAutorResumo } from "../../utils/autorResumo.js";
 import { categoriaDoRotulo, ROTULO_CATEGORIA } from "./categoria.map.js";
 import servicoRepository, { type ServicoComAutor } from "./servico.repository.js";
@@ -83,14 +84,20 @@ const servicoService = {
     const servico = await servicoDoAutor(id, usuarioId);
     if (servico.status === "CONCLUIDO") throw new AppError("Um pedido concluído não pode ser cancelado", 409);
     if (servico.status === "CANCELADO") return toServicoResposta(servico);
-    return toServicoResposta(await servicoRepository.cancelar(id));
+    // Fase 17C: cancelar um pedido em andamento devolve a reserva ao autor, na mesma transação
+    const cancelado = await servicoRepository.cancelar(id, (tx, statusAnterior) =>
+      statusAnterior === "EM_ANDAMENTO" ? creditoService.estornar(tx, id, servico.autorId) : Promise.resolve()
+    );
+    return toServicoResposta(cancelado);
   },
 
   // Fase 17B: o autor marca como concluído um pedido em andamento (KPI: concluidoEm)
+  // Fase 17C: o colaborador recebe a reserva (menos a taxa) na mesma transação
   concluir: async (id: string, usuarioId: string) => {
-    await servicoDoAutor(id, usuarioId);
-    const { count } = await servicoRepository.concluir(id);
-    if (count === 0) throw new AppError("Só dá para concluir um pedido em andamento", 409);
+    const servico = await servicoDoAutor(id, usuarioId);
+    if (servico.status === "EM_ANDAMENTO" && !servico.colaboradorId)
+      throw new AppError("O colaborador não está mais no SkillHub. Cancele o pedido para receber os créditos de volta.", 409);
+    await servicoRepository.concluir(id, (tx, colaboradorId) => creditoService.pagar(tx, id, colaboradorId));
     return toServicoResposta((await servicoRepository.buscarPorId(id))!);
   },
 };

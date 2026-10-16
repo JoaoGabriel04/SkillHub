@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { AppError } from "../../utils/AppError.js";
 import { toAutorResumo } from "../../utils/autorResumo.js";
+import creditoService from "../credito/credito.service.js";
 import { toServicoResposta } from "../servico/servico.service.js";
 import candidaturaRepository, { type CandidaturaComColaborador, type CandidaturaComServico } from "./candidatura.repository.js";
 import type { CandidatarInput } from "./candidatura.schema.js";
@@ -67,7 +68,10 @@ const candidaturaService = {
     const candidatura = await candidaturaRepository.buscarPorId(id);
     if (!candidatura) throw naoEncontrada();
     if (candidatura.servico.autorId !== usuarioId) throw new AppError("Só quem publicou o pedido pode aceitar candidaturas", 403);
-    await candidaturaRepository.aceitar(id, candidatura.servicoId, candidatura.colaboradorId);
+    // reserva os créditos do autor na mesma transação (Fase 17C)
+    await candidaturaRepository.aceitar(id, candidatura.servicoId, candidatura.colaboradorId, (tx, { autorId, valor }) =>
+      creditoService.reservar(tx, candidatura.servicoId, autorId, valor)
+    );
     return toCandidaturaResposta((await candidaturaRepository.buscarComColaborador(id))!);
   },
 };
