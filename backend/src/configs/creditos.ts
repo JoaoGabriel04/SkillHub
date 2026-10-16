@@ -17,3 +17,14 @@ export function taxaPercentual(): number {
 
 // Arredondada para baixo, a favor de quem recebe: pagamento líquido + taxa = valor reservado
 export const calcularTaxa = (valor: number) => Math.floor((valor * taxaPercentual()) / 100);
+
+// Conta de sistema que recebe as taxas (faxina antes da Fase 18): sem senha, sem login e oculta dos perfis públicos.
+// Identificada pelo id. PLATFORM_ACCOUNT_ID e PLATFORM_ACCOUNT_EMAIL só mudam para o teste da taxa usar uma conta própria.
+// O domínio .invalid é reservado: nunca entrega e-mail.
+export const contaPlataforma = () => ({
+  id: process.env.PLATFORM_ACCOUNT_ID?.trim() || "00000000-0000-4000-8000-000000000001",
+  email: process.env.PLATFORM_ACCOUNT_EMAIL?.trim() || "plataforma@skillhub.invalid",
+  fullName: "SkillHub",
+});
+
+export const ehContaPlataforma = (userId: string) => userId === contaPlataforma().id;

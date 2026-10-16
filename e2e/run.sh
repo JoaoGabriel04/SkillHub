@@ -59,6 +59,9 @@ if ! out=$(launch_check); then
   out=$(launch_check) || { echo "$out"; exit 1; }
 fi
 
+# conta da plataforma (recebe as taxas): os testes conferem que ela existe, não faz login e não muda com o e2e
+compose exec -T backend npm run -s plataforma:garantir >/dev/null
+
 # 4. usuário de conta OAuth nova (sem perfil) + access token dele, para o fluxo de completar cadastro
 cleanup # sobras de uma execução interrompida
 trap cleanup EXIT

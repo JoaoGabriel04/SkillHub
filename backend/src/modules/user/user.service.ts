@@ -5,6 +5,7 @@ import userRepository from "./user.repository.js";
 import type { UpdateProfileInput } from "./user.schema.js";
 import { completeProfileSchema, type CompleteProfileInput } from "../auth/auth.schema.js";
 import { destroyAsset, uploadBuffer } from "../../configs/cloudinary.js";
+import servicoService from "../servico/servico.service.js";
 
 // Token válido de uma conta que não existe mais (ex.: excluída em outra aba): 401, como em
 // /auth/me e /auth/refresh — o front tenta o refresh, ele falha e a sessão é encerrada.
@@ -93,6 +94,9 @@ const userService = {
       if (!password) throw new AppError("Informe sua senha para excluir a conta", 400);
       if (!(await bcrypt.compare(password, user.password))) throw new AppError("Senha incorreta", 403);
     }
+    // depois da senha, para o 409 não dizer nada a quem não a tem. Pedidos abertos e candidaturas pendentes caem em cascata.
+    if (await servicoService.temPedidoEmAndamento(userId))
+      throw new AppError("Conclua ou cancele seus pedidos em andamento antes de excluir a conta", 409);
 
     // banco primeiro: se falhar, nada foi apagado. Os arquivos usam public_id fixo por usuário
     // (ver uploadAvatar/uploadCurriculo), então dá para removê-los mesmo sem a URL salva.

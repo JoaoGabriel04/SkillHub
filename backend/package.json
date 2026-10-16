@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "postinstall": "prisma skills sync || exit 0",
     "creditos:conceder": "tsx scripts/conceder-creditos.ts",
+    "plataforma:garantir": "tsx scripts/garantir-conta-plataforma.ts",
     "check:creditos": "node scripts/check-creditos.mjs"
   },
   "keywords": [],

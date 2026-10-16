@@ -1,5 +1,5 @@
 // Movimentação de créditos (Fase 17C), como GET /creditos/extrato devolve
-export type TipoTransacao = "Bônus" | "Reserva" | "Estorno" | "Recebimento" | "Taxa da plataforma";
+export type TipoTransacao = "Bônus" | "Reserva" | "Estorno" | "Recebimento" | "Taxa da plataforma" | "Taxa recebida";
 
 export type Transacao = {
   id: string;

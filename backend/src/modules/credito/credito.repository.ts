@@ -14,6 +14,8 @@ const creditoRepository = {
     tx.user.update({ where: { id: userId }, data: { credits: { increment: valor } }, select: { id: true } }),
 
   // saldo depois do UPDATE: a linha fica travada por ele até o commit
+  existe: async (tx: Tx, userId: string) => !!(await tx.user.findUnique({ where: { id: userId }, select: { id: true } })),
+
   saldo: (tx: Tx, userId: string) => tx.user.findUniqueOrThrow({ where: { id: userId }, select: { credits: true } }),
 
   registrar: (tx: Tx, data: { userId: string; tipo: TipoTransacao; valor: number; saldoApos: number; servicoId: string | null }) =>
@@ -33,6 +35,12 @@ const creditoRepository = {
 
   titulosDosServicos: (ids: string[]) =>
     prisma.servico.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true } }),
+
+  // fora de transação, para o teste da taxa (scripts/verificar-taxa.ts). A soma é a invariante: reservar, pagar e
+  // estornar só movem saldo entre contas
+  saldoAtual: async (userId: string) => (await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { credits: true } })).credits,
+
+  somaDosSaldos: async () => (await prisma.user.aggregate({ _sum: { credits: true } }))._sum.credits ?? 0,
 
   usuarioPorEmail: (email: string) => prisma.user.findUnique({ where: { email }, select: { id: true } }),
 

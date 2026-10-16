@@ -442,7 +442,7 @@ const chamar = async (metodo, rota, token, corpo) => {
     method: metodo,
     headers: { ...(corpo && { "Content-Type": "application/json" }), ...(token && { Authorization: `Bearer ${token}` }) },
     body: corpo && JSON.stringify(corpo),
-  });
+  }).catch((e) => { throw new Error(`${metodo} ${rota}: ${e.cause?.message ?? e.message}`, { cause: e }); }); // diz qual chamada caiu
   return { status: r.status, corpo: r.status === 204 ? null : await r.json() };
 };
 const contaServicos = async (nome, cpf, cidade) => {
@@ -611,12 +611,15 @@ ok("candidaturas: corrida de duas aceitações (uma 200, outra 409, um colaborad
   sql(`select count(*) from "Candidatura" where "servicoId" = '${pCorrida}' and status = 'ACEITA'`) === "1",
   corrida.map((r) => r.status).join());
 
-// exclusão do colaborador aceito: o serviço continua, sem colaborador; as candidaturas dele somem
+// colaborador aceito que sai: desde a faxina pré-Fase 18 o app recusa (409, ver 15g). O estado continua possível em dados
+// antigos, então é reconstruído pelo mesmo ON DELETE do banco que a exclusão pelo app disparava: o serviço continua,
+// sem colaborador, e as candidaturas dele somem
 const pExcl = await novoPedido("Pedido E2E do colaborador que sai");
 const cExcl = await candidatarB(pExcl, colabA);
 await chamar("POST", `/candidaturas/${cExcl.corpo.candidatura.id}/aceitar`, autorB);
 const saiuColab = await chamar("DELETE", "/user", colabA, { password: "senha123" });
-ok("candidaturas: colaborador aceito exclui a conta e o serviço continua sem ele", saiuColab.status === 204 &&
+sql(`delete from "User" where email = 'e2e.candidaturas.colaba@example.com'`);
+ok("candidaturas: colaborador aceito que sai (por SQL) deixa o serviço sem ele", saiuColab.status === 409 &&
   sql(`select status || '|' || coalesce("colaboradorId", 'null') from "Servico" where id = '${pExcl}'`) === "EM_ANDAMENTO|null" &&
   sql(`select count(*) from "Candidatura" where id = '${cExcl.corpo.candidatura.id}'`) === "0");
 
@@ -686,7 +689,7 @@ const concluidoReserva = await chamar("POST", `/servicos/${pReserva}/concluir`, 
 ok("créditos: o pedido concluído mostra o valor combinado, não o publicado", concluidoReserva.corpo.servico.remuneracao === 100 &&
   concluidoReserva.corpo.servico.valorCombinado === 60 && (await chamar("GET", `/servicos/${pReserva}`, colabC.token)).corpo.servico.valorCombinado === 60);
 ok("créditos: concluir paga o colaborador (sem linha de taxa com taxa 0)", saldoDe(colabC.email) === 60 &&
-  sql(`select count(*) from "TransacaoCredito" where "servicoId" = '${pReserva}' and tipo = 'TAXA'`) === "0" && extratoBate(colabC.email));
+  sql(`select count(*) from "TransacaoCredito" where "servicoId" = '${pReserva}' and tipo in ('TAXA', 'TAXA_RECEBIDA')`) === "0" && extratoBate(colabC.email));
 const pEstorno = await pedidoC(30, "Créditos: estorno");
 await aceitarC(await candidatarC(pEstorno));
 const saldoAntesEstorno = saldoDe(autorC.email);
@@ -705,7 +708,7 @@ const colabSai = await contaCreditos("sai", "900.000.002-13", "colaborador");
 const pSai = await pedidoC(10, "Créditos: colaborador sai");
 const cSai = (await chamar("POST", `/servicos/${pSai}/candidaturas`, colabSai.token, { mensagem: "Posso fazer isso amanhã." })).corpo.candidatura.id;
 await aceitarC(cSai);
-await chamar("DELETE", "/user", colabSai.token, { password: "senha123" });
+sql(`delete from "User" where email = '${colabSai.email}'`); // o app recusaria (409); ver a 15f
 const concluirSemColab = await chamar("POST", `/servicos/${pSai}/concluir`, autorC.token);
 ok("créditos: sem colaborador, concluir dá 409", concluirSemColab.status === 409 && /Cancele o pedido/.test(concluirSemColab.corpo.error));
 await chamar("DELETE", `/servicos/${pSai}`, autorC.token);
@@ -722,6 +725,59 @@ ok("créditos: corrida de duas aceitações sem saldo para as duas (200 e 409, s
   sql(`select count(*) from "TransacaoCredito" t join "User" u on u.id = t."userId" where u.email = '${autorR.email}' and tipo = 'RESERVA'`) === "1" &&
   extratoBate(autorR.email), corridaC.map((x) => x.status).join());
 ok("créditos: extrato bate com o saldo de todos os usuários de teste", [autorC.email, colabC.email, autorR.email, "e2e.candidaturas.autor@example.com"].every(extratoBate));
+// exclusão bloqueada com pedido em andamento (faxina pré-Fase 18): autor e colaborador aceito; a senha vem antes
+const MSG_ANDAMENTO = "Conclua ou cancele seus pedidos em andamento antes de excluir a conta";
+const PLATAFORMA = "00000000-0000-4000-8000-000000000001";
+const plataformaAgora = () => sql(`select credits || '|' || (select count(*) from "TransacaoCredito" where "userId" = '${PLATAFORMA}') from "User" where id = '${PLATAFORMA}'`);
+const plataformaAntes = plataformaAgora();
+const autorX = await contaCreditos("bloqautor", "900.000.002-15", "cliente");
+const colabX = await contaCreditos("bloqcolab", "900.000.002-16", "colaborador");
+const colabX2 = await contaCreditos("bloqcolab2", "900.000.002-17", "colaborador");
+conceder(autorX.email, 30);
+const pedidoX = async (titulo) => (await chamar("POST", "/servicos", autorX.token, { titulo, descricao: "Pedido da exclusão bloqueada", categoria: "Tecnologia", remuneracao: 10 })).corpo.servico.id;
+const candidatarX = async (servicoId, colab) => (await chamar("POST", `/servicos/${servicoId}/candidaturas`, colab.token, { mensagem: "Posso fazer isso amanhã." })).corpo.candidatura.id;
+const contratarX = async (titulo, colab) => {
+  const id = await pedidoX(titulo);
+  await aceitarC(await candidatarX(id, colab), autorX.token);
+  return id;
+};
+const excluirConta = (conta, password = "senha123") => chamar("DELETE", "/user", conta.token, { password });
+const existe = (email) => sql(`select count(*) from "User" where email = '${email}'`) === "1";
+const pXCancelar = await contratarX("Exclusão: cancelar", colabX);
+const pXConcluir = await contratarX("Exclusão: concluir", colabX2);
+const pXAberto = await pedidoX("Exclusão: aberto");
+const cXPendente = await candidatarX(pXAberto, colabX2);
+const [bAutor, bColab, bSenha] = [await excluirConta(autorX), await excluirConta(colabX), await excluirConta(autorX, "errada")];
+ok("exclusão: 409 para o autor e para o colaborador aceito de pedido em andamento, e nada muda", bAutor.status === 409 && bAutor.corpo.error === MSG_ANDAMENTO &&
+  bColab.status === 409 && bColab.corpo.error === MSG_ANDAMENTO && existe(autorX.email) && existe(colabX.email) && saldoDe(autorX.email) === 10 &&
+  sql(`select string_agg(status::text, ',' order by titulo) from "Servico" where id in ('${pXCancelar}', '${pXConcluir}')`) === "EM_ANDAMENTO,EM_ANDAMENTO",
+  `${bAutor.status} ${bAutor.corpo?.error} | ${bColab.status}`);
+ok("exclusão: senha errada com pedido em andamento continua 403", bSenha.status === 403 && bSenha.corpo.error === "Senha incorreta");
+await chamar("DELETE", `/servicos/${pXCancelar}`, autorX.token);
+const xColabSai = await excluirConta(colabX);
+ok("exclusão: depois do cancelamento, o colaborador exclui a conta (204); o autor segue bloqueado pelo outro pedido",
+  xColabSai.status === 204 && !existe(colabX.email) && (await excluirConta(autorX)).status === 409);
+await chamar("POST", `/servicos/${pXConcluir}/concluir`, autorX.token);
+const xAutorSai = await excluirConta(autorX);
+ok("exclusão: depois de concluir, o autor exclui a conta (204), e o pedido aberto e a candidatura pendente somem", xAutorSai.status === 204 &&
+  !existe(autorX.email) && sql(`select count(*) from "Servico" where id = '${pXAberto}'`) === "0" && sql(`select count(*) from "Candidatura" where id = '${cXPendente}'`) === "0");
+// conta da plataforma: existe, não entra, não ganha senha, não tem perfil público e não muda com o e2e (taxa 0)
+const loginPlataforma = await chamar("POST", "/auth/login", null, { email: "plataforma@skillhub.invalid", password: "qualquer123" });
+await chamar("POST", "/auth/forgot-password", null, { email: "plataforma@skillhub.invalid" });
+ok("plataforma: existe, mas o login e o \"esqueci a senha\" a tratam como inexistente", sql(`select count(*) from "User" where id = '${PLATAFORMA}' and password is null`) === "1" &&
+  loginPlataforma.status === 400 && loginPlataforma.corpo.error === "E-mail ou senha incorretos" &&
+  sql(`select count(*) from "PasswordResetToken" where "userId" = '${PLATAFORMA}'`) === "0");
+ok("plataforma: sem resumo nem avaliações públicas (404)", (await chamar("GET", `/usuarios/${PLATAFORMA}/resumo`, colabC.token)).status === 404 &&
+  (await chamar("GET", `/usuarios/${PLATAFORMA}/avaliacoes`, colabC.token)).status === 404);
+ok("plataforma: exclusões de contas comuns e pagamentos com taxa 0 não mudam o saldo nem o extrato dela", plataformaAgora() === plataformaAntes && extratoBate("plataforma@skillhub.invalid"),
+  `${plataformaAntes} -> ${plataformaAgora()}`);
+// taxa de 15%: script no container, com a taxa e uma conta da plataforma de teste só naquele processo (o backend continua com 0)
+const taxa = JSON.parse(execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "-e", "PLATFORM_FEE_PERCENT=15",
+  "-e", "PLATFORM_ACCOUNT_ID=00000000-0000-4000-8000-0000000e2e01", "-e", "PLATFORM_ACCOUNT_EMAIL=e2e.plataforma@example.com",
+  "backend", "npx", "tsx", "scripts/verificar-taxa.ts"], { encoding: "utf8" }).trim().split("\n").at(-1));
+for (const r of taxa) ok(r.nome, r.ok, r.info);
+ok("taxa 15%: o script conferiu os 6 casos", taxa.length === 6, taxa.length);
+
 // extrato
 ok("créditos: extrato sem token dá 401", (await chamar("GET", "/creditos/extrato")).status === 401);
 const ext1 = await chamar("GET", "/creditos/extrato?limit=2", autorC.token);
@@ -851,19 +907,35 @@ await avaliarV(await concluidoV(autorSai, colabV, "Avaliações: autor que sai")
 const antesSaida = await resumoV(colabV.id);
 await chamar("DELETE", "/user", autorSai.token, { password: "senha123" });
 const depoisSaida = await resumoV(colabV.id);
-const orfas = () => sql(`select count(*) from "Avaliacao" a where not exists (select 1 from "User" u where u.id = a."avaliadorId")
-  or not exists (select 1 from "User" u where u.id = a."avaliadoId") or not exists (select 1 from "Servico" s where s.id = a."servicoId")`);
-ok("avaliações: autor que exclui a conta não deixa órfã e a média do colaborador é recalculada", antesSaida.total === 4 && antesSaida.media === 3.5 &&
-  depoisSaida.total === 3 && `${depoisSaida.media}|${depoisSaida.total}` === mediaSql(colabV.id) && orfas() === "0");
-// o colaborador que sai depois de concluir: o autor não tem mais quem avaliar, e a nota que ele deu some
+// desde a faxina pré-Fase 18 a avaliação sobrevive: avaliador e pedido viram null (o pedido some com a conta do autor)
+const orfas = () => sql(`select count(*) from "Avaliacao" a where not exists (select 1 from "User" u where u.id = a."avaliadoId")`);
+const daQueSaiu = depoisSaida.avaliacoes.find((a) => a.nota === 1);
+ok("avaliações: a avaliação de quem exclui a conta continua e a média do colaborador não muda", antesSaida.total === 4 && antesSaida.media === 3.5 &&
+  depoisSaida.total === 4 && depoisSaida.media === 3.5 && `${depoisSaida.media}|${depoisSaida.total}` === mediaSql(colabV.id) && orfas() === "0",
+  `${antesSaida.media}|${antesSaida.total} -> ${depoisSaida.media}|${depoisSaida.total}`);
+ok("avaliações: na lista pública ela aparece sem avaliador nem pedido, sem nenhum dado de quem saiu", daQueSaiu?.avaliador === null && daQueSaiu?.servico === null &&
+  !JSON.stringify(depoisSaida).includes(autorSai.id) && !JSON.stringify(depoisSaida).includes("autorsai"), JSON.stringify(daQueSaiu));
+// o colaborador que sai depois de concluir: o autor não tem mais quem avaliar, e a nota que ele deu continua
 const colabSaiV = await contaAval("colabsai", "900.000.003-06", "colaborador");
 const pSaiV = await concluidoV(autorV, colabSaiV, "Avaliações: colaborador que sai");
 await avaliarV(pSaiV, colabSaiV.token, { nota: 2 });
 await chamar("DELETE", "/user", colabSaiV.token, { password: "senha123" });
 const semColabV = await avaliarV(pSaiV, autorV.token);
 const rAutor = await resumoV(autorV.id);
-ok("avaliações: colaborador que saiu (409 ao avaliar, a nota dele some, nada órfão, sem \"Não avaliado\")", semColabV.status === 409 && semColabV.corpo.error === "O colaborador não está mais no SkillHub" &&
-  rAutor.total === 1 && rAutor.media === 4 && orfas() === "0" && (await pendenteEm("/servicos/meus", autorV.token, pSaiV)) === false);
+ok("avaliações: colaborador que saiu (409 ao avaliar, a nota dele continua, nada órfão, sem \"Não avaliado\")", semColabV.status === 409 && semColabV.corpo.error === "O colaborador não está mais no SkillHub" &&
+  rAutor.total === 2 && rAutor.media === 3 && orfas() === "0" && (await pendenteEm("/servicos/meus", autorV.token, pSaiV)) === false, `${rAutor.media}|${rAutor.total}`);
+// na tela, o autor vê a nota recebida como "Usuário removido"
+const ctxRemovido = await browser.newContext({ viewport: { width: 440, height: 956 } });
+await ctxRemovido.request.post(`${API}/api/auth/login`, { data: { email: autorV.email, password: "senha123" } });
+const pageRemovido = await ctxRemovido.newPage(); pageRemovido.on("pageerror", (e) => pageErrors.push(e.message));
+await pageRemovido.goto(B + "/servicos"); await pageRemovido.getByRole("region", { name: "Seus pedidos" }).waitFor();
+const cardRemovido = pageRemovido.getByRole("region", { name: "Seus pedidos" }).locator("div", { has: pageRemovido.getByText("Avaliações: colaborador que sai", { exact: true }) }).last();
+await cardRemovido.getByRole("button", { name: "Saiba Mais" }).first().click();
+const detalheRemovido = pageRemovido.getByRole("dialog", { name: "Avaliações: colaborador que sai" });
+await detalheRemovido.getByText("Avaliação de Usuário removido").waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): a nota de quem saiu aparece como \"Usuário removido\"", await detalheRemovido.getByText("Avaliação de Usuário removido").isVisible() &&
+  await detalheRemovido.getByRole("img", { name: "2 de 5 estrelas" }).isVisible());
+await ctxRemovido.close();
 
 // tela: o Cliente conclui pela tela o pedido aceito na 15f e avalia com 4 estrelas
 await page.goto(B + "/servicos"); await page.getByRole("region", { name: "Seus pedidos" }).waitFor();
@@ -932,6 +1004,15 @@ await abrirExclusao();
 await dialog.locator("input").fill("errada"); await confirmar.click();
 await dialog.getByRole("alert").waitFor({ timeout: 8000 }).catch(() => {});
 ok("senha errada não exclui", (await dialog.getByRole("alert").textContent().catch(() => "")) === "Senha incorreta" && page.url().endsWith("/configuracoes"));
+// com um pedido em andamento, a senha certa mostra o 409 e o diálogo continua aberto; cancelado o pedido, exclui
+const tokenCliente = (await chamar("POST", "/auth/login", null, { email: "e2e.cliente@example.com", password: NOVA_SENHA })).corpo.accessToken;
+const pAndCliente = (await chamar("POST", "/servicos", tokenCliente, pedido({ titulo: "Pedido em andamento do Cliente" }))).corpo.servico.id;
+await chamar("POST", `/candidaturas/${(await candidatarB(pAndCliente, colabB)).corpo.candidatura.id}/aceitar`, tokenCliente);
+await dialog.locator("input").fill(NOVA_SENHA); await confirmar.click();
+await dialog.getByRole("alert").filter({ hasText: "em andamento" }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("com pedido em andamento, a senha certa mostra o aviso e não exclui", (await dialog.getByRole("alert").textContent().catch(() => "")) === MSG_ANDAMENTO &&
+  await dialog.isVisible() && page.url().endsWith("/configuracoes"), await dialog.getByRole("alert").textContent().catch(() => ""));
+await chamar("DELETE", `/servicos/${pAndCliente}`, tokenCliente);
 await dialog.locator("input").fill(NOVA_SENHA); await confirmar.click();
 await page.waitForURL("**/login?conta=excluida", { timeout: 10000 }).catch(() => {});
 ok("senha certa exclui → login com aviso", page.url().endsWith("/login?conta=excluida"), page.url());

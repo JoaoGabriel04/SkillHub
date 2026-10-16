@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { ehContaPlataforma } from "../../configs/creditos.js";
 import { AppError } from "../../utils/AppError.js";
 import { toAutorResumo } from "../../utils/autorResumo.js";
 import avaliacaoRepository, { type AvaliacaoCompleta } from "./avaliacao.repository.js";
@@ -6,13 +7,14 @@ import type { AvaliarInput, ListarAvaliacoesInput } from "./avaliacao.schema.js"
 
 const pedidoNaoEncontrado = () => new AppError("Pedido não encontrado", 404);
 
-// Resposta da API: pessoas só com id, nome e foto; o pedido só com id e título
+// Resposta da API: pessoas só com id, nome e foto; o pedido só com id e título.
+// Conta de quem avaliou excluída ou pedido apagado: null, sem nenhum dado de quem saiu ("Usuário removido" na tela)
 const toAvaliacaoResposta = (a: AvaliacaoCompleta) => ({
   id: a.id,
   nota: a.nota,
   comentario: a.comentario,
   createdAt: a.createdAt.toISOString(),
-  avaliador: toAutorResumo(a.avaliador),
+  avaliador: a.avaliador ? toAutorResumo(a.avaliador) : null,
   avaliado: toAutorResumo(a.avaliado),
   servico: a.servico,
 });
@@ -62,7 +64,8 @@ const avaliacaoService = {
 
   // o resumo público das avaliações recebidas: média (uma casa), total e a lista paginada
   doUsuario: async (usuarioId: string, { limit, cursor }: ListarAvaliacoesInput) => {
-    if (!(await avaliacaoRepository.usuarioExiste(usuarioId))) throw new AppError("Usuário não encontrado", 404);
+    // a conta da plataforma não tem perfil público
+    if (ehContaPlataforma(usuarioId) || !(await avaliacaoRepository.usuarioExiste(usuarioId))) throw new AppError("Usuário não encontrado", 404);
     const [linhas, agregado] = await Promise.all([avaliacaoRepository.listarRecebidas(usuarioId, limit, cursor), mediaETotal(usuarioId)]);
     const temMais = linhas.length > limit;
     const pagina = temMais ? linhas.slice(0, limit) : linhas;

@@ -132,6 +132,7 @@ enum TipoTransacao {
   ESTORNO
   RECEBIMENTO
   TAXA
+  TAXA_RECEBIDA // a taxa entrando na conta da plataforma (contaPlataforma em configs/creditos.ts)
 }
 
 model TransacaoCredito {
@@ -152,10 +153,11 @@ model TransacaoCredito {
 // uma vez cada. A média é calculada na consulta (nada fica guardado no User).
 model Avaliacao {
   id           String   @id @default(uuid())
-  servicoId    String
-  servico      Servico  @relation(fields: [servicoId], references: [id], onDelete: Cascade)
-  avaliadorId  String
-  avaliador    User     @relation("AvaliacoesFeitas", fields: [avaliadorId], references: [id], onDelete: Cascade)
+  // Os dois ficam nulos quando o pedido ou a conta de quem avaliou somem: a avaliação continua contando para o avaliado
+  servicoId    String?
+  servico      Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  avaliadorId  String?
+  avaliador    User?    @relation("AvaliacoesFeitas", fields: [avaliadorId], references: [id], onDelete: SetNull)
   avaliadoId   String
   avaliado     User     @relation("AvaliacoesRecebidas", fields: [avaliadoId], references: [id], onDelete: Cascade)
   nota         Int      // 1 a 5

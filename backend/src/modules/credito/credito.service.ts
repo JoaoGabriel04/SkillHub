@@ -1,11 +1,11 @@
 import type { Prisma, TipoTransacao } from "@prisma/client";
-import { calcularTaxa } from "../../configs/creditos.js";
+import { calcularTaxa, contaPlataforma } from "../../configs/creditos.js";
 import { AppError } from "../../utils/AppError.js";
 import creditoRepository from "./credito.repository.js";
 import type { ExtratoInput } from "./credito.schema.js";
 
 type Tx = Prisma.TransactionClient;
-const ROTULO = { BONUS: "Bônus", RESERVA: "Reserva", ESTORNO: "Estorno", RECEBIMENTO: "Recebimento", TAXA: "Taxa da plataforma" } as const;
+const ROTULO = { BONUS: "Bônus", RESERVA: "Reserva", ESTORNO: "Estorno", RECEBIMENTO: "Recebimento", TAXA: "Taxa da plataforma", TAXA_RECEBIDA: "Taxa recebida" } as const;
 
 // O único jeito de mudar um saldo: atualiza User.credits e grava a linha do extrato com o saldo depois.
 // Débito sem saldo: 409 "Créditos insuficientes", e a transação de quem chamou volta inteira.
@@ -32,13 +32,20 @@ const creditoService = {
   reservar: (tx: Tx, servicoId: string, autorId: string, valor: number | null) =>
     valor === null ? Promise.resolve() : movimentar(tx, autorId, "RESERVA", -valor, servicoId),
 
-  // concluir: o colaborador recebe a reserva; com taxa > 0, ela sai em seguida (sem linha TAXA com taxa 0)
+  // concluir: o colaborador recebe a reserva; com taxa > 0, ela sai dele (TAXA) e entra na conta da plataforma
+  // (TAXA_RECEBIDA), na mesma transação. Com taxa 0, nenhuma linha extra.
+  // Sem a conta da plataforma, o concluir falha (500) e volta inteiro: o pedido nunca conclui com crédito sumindo.
   pagar: async (tx: Tx, servicoId: string, colaboradorId: string) => {
     const valor = await valorReservado(tx, servicoId);
     if (valor === null) return;
     const taxa = calcularTaxa(valor);
     await movimentar(tx, colaboradorId, "RECEBIMENTO", valor, servicoId);
-    if (taxa > 0) await movimentar(tx, colaboradorId, "TAXA", -taxa, servicoId);
+    if (taxa === 0) return;
+    const plataforma = contaPlataforma().id;
+    if (!(await creditoRepository.existe(tx, plataforma)))
+      throw new Error("Conta da plataforma ausente; rode npm run plataforma:garantir");
+    await movimentar(tx, colaboradorId, "TAXA", -taxa, servicoId);
+    await movimentar(tx, plataforma, "TAXA_RECEBIDA", taxa, servicoId);
   },
 
   // cancelar um pedido em andamento: a reserva volta para o autor
