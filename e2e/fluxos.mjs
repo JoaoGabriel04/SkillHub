@@ -700,6 +700,177 @@ await page.goto(B + "/configuracoes"); await page.getByRole("button", { name: /C
 ok("créditos (tela): Configurações abre o extrato", await page.getByRole("dialog", { name: "Extrato de créditos" }).isVisible());
 await page.keyboard.press("Escape");
 
+// 15h. Avaliações (Fase 17D): só as partes de um pedido concluído, uma vez cada; média x SQL; exclusão de conta e a tela
+const contaAval = async (nome, cpf, perfil) => {
+  const email = `e2e.avaliacoes.${nome}@example.com`;
+  const { corpo } = await chamar("POST", `/auth/register/${perfil}`, null, {
+    fullName: `Avaliacoes ${nome} E2E`, phone: "11987654321", cpf, dataNascimento: "1990-01-01", genero: "Outro",
+    cep: "01310-100", rua: "Rua Teste", numero: "1", bairro: "Centro", cidade: "São Paulo", estado: "SP",
+    email, confirmEmail: email, password: "senha123", confirmPassword: "senha123",
+  });
+  const { corpo: me } = await chamar("GET", "/auth/me", corpo.accessToken);
+  return { email, token: corpo.accessToken, id: me.user.id };
+};
+const autorV = await contaAval("autor", "900.000.003-01", "cliente");
+const colabV = await contaAval("colab", "900.000.003-02", "colaborador");
+const colabV2 = await contaAval("colab2", "900.000.003-03", "colaborador");
+const clienteV = await contaAval("cliente", "900.000.003-04", "cliente");
+// "a combinar" sem proposta: não move créditos, então ninguém precisa de saldo
+const pedidoV = async (autor, titulo) =>
+  (await chamar("POST", "/servicos", autor.token, { titulo, descricao: "Pedido de teste das avaliações", categoria: "Tecnologia", remuneracao: null })).corpo.servico.id;
+const candidatarV = async (servicoId, colab) =>
+  (await chamar("POST", `/servicos/${servicoId}/candidaturas`, colab.token, { mensagem: "Posso fazer isso nesta semana." })).corpo.candidatura.id;
+const contratarV = async (autor, colab, titulo) => {
+  const id = await pedidoV(autor, titulo);
+  await chamar("POST", `/candidaturas/${await candidatarV(id, colab)}/aceitar`, autor.token);
+  return id;
+};
+const concluidoV = async (autor, colab, titulo) => {
+  const id = await contratarV(autor, colab, titulo);
+  await chamar("POST", `/servicos/${id}/concluir`, autor.token);
+  return id;
+};
+const avaliarV = (servicoId, token, corpo = { nota: 5 }) => chamar("POST", `/servicos/${servicoId}/avaliacoes`, token, corpo);
+
+const pAbertoV = await pedidoV(autorV, "Avaliações: aberto");
+const pAndamentoV = await contratarV(autorV, colabV, "Avaliações: em andamento");
+ok("avaliações: pedido aberto ou em andamento dá 409", (await avaliarV(pAbertoV, autorV.token)).status === 409 &&
+  (await avaliarV(pAndamentoV, autorV.token)).status === 409 && (await avaliarV(pAndamentoV, colabV.token)).status === 409);
+// p1: o colab2 também se candidata e fica recusado quando o colab é aceito
+const p1V = await pedidoV(autorV, "Avaliações: fluxo");
+const c1V = await candidatarV(p1V, colabV);
+await candidatarV(p1V, colabV2);
+await chamar("POST", `/candidaturas/${c1V}/aceitar`, autorV.token);
+await chamar("POST", `/servicos/${p1V}/concluir`, autorV.token);
+const deAutor = await avaliarV(p1V, autorV.token, { nota: 5, comentario: "  Ótimo trabalho  ", avaliadoId: clienteV.id });
+ok("avaliações: o autor avalia o colaborador (o avaliado sai do pedido, nunca do corpo)", deAutor.status === 201 &&
+  deAutor.corpo.avaliacao.avaliado.id === colabV.id && deAutor.corpo.avaliacao.comentario === "Ótimo trabalho" &&
+  sql(`select "avaliadoId" from "Avaliacao" where id = '${deAutor.corpo.avaliacao.id}'`) === colabV.id);
+const deColab = await avaliarV(p1V, colabV.token, { nota: 4, comentario: "" });
+ok("avaliações: o colaborador avalia o autor (comentário vazio vira null)", deColab.status === 201 &&
+  deColab.corpo.avaliacao.avaliado.id === autorV.id && deColab.corpo.avaliacao.comentario === null);
+ok("avaliações: avaliar de novo dá 409", (await avaliarV(p1V, autorV.token)).status === 409);
+ok("avaliações: terceiros (colaborador recusado e um cliente) recebem 403", (await avaliarV(p1V, colabV2.token)).status === 403 &&
+  (await avaliarV(p1V, clienteV.token)).status === 403 && (await chamar("GET", `/servicos/${p1V}/avaliacoes`, clienteV.token)).status === 403);
+const doP1 = await chamar("GET", `/servicos/${p1V}/avaliacoes`, colabV.token);
+ok("avaliações: as partes veem as duas avaliações do pedido", doP1.status === 200 && doP1.corpo.avaliacoes.length === 2 && semDadosPessoais(doP1.corpo));
+// corrida: duas avaliações do autor ao mesmo tempo
+const p2V = await concluidoV(autorV, colabV, "Avaliações: corrida");
+const corridaV = await Promise.all([avaliarV(p2V, autorV.token, { nota: 4 }), avaliarV(p2V, autorV.token, { nota: 4 })]);
+ok("avaliações: duas ao mesmo tempo (201 e 409, uma linha só)", corridaV.map((r) => r.status).sort().join() === "201,409" &&
+  sql(`select count(*) from "Avaliacao" where "servicoId" = '${p2V}'`) === "1", corridaV.map((r) => r.status).join());
+// validação, 401 e 404
+const p3V = await concluidoV(autorV, colabV, "Avaliações: validação");
+// "Não avaliado" nos cards: concluído e ainda sem a avaliação de quem lista
+const pendenteEm = async (rota, token, id) => {
+  const { corpo } = await chamar("GET", rota, token);
+  return (corpo.servicos ?? corpo.candidaturas.map((c) => c.servico)).find((x) => x.id === id)?.avaliacaoPendente;
+};
+ok("avaliações: avaliacaoPendente em Seus pedidos e Suas candidaturas", (await pendenteEm("/servicos/meus", autorV.token, p3V)) === true &&
+  (await pendenteEm("/servicos/meus", autorV.token, p1V)) === false && (await pendenteEm("/servicos/meus", autorV.token, pAbertoV)) === false &&
+  (await pendenteEm("/candidaturas/minhas", colabV.token, p3V)) === true && (await pendenteEm("/candidaturas/minhas", colabV.token, p1V)) === false &&
+  (await pendenteEm("/candidaturas/minhas", colabV2.token, p1V)) === false);
+const invalidas = await Promise.all([{ nota: 0 }, { nota: 6 }, { nota: 3.5 }, { nota: "texto" }, {}, { nota: 3, comentario: "x".repeat(501) }].map((c) => avaliarV(p3V, autorV.token, c)));
+ok("avaliações: nota fora de 1 a 5, não inteira ou ausente e comentário longo dão 400", invalidas.every((r) => r.status === 400 && r.corpo.details?.length),
+  invalidas.map((r) => r.status).join());
+await avaliarV(p3V, autorV.token, { nota: 4 });
+const pCanceladoV = await pedidoV(autorV, "Avaliações: cancelado");
+await chamar("DELETE", `/servicos/${pCanceladoV}`, autorV.token);
+const idQueNaoExiste = "00000000-0000-4000-8000-000000000000";
+ok("avaliações: sem token 401; pedido inexistente ou cancelado (para terceiros) 404", (await avaliarV(p1V)).status === 401 &&
+  (await avaliarV(idQueNaoExiste, autorV.token)).status === 404 && (await avaliarV(pCanceladoV, colabV.token)).status === 404);
+// média e total x SQL (o colab tem 5, 4 e 4)
+const mediaSql = (id) => sql(`select coalesce(round(avg(nota), 1)::text, 'null') || '|' || count(*) from "Avaliacao" where "avaliadoId" = '${id}'`);
+const resumoV = async (id, q = "") => (await chamar("GET", `/usuarios/${id}/avaliacoes${q}`, clienteV.token)).corpo;
+const rColab = await resumoV(colabV.id);
+ok("avaliações: média e total do colaborador batem com o SQL", `${rColab.media}|${rColab.total}` === mediaSql(colabV.id) && rColab.media === 4.3 && rColab.total === 3,
+  `${rColab.media}|${rColab.total} x ${mediaSql(colabV.id)}`);
+const rSem = await resumoV(clienteV.id);
+ok("avaliações: sem avaliações, média null e total 0", rSem.media === null && rSem.total === 0 && rSem.avaliacoes.length === 0);
+const pagV1 = await resumoV(colabV.id, "?limit=2");
+const pagV2 = await resumoV(colabV.id, `?limit=2&cursor=${pagV1.nextCursor}`);
+ok("avaliações: lista paginada, mais recentes primeiro, e avaliador só com id, nome e foto", pagV1.avaliacoes.length === 2 && !!pagV1.nextCursor &&
+  pagV2.avaliacoes.length === 1 && pagV2.nextCursor === null && pagV1.avaliacoes[0].createdAt >= pagV1.avaliacoes[1].createdAt &&
+  pagV1.avaliacoes.every((a) => Object.keys(a.avaliador).sort().join() === "fullName,id,urlPhoto") && semDadosPessoais(pagV1));
+const resumoUsuario = async (id, token = clienteV.token) => chamar("GET", `/usuarios/${id}/resumo`, token);
+const colabSql = (id) => sql(`select count(*) from "Servico" where status = 'CONCLUIDO' and ('${id}' in ("autorId", coalesce("colaboradorId", '')))`);
+const rResumo = (await resumoUsuario(colabV.id)).corpo;
+ok("avaliações: resumo público com colaborações, média e total (x SQL)", rResumo.colaboracoes === 3 && String(rResumo.colaboracoes) === colabSql(colabV.id) &&
+  rResumo.media === 4.3 && rResumo.total === 3 && Object.keys(rResumo).sort().join() === "colaboracoes,media,total");
+ok("avaliações: resumo conta os pedidos do autor também; inexistente 404 e sem token 401", (await resumoUsuario(autorV.id)).corpo.colaboracoes === 3 &&
+  (await resumoUsuario(idQueNaoExiste)).status === 404 && (await resumoUsuario(colabV.id, null)).status === 401);
+ok("avaliações: lista de usuário inexistente 404 e sem token 401", (await chamar("GET", `/usuarios/${idQueNaoExiste}/avaliacoes`, clienteV.token)).status === 404 &&
+  (await chamar("GET", `/usuarios/${colabV.id}/avaliacoes`)).status === 401);
+// exclusão de conta: um autor que avaliou o colab (nota 1) sai; o colab volta a 5, 4 e 4
+const autorSai = await contaAval("autorsai", "900.000.003-05", "cliente");
+await avaliarV(await concluidoV(autorSai, colabV, "Avaliações: autor que sai"), autorSai.token, { nota: 1 });
+const antesSaida = await resumoV(colabV.id);
+await chamar("DELETE", "/user", autorSai.token, { password: "senha123" });
+const depoisSaida = await resumoV(colabV.id);
+const orfas = () => sql(`select count(*) from "Avaliacao" a where not exists (select 1 from "User" u where u.id = a."avaliadorId")
+  or not exists (select 1 from "User" u where u.id = a."avaliadoId") or not exists (select 1 from "Servico" s where s.id = a."servicoId")`);
+ok("avaliações: autor que exclui a conta não deixa órfã e a média do colaborador é recalculada", antesSaida.total === 4 && antesSaida.media === 3.5 &&
+  depoisSaida.total === 3 && `${depoisSaida.media}|${depoisSaida.total}` === mediaSql(colabV.id) && orfas() === "0");
+// o colaborador que sai depois de concluir: o autor não tem mais quem avaliar, e a nota que ele deu some
+const colabSaiV = await contaAval("colabsai", "900.000.003-06", "colaborador");
+const pSaiV = await concluidoV(autorV, colabSaiV, "Avaliações: colaborador que sai");
+await avaliarV(pSaiV, colabSaiV.token, { nota: 2 });
+await chamar("DELETE", "/user", colabSaiV.token, { password: "senha123" });
+const semColabV = await avaliarV(pSaiV, autorV.token);
+const rAutor = await resumoV(autorV.id);
+ok("avaliações: colaborador que saiu (409 ao avaliar, a nota dele some, nada órfão, sem \"Não avaliado\")", semColabV.status === 409 && semColabV.corpo.error === "O colaborador não está mais no SkillHub" &&
+  rAutor.total === 1 && rAutor.media === 4 && orfas() === "0" && (await pendenteEm("/servicos/meus", autorV.token, pSaiV)) === false);
+
+// tela: o Cliente conclui pela tela o pedido aceito na 15f e avalia com 4 estrelas
+await page.goto(B + "/servicos"); await page.getByRole("region", { name: "Seus pedidos" }).waitFor();
+const cardAval = page.getByRole("region", { name: "Seus pedidos" }).locator("div", { has: page.getByText("Pedido pela tela E2E", { exact: true }) }).last();
+await cardAval.getByRole("button", { name: "Saiba Mais" }).first().click();
+const detalheAval = page.getByRole("dialog", { name: "Pedido pela tela E2E" });
+await detalheAval.getByRole("button", { name: "Marcar como concluído" }).click();
+const notaTela = detalheAval.getByRole("radiogroup", { name: /^Nota para / });
+await notaTela.waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): concluir oferece a avaliação, com o envio desabilitado sem nota", await notaTela.isVisible() &&
+  await detalheAval.getByRole("button", { name: "Enviar avaliação" }).isDisabled());
+await notaTela.getByRole("radio", { name: "4 estrelas" }).click();
+await detalheAval.getByLabel("Comentário (opcional)").fill("Explicou tudo com calma.");
+await detalheAval.getByRole("button", { name: "Enviar avaliação" }).click();
+await detalheAval.getByText("Sua avaliação").waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): o autor avalia e vê a própria avaliação", await detalheAval.getByText("Sua avaliação").isVisible() &&
+  await detalheAval.getByRole("img", { name: "4 de 5 estrelas" }).isVisible() && await detalheAval.getByText("Explicou tudo com calma.").isVisible());
+await page.keyboard.press("Escape");
+await cardAval.getByText("Concluído", { exact: true }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): depois de avaliar, o card do autor mostra Concluído", await cardAval.getByText("Concluído", { exact: true }).isVisible());
+// o colaborador vê a avaliação recebida e avalia o Cliente com 5 estrelas (pelo teclado)
+const ctxAval = await browser.newContext({ viewport: { width: 440, height: 956 } });
+await ctxAval.request.post(`${API}/api/auth/login`, { data: { email: "e2e.candidaturas.tela@example.com", password: "senha123" } });
+const pageAval = await ctxAval.newPage(); pageAval.on("pageerror", (e) => pageErrors.push(e.message));
+await pageAval.goto(B + "/servicos"); await pageAval.getByRole("region", { name: "Suas candidaturas" }).waitFor();
+const cardColabAval = pageAval.getByRole("region", { name: "Suas candidaturas" }).locator("div", { has: pageAval.getByText("Pedido pela tela E2E", { exact: true }) }).last();
+ok("avaliações (tela): o card do colaborador mostra Não avaliado", await cardColabAval.getByText("Não avaliado", { exact: true }).isVisible());
+await cardColabAval.getByRole("button", { name: "Saiba Mais" }).first().click();
+const detalheColabAval = pageAval.getByRole("dialog", { name: "Pedido pela tela E2E" });
+await detalheColabAval.getByText(/^Avaliação de /).waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): o colaborador vê a avaliação que recebeu", await detalheColabAval.getByRole("img", { name: "4 de 5 estrelas" }).isVisible());
+const notaColab = detalheColabAval.getByRole("radiogroup", { name: /^Nota para / });
+await notaColab.getByRole("radio", { name: "1 estrela" }).focus();
+await pageAval.keyboard.press("End");
+ok("avaliações (tela): as setas e o End escolhem a nota", (await notaColab.getByRole("radio", { name: "5 estrelas" }).getAttribute("aria-checked")) === "true");
+await detalheColabAval.getByRole("button", { name: "Enviar avaliação" }).click();
+await detalheColabAval.getByText("Sua avaliação").waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): o colaborador avalia o autor", await detalheColabAval.getByRole("img", { name: "5 de 5 estrelas" }).isVisible());
+await pageAval.keyboard.press("Escape");
+await cardColabAval.getByText("Concluído", { exact: true }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): e depois de avaliar, Concluído", await cardColabAval.getByText("Concluído", { exact: true }).isVisible());
+await ctxAval.close();
+await page.goto(B + "/perfil"); await page.locator("h1").waitFor();
+const mediaPerfil = page.locator("dl div", { has: page.getByText("Avaliações", { exact: true }) }).locator("dd");
+await mediaPerfil.filter({ hasText: "5,0" }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("avaliações (tela): o Perfil mostra a média real", (await mediaPerfil.textContent()) === "5,0", await mediaPerfil.textContent());
+const numeroPerfil = (rotulo) => page.locator("dl div", { has: page.getByText(rotulo, { exact: true }) }).locator("dd").textContent();
+const colabCliente = sql(`select count(*) from "Servico" s join "User" u on u.id in (s."autorId", s."colaboradorId") where s.status = 'CONCLUIDO' and u.email = 'e2e.cliente@example.com'`);
+ok("avaliações (tela): Colaborações reais e Experiência sem o zero à esquerda", (await numeroPerfil("Colaborações")) === colabCliente && colabCliente !== "0" &&
+  (await numeroPerfil("Experiência")) === "0", `${await numeroPerfil("Colaborações")} x ${colabCliente}`);
+
 // 16. Excluir conta com senha (o Cliente, já com a senha nova), com uma segunda aba aberta
 await page.goto(B + "/perfil"); await page.locator("h1").waitFor();
 ok("Cliente vê só as estatísticas no perfil", (await page.locator("main h2").allTextContents()).join(",") === "Experiências Profissionais");

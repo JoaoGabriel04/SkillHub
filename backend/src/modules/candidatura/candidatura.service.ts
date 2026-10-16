@@ -19,8 +19,15 @@ const base = (c: CandidaturaComColaborador | CandidaturaComServico) => ({
 });
 // para o autor do pedido: quem se candidatou, só com id, nome e foto
 const toCandidaturaResposta = (c: CandidaturaComColaborador) => ({ ...base(c), colaborador: toAutorResumo(c.colaborador) });
-// para o colaborador: o resumo do serviço (o mesmo formato da lista de serviços)
-const toMinhaCandidatura = (c: CandidaturaComServico) => ({ ...base(c), servico: toServicoResposta(c.servico) });
+// para o colaborador: o resumo do serviço (o mesmo formato da lista de serviços).
+// avaliacaoPendente (Fase 17D): foi o colaborador aceito, o pedido está concluído e ele ainda não avaliou o autor.
+const toMinhaCandidatura = (c: CandidaturaComServico) => ({
+  ...base(c),
+  servico: {
+    ...toServicoResposta(c.servico),
+    avaliacaoPendente: c.status === "ACEITA" && c.servico.status === "CONCLUIDO" && c.servico.avaliacoes.length === 0,
+  },
+});
 
 // pedido cancelado só existe para o autor, como em GET /servicos/:id
 async function servicoVisivel(servicoId: string, usuarioId: string) {

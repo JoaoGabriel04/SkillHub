@@ -9,6 +9,76 @@
 
 ---
 
+## Fase 17D — Avaliações entre as partes
+
+**Data:** 2026-10-16
+**Status:** Implementada, conferida, PR aberto
+**Branch:** `feat/avaliacoes`
+
+### Contexto
+
+Quarta e última subfase da Fase 17 (plano em `PLANO_17D.md`). Num pedido concluído, o autor avalia o colaborador e o colaborador avalia o autor, uma vez cada. A avaliação tem nota de 1 a 5 e comentário opcional. A estrutura (nota, pedido, par avaliador/avaliado, data) é a base para a Fase 22 derivar o ImpactScore; nada dele é calculado aqui.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **Média e total** ficam no resumo público `GET /usuarios/:id/avaliacoes`. O `AutorResumo` não muda.
+- **`GET /servicos/:id/avaliacoes`** (só as partes) foi criado, para o diálogo saber se você já avaliou.
+- **Visibilidade:** a avaliação aparece para a outra parte logo depois de enviada.
+- **Perfil:** "Avaliações" passa a mostrar a média real. "Colaborações" e "Experiência" continuam placeholders.
+
+Ajustes pedidos na conferência visual:
+- O card de um pedido concluído que você ainda não avaliou mostra "Não avaliado".
+- "Colaborações" passa a ser real.
+- As estatísticas mostram "0", e não "00".
+
+### Backend
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261016142656_avaliacao` | Model `Avaliacao`, exatamente o da Seção 17D. Relações inversas no `User` (`avaliacoesFeitas`, `avaliacoesRecebidas`) e no `Servico` (`avaliacoes`). |
+| `src/modules/avaliacao/*` | **Novos.** Só as partes de um pedido concluído avaliam. <br>• O avaliado é decidido pelo servidor, nunca pelo corpo. <br>• A repetição (inclusive simultânea, pelo `@@unique` e o `P2002`) dá 409. <br>• Terceiros recebem 403; um pedido cancelado, para quem não é o autor, dá 404. <br>• O colaborador que excluiu a conta dá 409. <br>• A média vem de soma e contagem do `aggregate`, arredondada a uma casa; não fica guardada no `User`. |
+| `src/api/routes/usuario.route.ts`, `routes/index.ts`, `servico.route.ts` | `GET /usuarios/:id/avaliacoes` (paginado por cursor, com `{ media, total }`), `POST` e `GET /servicos/:id/avaliacoes`. A rota se chama `usuario` para não se confundir com o módulo `user`, que não foi tocado. |
+| `src/modules/usuario/*` | **Novos (conferência).** `GET /usuarios/:id/resumo` → `{ colaboracoes, media, total }`. Colaborações são os pedidos concluídos como autor ou colaborador. |
+| `src/modules/servico/*`, `src/modules/candidatura/*` | **Conferência.** `avaliacaoPendente` em `/servicos/meus` e `/candidaturas/minhas`: concluído, com a outra parte para avaliar, e ainda sem a sua avaliação. |
+
+### Frontend
+
+| Arquivo | Alteração |
+|---|---|
+| `src/components/app/estrelas.tsx` | **Novo.** `Estrelas` (leitura, "N de 5 estrelas") e `SeletorEstrelas`, um grupo de rádio com setas, Home/End e prévia no hover. Os dois usam `faStar`; a vazia é a mesma estrela apagada, sem dependência nova. |
+| `src/lib/avaliacoes.ts`, `src/types/avaliacao.ts` | **Novos.** O cliente da API, as chaves do SWR e o `formatMedia` ("4,5", e "–" sem avaliações). |
+| `src/components/app/servico-detalhe-dialog.tsx` | Seção "Avaliação" no pedido concluído, para o autor e o colaborador aceito: <br>• o formulário (estrelas, comentário e "Enviar avaliação", desabilitado sem nota); <br>• "Sua avaliação"; <br>• "Avaliação de {nome}"; <br>• o aviso de colaborador que excluiu a conta. |
+| `src/components/app/servico-card.tsx`, `app/(app)/servicos/page.tsx` | "Não avaliado" no card enquanto `avaliacaoPendente` valer; depois, "Concluído". |
+| `src/app/(app)/perfil/page.tsx` | Pelo resumo público: "Colaborações" com o número real e "Avaliações" com a média. "Experiência" mostra "0", sem o zero à esquerda. |
+| `e2e/fluxos.mjs` | Seção 15h, com 28 fluxos. |
+
+### Validação
+
+- `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
+- **`./e2e/run.sh`: 210/210 (28 novos).** Cobrem:
+  - **Pedido não concluído:** aberto ou em andamento dá 409.
+  - **Fluxo:** as duas partes avaliam. Um `avaliadoId` no corpo é ignorado, e o comentário vazio vira `null`.
+  - **Repetição:** 409. Duas ao mesmo tempo dão 201 e 409, com uma linha só.
+  - **Terceiros:** o colaborador recusado e um cliente qualquer recebem 403.
+  - **Validação:** nota 0, 6, 3.5, texto ou ausente, e comentário de 501 caracteres, dão 400.
+  - **401 e 404,** inclusive o pedido cancelado visto por terceiros.
+  - **Média e total:** batem com `round(avg(nota), 1)` e `count(*)` em SQL, e um usuário sem avaliações tem `null` e 0.
+  - **Lista:** paginada e só com `id`, `fullName` e `urlPhoto` de quem avaliou.
+  - **Exclusão de conta:** sem avaliação órfã (SQL), e a média de quem fica é recalculada. Avaliar o colaborador que saiu dá 409.
+  - **"Não avaliado":** o `avaliacaoPendente` do autor, do colaborador aceito e do recusado. Na tela, o card passa de "Não avaliado" a "Concluído" depois de avaliar.
+  - **Resumo:** colaborações conferidas contra SQL, para o colaborador e para o autor; 404 e 401.
+  - **Tela:** o autor conclui e avalia; o colaborador vê a nota recebida e avalia pelo teclado; o Perfil mostra a média, as colaborações reais e "0" em Experiência.
+- **Visual:**
+  - Início, Serviços, Configurações e o detalhe de pedidos abertos (o próprio e o de outro usuário) ficaram idênticos byte a byte aos da 17C: 20 de 20, a 375 e 1440px, nos dois temas. A base repetiu igual em duas capturas.
+  - O Perfil só muda nas estatísticas ("0" no lugar de "00").
+  - As telas novas (avaliando, avaliação recebida, as duas avaliações e o Perfil com média) foram capturadas a 375 e 1440px, nos dois temas, sem erros no console.
+
+### Achados fora de escopo
+
+- **A média do colaborador na lista de candidaturas** ajudaria o autor a escolher. Ela mexe na resposta das candidaturas (17B).
+- **As avaliações de quem exclui a conta somem** (o `Cascade` do documento). Se o ImpactScore (Fase 22) precisar do histórico completo, vale rever, por exemplo com `SetNull` no avaliador.
+
+---
+
 ## Fase 17C — Créditos (reserva, pagamento, estorno e extrato)
 
 **Data:** 2026-10-16

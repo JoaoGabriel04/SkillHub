@@ -127,13 +127,23 @@ export default function ServicosPage() {
   // "Seus pedidos" não tem seta: a lista inteira já está na linha (editar e cancelar pela tela vêm na 17B)
   const linhas: { titulo: string; itens: Servico[]; abrir?: () => void; etiquetas?: Record<string, string> }[] = [
     ...(meus.data?.length ? [{ titulo: "Seus pedidos", itens: [...meus.data].sort(ordem) }] : []),
-    // o card mostra o status da candidatura no lugar da distância
+    // o card mostra o status da candidatura no lugar da distância; a aceita, num pedido concluído, mostra
+    // "Não avaliado" até o colaborador avaliar e "Concluído" depois (Fase 17D)
     ...(minhas.data?.length
       ? [
           {
             titulo: "Suas candidaturas",
             itens: minhas.data.map((c) => c.servico),
-            etiquetas: Object.fromEntries(minhas.data.map((c) => [c.servico.id, `Candidatura ${c.status.toLowerCase()}`])),
+            etiquetas: Object.fromEntries(
+              minhas.data.map((c) => [
+                c.servico.id,
+                c.status === "Aceita" && c.servico.status === "Concluído"
+                  ? c.servico.avaliacaoPendente
+                    ? "Não avaliado"
+                    : "Concluído"
+                  : `Candidatura ${c.status.toLowerCase()}`,
+              ])
+            ),
           },
         ]
       : []),

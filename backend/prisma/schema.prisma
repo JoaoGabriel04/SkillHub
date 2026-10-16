@@ -46,6 +46,8 @@ model User {
   servicosExecutados  Servico[] @relation("ServicosExecutados")
   candidaturasEnviadas Candidatura[] @relation("CandidaturasEnviadas")
   transacoes           TransacaoCredito[] @relation("Transacoes")
+  avaliacoesFeitas     Avaliacao[] @relation("AvaliacoesFeitas")
+  avaliacoesRecebidas  Avaliacao[] @relation("AvaliacoesRecebidas")
 }
 
 // Link de "esqueci a senha": guarda só o hash SHA-256 do token enviado por e-mail
@@ -93,6 +95,7 @@ model Servico {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   candidaturas  Candidatura[]
+  avaliacoes    Avaliacao[]
 
   @@index([status, categoria, createdAt])
   @@index([autorId])
@@ -143,4 +146,22 @@ model TransacaoCredito {
   createdAt  DateTime      @default(now())
 
   @@index([userId, createdAt])
+}
+
+// Avaliações entre as partes de um pedido concluído (Fase 17D): o autor avalia o colaborador e vice-versa,
+// uma vez cada. A média é calculada na consulta (nada fica guardado no User).
+model Avaliacao {
+  id           String   @id @default(uuid())
+  servicoId    String
+  servico      Servico  @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+  avaliadorId  String
+  avaliador    User     @relation("AvaliacoesFeitas", fields: [avaliadorId], references: [id], onDelete: Cascade)
+  avaliadoId   String
+  avaliado     User     @relation("AvaliacoesRecebidas", fields: [avaliadoId], references: [id], onDelete: Cascade)
+  nota         Int      // 1 a 5
+  comentario   String?
+  createdAt    DateTime @default(now())
+
+  @@unique([servicoId, avaliadorId])
+  @@index([avaliadoId])
 }
