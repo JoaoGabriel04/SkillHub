@@ -9,10 +9,63 @@
 
 ---
 
-## Fase 17D — Avaliações entre as partes
+## Faxina antes da Fase 18 (PR A)
 
 **Data:** 2026-10-16
 **Status:** Implementada, conferida, PR aberto
+**Branch:** `chore/faxina`
+
+### Contexto
+
+Primeira das duas partes da faxina pedida em `SKILLHUB_FAXINA_PRE_FASE_18.md` (plano em `PLANO_FAXINA.md`). Este PR não muda o comportamento do produto; a única mudança visível é o "Excluir conta" desabilitado. Os ajustes de domínio (B1 a B3) vão num PR separado, `feat/ajustes-dominio`.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **A2 saiu do PR.** O `cn@0.4.0` já é o motor da shadcn que substitui `clsx` + `tailwind-merge` e resolve conflitos (`cn("w-1/2", "w-full")` dá `w-full`). Nenhuma dependência nova.
+- **As 17A a 17D** também passaram a "Concluída".
+- **O desabilitado neutro** vale só para o "Excluir conta", o único que fica desabilitado por regra.
+- **As menções aos `.md` por nome** ficaram como estão (os nomes não mudaram), e `*:Zone.Identifier` entrou no `.gitignore`.
+
+### Arquivos
+
+| Item | Arquivo | Alteração |
+|---|---|---|
+| A7 | `docs/planos/`, `docs/especificacoes/`, `docs/CHANGELOG_MIGRACAO.md`, `.gitignore` | Os 14 `.md` da raiz movidos com `git mv`, sem mudar o conteúdo: os planos em `docs/planos/`, os documentos `SKILLHUB_*` em `docs/especificacoes/` e este changelog em `docs/`. |
+| A3 | `frontend/src/lib/mock/servicos.ts` | **Removido** (zero importações). A pasta `lib/mock` continua, com os mocks de comunidade, pessoas e produtos. |
+| A3 | `frontend/src/app/globals.css` | Removidas as variáveis `--sidebar-*` e `--chart-*` e o mapeamento delas no `@theme` (34 linhas). Nenhum componente, inclusive os da shadcn, as usava. |
+| A4 | `frontend/src/components/auth/auth-ui.tsx` | O foco num campo sem ícone (a maioria dos campos do cadastro e o campo do diálogo de exclusão) animava `[data-field-icon]` mesmo sem alvo, e o GSAP avisava "target not found". A animação do ícone só roda se o campo tem ícone; nos que têm, o pulo continua igual. |
+| A4 | `frontend/src/components/app/bottom-nav.tsx` | Mesmo aviso na casca a 440px: indo para Configurações, que não tem item no menu inferior, o pulo do ícone ativo procurava `[aria-current=page] svg` sem alvo. O pulo só roda se houver ícone ativo; entre os itens do menu, continua igual. A primeira bateria de 5 rodadas (abaixo) foi quem achou. |
+| A6 | `frontend/src/components/app/delete-account-dialog.tsx` | Sem a confirmação, o botão fica em superfície neutra (`bg-foreground/10`, `text-foreground-secondary`), em vez do vermelho a 40%, que no tema claro ficava rosado. Durante o envio, continua vermelho com opacidade. |
+| A5 | `e2e/fluxos.mjs` | Ver abaixo. |
+| A4 | `e2e/fluxos.mjs` | Passo 15a2: console sem avisos nem erros em `/login`, `/cadastro` (com foco em cada campo), nas páginas da casca logada e no diálogo de exclusão. |
+| A1 | `docs/CHANGELOG_MIGRACAO.md` | Status reais das 16.1 a 16.5, do switch de tema e das 17A a 17D, conferidos no `gh pr list` (todos mergeados). Entradas novas para os PRs #4 e #6. |
+
+### A5: causa do e2e instável
+
+A colmeia de hexágonos (entrar e sair da área logada) bloqueia cliques até voltar ao repouso: o overlay só passa a `pointer-events: none` no fim. O caminho até o passo 16 faz "Sair" pela sidebar e loga de novo na hora. Numa máquina lenta, o clique em "Entrar" caía durante a transição. O `waitForURL(...).catch(() => {})` engolia o tempo esgotado, e o passo 16 seguia sem sessão. Com a CPU desacelerada, a reprodução isolada falhou em 3 de 6 tentativas; sem desacelerar, a suíte sem mudanças passou em 4 de 4 rodadas.
+
+Correção, só no caminho do passo 16, por condição e sem aumentar timeouts:
+- `transicaoParada()` espera o overlay voltar a `pointer-events: none` depois do "Sair" e de cada login.
+- Os dois logins do caminho deixam de engolir o `waitForURL`: se não chegarem em `/inicio`, o teste falha ali, com a mensagem certa.
+- As duas esperas fixas de 1s viraram `entrarComErro("incorretos")`. A mensagem do login entra decodificando: o React escreve o texto final, e no quadro seguinte o GSAP o embaralha por cerca de 0,7s. Esperar só pelo texto passava nesse primeiro quadro, e a leitura caía no meio da decodificação (2 das 5 primeiras rodadas falharam assim). A espera agora exige ver o texto embaralhado e depois o final.
+
+### Validação
+
+- `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
+- **`./e2e/run.sh`: 211/211 em 5 rodadas seguidas** (antes: 210/210; 1 novo, o do console). A primeira bateria de 5 deu 209, 209, 210, 210 e 210 de 211 e revelou os dois problemas descritos acima. Depois das correções, a segunda deu 5 de 5.
+- **Visual (A3 e A6):** capturas antes e depois de Início, Serviços, Perfil e Configurações, a 375 e 1440px, nos dois temas, idênticas byte a byte (16 de 16). O diálogo de exclusão habilitado também ficou idêntico (4 de 4). Só o botão desabilitado mudou, como esperado: neutro e legível nos dois temas, com o texto a cerca de 7:1.
+
+### Achados fora de escopo
+
+- O `ServicoCard` tem `w-full` fixo a partir de `sm`.
+- O `e2e/fluxos.mjs` ainda tem outras esperas que engolem o tempo esgotado (`.catch(() => {})`), fora do caminho do passo 16.
+- Comentários de código citam `SKILLHUB_PAGINAS_DESIGN.md` e `SKILLHUB_RESPONSIVO_DESKTOP.md`, que não existem neste repositório (`bottom-nav.tsx`, `navegacao.ts`, `profile-dialog.tsx`, `page-container.tsx`, `use-drag-scroll.ts`).
+
+---
+
+## Fase 17D — Avaliações entre as partes
+
+**Data:** 2026-10-16
+**Status:** Concluída (PR #15)
 **Branch:** `feat/avaliacoes`
 
 ### Contexto
@@ -82,7 +135,7 @@ Ajustes pedidos na conferência visual:
 ## Fase 17C — Créditos (reserva, pagamento, estorno e extrato)
 
 **Data:** 2026-10-16
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #14)
 **Branch:** `feat/creditos`
 
 ### Contexto
@@ -152,7 +205,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 ## Fase 17B — Candidaturas e contratação
 
 **Data:** 2026-10-16
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #13)
 **Branch:** `feat/servicos-candidaturas`
 
 ### Contexto
@@ -226,7 +279,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 ## Fase 17A — Domínio de Serviços (modelo, API, telas ligadas e seed)
 
 **Data:** 2026-10-15
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #12)
 **Branch:** `feat/servicos-dominio`
 
 ### Contexto
@@ -311,7 +364,7 @@ O `lib/mock/servicos.ts` ficou sem uso. A remoção fica para quando os outros m
 ## Fase 16.2 — Início em layout desktop
 
 **Data:** 2026-10-15
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #11)
 **Branch:** `feat/inicio-desktop`
 
 ### Contexto
@@ -362,7 +415,7 @@ Não mudaram: `ServicoCard` e `ProdutoCard`. O frame usa os cards do próprio In
 ## Fase 16.5 — Tema claro (acabamento visual)
 
 **Data:** 2026-10-15
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #10)
 **Branch:** `feat/tema-claro`
 
 ### Contexto
@@ -429,7 +482,7 @@ Para mudar isso há duas saídas, e as duas pedem decisão:
 ## Ajuste pós-16.4 — Switch de tema na sidebar
 
 **Data:** 2026-10-15
-**Status:** Implementado, aguardando conferência visual e PR
+**Status:** Concluído (PR #9)
 **Branch:** `feat/switch-tema`
 
 Pedido do João Gabriel depois do merge da 16.4: o atalho de tema da sidebar deixa de ser um botão com texto ("Tema claro" / "Tema escuro") e vira um switch compacto e animado, com Sol e Lua.
@@ -457,7 +510,7 @@ Pedido do João Gabriel depois do merge da 16.4: o atalho de tema da sidebar dei
 ## Fase 16.4 — Infraestrutura do tema claro/escuro
 
 **Data:** 2026-10-15
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #8)
 **Branch:** `feat/tema-infra`
 
 ### Contexto
@@ -524,7 +577,7 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 ## Fase 16.3 — Paleta de marca e contraste (tema escuro)
 
 **Data:** 2026-10-15
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #7)
 **Branch:** `feat/paleta-cores`
 
 ### Contexto
@@ -568,10 +621,43 @@ Decisões tomadas na aprovação do plano (todas as recomendações):
 
 ---
 
+## Transições de página na área logada (PR #6)
+
+**Data:** 2026-10-15
+**Status:** Concluída (PR #6)
+**Branch:** `feat/transicao-area-logada`
+
+### Contexto
+
+Registro feito na faxina antes da Fase 18, a partir do commit `b93f712` e da descrição do PR #6; na época o trabalho não entrou neste changelog. As páginas do menu (Início, Serviços, Produtos, Comunidade, Perfil e Configurações) passam a trocar com uma transição suave, só no conteúdo. A colmeia de hexágonos do PR #4 continua para entrar e sair da área logada (login, cadastro, Sair). Quem escolhe entre as duas é o `PageTransitionProvider`, por `rotaDoMenu` em `navegacao.ts`.
+
+### Arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/src/components/motion/page-transition.tsx` | Transição suave: só o `<main>` sobe e desfoca; header, sidebar e menu inferior ficam parados. A página nova entra em cascata. Um clique durante a entrada termina a entrada na hora e segue para a nova navegação. `navigate` ganha a opção `onCovered`. Com `prefers-reduced-motion`, troca sem animação. |
+| `frontend/src/app/globals.css` | `[data-page-swap]`: a página nova monta escondida até a entrada assumir, sem piscar. |
+| `frontend/src/components/app/sidebar.tsx`, `bottom-nav.tsx` | A caixa do item ativo da sidebar desliza até o destino já no clique; o ícone novo dá um pulo nos dois menus. |
+| `frontend/src/components/app/page-title.tsx`, `app/(app)/inicio/page.tsx`, `app/(app)/configuracoes/page.tsx` | Título com `data-scramble`, que decodifica com os caracteres da Home. |
+| `frontend/src/components/app/app-header.tsx`, `credits-chip.tsx` | O traço ciano dos campos do login vira barra de progresso no topo da coluna: avança na saída, completa e se recolhe para a direita na chegada. |
+| `frontend/src/components/app/navegacao.ts` | `rotaDoMenu`. |
+| `frontend/src/hooks/use-logout.ts` | O Sair só limpa a sessão com a tela coberta pela colmeia (antes disso, o guard da área logada redirecionaria sem animação). |
+
+### Validação
+
+Como registrado na descrição do PR:
+- `./e2e/run.sh`: 88/88.
+- `tsc --noEmit` e `eslint` limpos.
+- Quadros capturados no meio da transição a 1280 e 440px.
+
+A entrada anima só `opacity` (não `visibility`), para as seções não saírem da árvore de acessibilidade.
+
+---
+
 ## Fase 16.1 — Casca do desktop com sidebar
 
 **Data:** 2026-10-13
-**Status:** Implementada, conferida, PR aberto
+**Status:** Concluída (PR #5)
 **Branch:** `feat/sidebar-desktop`
 
 ### Contexto
@@ -623,6 +709,41 @@ A fileira de "Colaboradores Relevantes" mostrava 8 avatares a partir de `lg` (ce
 
 - Sem o header no desktop, as páginas mantêm a margem de topo pensada para ficar abaixo dele (cerca de 60px vazios acima do título). Fica para a 16.2.
 - Os títulos dos eventos do Início ainda têm emojis; a 16.2 já prevê removê-los.
+
+---
+
+## Animações das telas de entrada e transição de páginas (PR #4)
+
+**Data:** 2026-10-13
+**Status:** Concluída (PR #4)
+**Branch:** `feat/animacoes-auth`
+
+### Contexto
+
+Registro feito na faxina antes da Fase 18, a partir dos commits `657b7e3`, `65c550e`, `d2d9494` e `30e4256` e da descrição do PR #4; na época o trabalho não entrou neste changelog. Era animação que estava sem commit na `main` local e saiu num PR próprio antes da Fase 16.1 (como registrado no `PLANO_16_1.md`), porque o `app/(app)/layout.tsx` também é alterado pela sidebar.
+
+### Arquivos
+
+| Arquivo | Alteração |
+|---|---|
+| `frontend/package.json`, `package-lock.json` | Dependências `gsap` e `@gsap/react`. |
+| `frontend/src/lib/gsap.ts` | **Novo.** Registro central dos plugins. |
+| `frontend/src/components/motion/page-transition.tsx`, `hex.tsx` | **Novos.** Transição de páginas: uma colmeia de hexágonos cobre a tela a partir do clique e a rota troca por baixo. Na primeira carga, um splash. |
+| `frontend/src/components/motion/magnetic.tsx` | **Novo.** Botões sociais "magnéticos". |
+| `frontend/src/app/(app)/layout.tsx`, `app/layout.tsx`, `app/globals.css` | Wrapper `data-page-exit`, que afunda junto com a saída, e o provider da transição. |
+| `frontend/src/app/(auth)/page.tsx`, `login/login-form.tsx`, `cadastro/cadastro-flow.tsx`, `layout.tsx` | Animações de entrada das telas `/`, `/login` e `/cadastro`; tremida e decodificação da mensagem de erro. |
+| `frontend/src/components/auth/auth-background.tsx` | **Novo.** Fundo animado das telas de entrada. |
+| `frontend/src/components/auth/auth-ui.tsx`, `profile-card.tsx`, `social-buttons.tsx` | Foco, blur e erro animados nos campos; cards de perfil e botões sociais. O botão do Google não aparecia depois da animação: o `transition-opacity` do CSS brigava com o `autoAlpha` do GSAP, então o hover passou a `transition-colors`. |
+| `e2e/fluxos.mjs` | O teste do callback com erro espera a mensagem terminar de decodificar. |
+
+### Validação
+
+Como registrado na descrição do PR:
+- `./e2e/run.sh`: 73/73.
+- `tsc --noEmit` e `eslint` sem erros.
+- `next build` ok.
+
+Conferência visual não registrada na época.
 
 ---
 
