@@ -51,7 +51,9 @@ function useLineField<T extends HTMLElement>(
         { scaleX: 0, transformOrigin: "0% 50%" },
         { scaleX: 1, duration: 0.45, ease: "power3.out", overwrite: true }
       );
-      gsap.fromTo("[data-field-icon]", { y: 0 }, { y: -4, duration: 0.14, ease: "power2.out", yoyo: true, repeat: 1 });
+      // o ícone é opcional: sem ele, o GSAP avisaria "target not found" a cada foco
+      if (e.currentTarget.closest("[data-field]")?.querySelector("[data-field-icon]"))
+        gsap.fromTo("[data-field-icon]", { y: 0 }, { y: -4, duration: 0.14, ease: "power2.out", yoyo: true, repeat: 1 });
     }),
     onBlur: contextSafe((e: FocusEvent<T>) => {
       onBlur?.(e);

@@ -22,8 +22,10 @@ export function BottomNav() {
     () => {
       const de = anterior.current;
       anterior.current = pathname;
-      if (de === null || de === pathname || prefersReducedMotion()) return;
-      gsap.fromTo("[aria-current=page] svg", { scale: 0.6, y: 4 }, { scale: 1, y: 0, duration: 0.5, ease: "back.out(3)" });
+      // indo para Configurações (fora do menu) nenhum item fica ativo, e o GSAP avisaria "target not found"
+      const icone = ref.current?.querySelector("[aria-current=page] svg");
+      if (de === null || de === pathname || !icone || prefersReducedMotion()) return;
+      gsap.fromTo(icone, { scale: 0.6, y: 4 }, { scale: 1, y: 0, duration: 0.5, ease: "back.out(3)" });
     },
     { scope: ref, dependencies: [pathname] }
   );
