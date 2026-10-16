@@ -1,19 +1,49 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
 import { Avatar } from "@/components/app/avatar";
 import { ScrollRow } from "@/components/app/scroll-row";
 import { ServicoCardEsqueleto } from "@/components/app/servico-card-esqueleto";
+import { ServicoModais, type ModalServico } from "@/components/app/servico-detalhe-dialog";
 import { TransitionLink } from "@/components/motion/page-transition";
 import { ContentCard } from "@/components/ui/content-card";
 import { ctaButtonClass } from "@/components/ui/cta-button";
 import { chaveServicos, getServicos, type FiltrosServicos } from "@/lib/servicos";
 import { cn } from "@/lib/utils";
+import type { Servico } from "@/types/servico";
 import { GRADE_XL } from "./grade";
 
 const FILTROS: FiltrosServicos = { limit: 8 };
+
+// Card do Início (o do mockup, maior que o ServicoCard): "Saiba Mais" abre o detalhe do pedido (Fase 17B)
+function CardServicoInicio({ servico, className }: { servico: Servico; className?: string }) {
+  const [modal, setModal] = useState<ModalServico>(null);
+  return (
+    <>
+      <ContentCard
+        className={cn(
+          "flex h-[159px] w-[302px] flex-col px-[11px] pt-[11px] pb-[12px] font-secondary sm:h-[184px] sm:w-[340px] sm:p-4 lg:w-[370px] xl:w-auto",
+          className
+        )}
+      >
+        <div className="flex items-center gap-[10px]">
+          <Avatar nome={servico.autor.fullName} src={servico.autor.urlPhoto} size={39} className="sm:size-11!" />
+          <h3 className="truncate text-[15px] text-foreground sm:text-[17px]">{servico.autor.fullName}</h3>
+        </div>
+        <p className="mt-[16px] line-clamp-2 text-justify text-[12px] leading-[1.25] text-foreground sm:text-left sm:text-[14px]">
+          {servico.descricao}
+        </p>
+        <button type="button" onClick={() => setModal("detalhe")} className={cn(ctaButtonClass, "mt-auto flex h-[27px] items-center justify-center sm:h-8")}>
+          Saiba Mais
+        </button>
+      </ContentCard>
+      <ServicoModais servico={servico} modal={modal} onModal={setModal} />
+    </>
+  );
+}
 
 // Seção "Serviços" do Início com os pedidos reais (Fase 17A): o mesmo markup da Fase 16.2
 // (carrossel abaixo de xl, 2 lado a lado a partir de xl). Esqueleto ao carregar; sem pedidos
@@ -35,26 +65,7 @@ export function ServicosRecentes() {
           ? [0, 1, 2].map((i) => (
               <ServicoCardEsqueleto key={i} className={cn("h-[159px] w-[302px] sm:h-[184px] sm:w-[340px] lg:w-[370px] xl:w-auto", i >= 2 && "xl:hidden")} />
             ))
-          : servicos.map((servico, i) => (
-              <ContentCard
-                key={servico.id}
-                className={cn(
-                  "flex h-[159px] w-[302px] flex-col px-[11px] pt-[11px] pb-[12px] font-secondary sm:h-[184px] sm:w-[340px] sm:p-4 lg:w-[370px] xl:w-auto",
-                  i >= 2 && "xl:hidden"
-                )}
-              >
-                <div className="flex items-center gap-[10px]">
-                  <Avatar nome={servico.autor.fullName} src={servico.autor.urlPhoto} size={39} className="sm:size-11!" />
-                  <h3 className="truncate text-[15px] text-foreground sm:text-[17px]">{servico.autor.fullName}</h3>
-                </div>
-                <p className="mt-[16px] line-clamp-2 text-justify text-[12px] leading-[1.25] text-foreground sm:text-left sm:text-[14px]">
-                  {servico.descricao}
-                </p>
-                <TransitionLink href="/servicos" className={cn(ctaButtonClass, "mt-auto flex h-[27px] items-center justify-center sm:h-8")}>
-                  Saiba Mais
-                </TransitionLink>
-              </ContentCard>
-            ))}
+          : servicos.map((servico, i) => <CardServicoInicio key={servico.id} servico={servico} className={cn(i >= 2 && "xl:hidden")} />)}
       </ScrollRow>
     </section>
   );
