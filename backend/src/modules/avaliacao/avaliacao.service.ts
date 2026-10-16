@@ -6,13 +6,14 @@ import type { AvaliarInput, ListarAvaliacoesInput } from "./avaliacao.schema.js"
 
 const pedidoNaoEncontrado = () => new AppError("Pedido não encontrado", 404);
 
-// Resposta da API: pessoas só com id, nome e foto; o pedido só com id e título
+// Resposta da API: pessoas só com id, nome e foto; o pedido só com id e título.
+// Conta de quem avaliou excluída ou pedido apagado: null, sem nenhum dado de quem saiu ("Usuário removido" na tela)
 const toAvaliacaoResposta = (a: AvaliacaoCompleta) => ({
   id: a.id,
   nota: a.nota,
   comentario: a.comentario,
   createdAt: a.createdAt.toISOString(),
-  avaliador: toAutorResumo(a.avaliador),
+  avaliador: a.avaliador ? toAutorResumo(a.avaliador) : null,
   avaliado: toAutorResumo(a.avaliado),
   servico: a.servico,
 });

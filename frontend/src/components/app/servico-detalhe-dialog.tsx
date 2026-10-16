@@ -82,7 +82,7 @@ function SecaoAvaliacao({ servicoId, usuarioId, outro }: { servicoId: string; us
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const minha = avaliacoes?.find((a) => a.avaliador.id === usuarioId);
+  const minha = avaliacoes?.find((a) => a.avaliador?.id === usuarioId);
   const recebida = avaliacoes?.find((a) => a.avaliado.id === usuarioId);
 
   async function enviar() {
@@ -139,7 +139,7 @@ function SecaoAvaliacao({ servicoId, usuarioId, outro }: { servicoId: string; us
               </div>
             </div>
           )}
-          {recebida && <AvaliacaoFeita titulo={`Avaliação de ${recebida.avaliador.fullName}`} avaliacao={recebida} />}
+          {recebida && <AvaliacaoFeita titulo={`Avaliação de ${recebida.avaliador?.fullName ?? "Usuário removido"}`} avaliacao={recebida} />}
         </div>
       )}
     </Secao>

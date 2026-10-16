@@ -6,9 +6,9 @@ export type Avaliacao = {
   nota: number; // 1 a 5
   comentario: string | null;
   createdAt: string; // ISO
-  avaliador: AutorResumo;
+  avaliador: AutorResumo | null; // null: quem avaliou excluiu a conta ("Usuário removido")
   avaliado: AutorResumo;
-  servico: { id: string; titulo: string };
+  servico: { id: string; titulo: string } | null; // null: o pedido foi apagado com a conta do autor
 };
 
 // GET /usuarios/:id/resumo: o resumo público do Perfil
