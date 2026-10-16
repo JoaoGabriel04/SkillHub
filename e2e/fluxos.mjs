@@ -464,7 +464,10 @@ ok("serviços: excluir a conta apaga os pedidos do autor", saiu.status === 204 &
 
 // tela: o Cliente logado publica pelo diálogo; o pedido aparece em "Seus pedidos" e para outro usuário
 await page.goto(B + "/servicos"); await page.getByRole("heading", { name: "Serviços", level: 1 }).waitFor();
-await page.getByRole("button", { name: "Publicar" }).click();
+const convite = page.getByText("Você ainda não publicou nenhum pedido.", { exact: false });
+await convite.waitFor({ timeout: 8000 }).catch(() => {});
+ok("serviços (tela): sem pedidos, Seus pedidos aparece vazio com o convite", await convite.isVisible());
+await page.getByRole("button", { name: "Publicar pedido", exact: true }).click();
 const dialogo = page.getByRole("dialog", { name: "Publicar pedido" });
 await dialogo.getByRole("button", { name: "Publicar" }).click();
 ok("serviços (tela): formulário vazio mostra os erros", await dialogo.getByText("O título precisa ter ao menos 3 caracteres").isVisible());
