@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { toast } from "sonner";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleNotch } from "@fortawesome/free-solid-svg-icons";
 import { Avatar } from "@/components/app/avatar";
+import { Estrelas, SeletorEstrelas } from "@/components/app/estrelas";
 import { ProfileDialog } from "@/components/app/perfil/profile-dialog";
 import { PublicarServicoDialog } from "@/components/app/publicar-servico-dialog";
 import { CtaButton } from "@/components/ui/cta-button";
 import { getApiErrorMessage } from "@/lib/api";
+import { avaliar, chaveAvaliacoesDoServico, getAvaliacoesDoServico } from "@/lib/avaliacoes";
 import {
   aceitarCandidatura,
   candidatar,
@@ -25,7 +27,8 @@ import { cn } from "@/lib/utils";
 import { fieldErrors } from "@/lib/validation/auth";
 import { candidaturaSchema } from "@/lib/validation/candidatura";
 import { useAuthStore } from "@/stores/auth-store";
-import type { Servico } from "@/types/servico";
+import type { Avaliacao } from "@/types/avaliacao";
+import type { AutorResumo, Servico } from "@/types/servico";
 
 type Props = { servico: Servico; open: boolean; onOpenChange: (open: boolean) => void; onEditar?: () => void };
 
@@ -53,6 +56,92 @@ function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
       <h3 className="text-[14px] font-semibold text-foreground">{titulo}</h3>
       <div className="mt-3">{children}</div>
     </section>
+  );
+}
+
+function AvaliacaoFeita({ titulo, avaliacao }: { titulo: string; avaliacao: Avaliacao }) {
+  return (
+    <div className="font-secondary">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[12px] text-muted-foreground">{titulo}</span>
+        <Estrelas nota={avaliacao.nota} />
+      </div>
+      {avaliacao.comentario && (
+        <p className="mt-1.5 text-[13px] leading-relaxed whitespace-pre-line text-foreground-secondary">{avaliacao.comentario}</p>
+      )}
+    </div>
+  );
+}
+
+// Fase 17D: num pedido concluído, cada parte avalia a outra uma vez e vê a avaliação que recebeu.
+// outro = null: o colaborador excluiu a conta (não há quem avaliar).
+function SecaoAvaliacao({ servicoId, usuarioId, outro }: { servicoId: string; usuarioId: string; outro: AutorResumo | null }) {
+  const { data: avaliacoes } = useSWR(chaveAvaliacoesDoServico(servicoId), () => getAvaliacoesDoServico(servicoId));
+  const [nota, setNota] = useState(0);
+  const [comentario, setComentario] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const minha = avaliacoes?.find((a) => a.avaliador.id === usuarioId);
+  const recebida = avaliacoes?.find((a) => a.avaliado.id === usuarioId);
+
+  async function enviar() {
+    setErro(null);
+    setEnviando(true);
+    try {
+      await avaliar(servicoId, { nota, comentario: comentario.trim() || null });
+      await mutate(chaveAvaliacoesDoServico(servicoId));
+      toast.success("Avaliação enviada");
+    } catch (err) {
+      setErro(getApiErrorMessage(err, "Não foi possível enviar a avaliação."));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Secao titulo="Avaliação">
+      {!avaliacoes ? (
+        <p className="text-[13px] text-muted-foreground">Carregando…</p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {minha ? (
+            <AvaliacaoFeita titulo="Sua avaliação" avaliacao={minha} />
+          ) : !outro ? (
+            <p className="font-secondary text-[13px] text-muted-foreground">O colaborador excluiu a conta.</p>
+          ) : (
+            // div, não <form>: o ProfileDialog já envolve o conteúdo num <form>
+            <div className="flex flex-col gap-3 font-secondary">
+              <p className="text-[13px] text-foreground-secondary">Como foi trabalhar com {outro.fullName}?</p>
+              <SeletorEstrelas value={nota} onChange={setNota} rotulo={`Nota para ${outro.fullName}`} />
+              <label className="block">
+                <span className="text-[12px] text-muted-foreground">Comentário (opcional)</span>
+                <textarea
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Conte como foi o serviço"
+                  value={comentario}
+                  onChange={(e) => setComentario(e.target.value)}
+                  className={`${campoClass} resize-none`}
+                />
+              </label>
+              {erro && (
+                <p role="alert" className="text-[12px] text-danger">
+                  {erro}
+                </p>
+              )}
+              <div className="flex justify-end">
+                <CtaButton onClick={enviar} disabled={!nota || enviando} className="flex h-9 items-center gap-1.5 px-4">
+                  {enviando && <FontAwesomeIcon icon={faCircleNotch} spin />}
+                  Enviar avaliação
+                </CtaButton>
+              </div>
+            </div>
+          )}
+          {recebida && <AvaliacaoFeita titulo={`Avaliação de ${recebida.avaliador.fullName}`} avaliacao={recebida} />}
+        </div>
+      )}
+    </Secao>
   );
 }
 
@@ -310,6 +399,11 @@ export function ServicoDetalheDialog({ servico: inicial, open, onOpenChange, onE
             </CtaButton>
           )}
         </Secao>
+      )}
+
+      {/* as duas partes de um pedido concluído (Fase 17D) */}
+      {usuario && servico.status === "Concluído" && (ehAutor || servico.colaborador?.id === usuario.id) && (
+        <SecaoAvaliacao servicoId={servico.id} usuarioId={usuario.id} outro={ehAutor ? servico.colaborador : servico.autor} />
       )}
     </ProfileDialog>
   );
