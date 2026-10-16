@@ -6,9 +6,12 @@
 // Usuários: seed.<nome>@example.com, todos com a senha de desenvolvimento "seed1234", sem CPF.
 // Os 8 autores dos pedidos são Clientes; seed.ana e seed.pedro são Colaboradores (Fase 17B), para dar
 // para testar candidaturas localmente (sem candidaturas prontas).
+// Créditos (Fase 17C): cada Cliente recebe um bônus de 500 uma vez, pelo mesmo caminho do script
+// creditos:conceder (BONUS no extrato), para conseguir aceitar candidaturas.
 // O e2e não depende deste seed (cria os próprios dados).
 import bcrypt from "bcryptjs";
 import { PrismaClient, type CategoriaServico } from "@prisma/client";
+import creditoService from "../src/modules/credito/credito.service.js";
 
 if (process.env.NODE_ENV === "production") {
   console.error("Seed de desenvolvimento: não roda com NODE_ENV=production.");
@@ -17,6 +20,7 @@ if (process.env.NODE_ENV === "production") {
 
 const prisma = new PrismaClient();
 const SENHA_DEV = "seed1234";
+const BONUS_SEED = 500;
 const foto = (id: string) => `https://images.unsplash.com/photo-${id}?w=120&q=70&fit=crop`;
 const dias = (n: number) => new Date(Date.now() + n * 86_400_000);
 
@@ -85,8 +89,12 @@ async function main() {
       },
     });
   }
+  for (const chave of Object.keys(PESSOAS)) {
+    const email = `seed.${chave}@example.com`;
+    if (!(await creditoService.jaRecebeuBonus(email))) await creditoService.conceder(email, BONUS_SEED);
+  }
   console.log(
-    `Seed: ${Object.keys(PESSOAS).length} clientes, ${Object.keys(COLABORADORES).length} colaboradores e ${PEDIDOS.length} pedidos de serviço (senha dos usuários: ${SENHA_DEV}).`
+    `Seed: ${Object.keys(PESSOAS).length} clientes, ${Object.keys(COLABORADORES).length} colaboradores e ${PEDIDOS.length} pedidos de serviço; bônus de ${BONUS_SEED} créditos para os clientes (senha dos usuários: ${SENHA_DEV}).`
   );
 }
 

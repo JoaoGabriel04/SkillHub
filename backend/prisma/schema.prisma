@@ -45,6 +45,7 @@ model User {
   servicosPublicados  Servico[] @relation("ServicosPublicados")
   servicosExecutados  Servico[] @relation("ServicosExecutados")
   candidaturasEnviadas Candidatura[] @relation("CandidaturasEnviadas")
+  transacoes           TransacaoCredito[] @relation("Transacoes")
 }
 
 // Link de "esqueci a senha": guarda só o hash SHA-256 do token enviado por e-mail
@@ -119,4 +120,27 @@ model Candidatura {
 
   @@unique([servicoId, colaboradorId])
   @@index([colaboradorId])
+}
+
+// Créditos (Fase 17C): toda alteração de User.credits gera uma linha aqui (só pelo credito.service)
+enum TipoTransacao {
+  BONUS
+  RESERVA
+  ESTORNO
+  RECEBIMENTO
+  TAXA
+}
+
+model TransacaoCredito {
+  id         String        @id @default(uuid())
+  userId     String
+  user       User          @relation("Transacoes", fields: [userId], references: [id], onDelete: Cascade)
+  tipo       TipoTransacao
+  valor      Int           // positivo entra, negativo sai
+  saldoApos  Int
+  // só referência, sem relação: o extrato é histórico e não perde o id se o pedido sumir
+  servicoId  String?
+  createdAt  DateTime      @default(now())
+
+  @@index([userId, createdAt])
 }

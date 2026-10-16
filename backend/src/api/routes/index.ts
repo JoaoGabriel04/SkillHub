@@ -3,6 +3,7 @@ import authRouter from "./auth.route.js";
 import userRouter from "./user.route.js";
 import servicoRouter from "./servico.route.js";
 import candidaturaRouter from "./candidatura.route.js";
+import creditoRouter from "./credito.route.js";
 
 const apiRouter = Router();
 
@@ -14,5 +15,6 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/user", userRouter);
 apiRouter.use("/servicos", servicoRouter);
 apiRouter.use("/candidaturas", candidaturaRouter);
+apiRouter.use("/creditos", creditoRouter);
 
 export default apiRouter;

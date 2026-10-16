@@ -16,6 +16,7 @@ export type Servico = {
   autor: AutorResumo;
   distanciaKm: number | null; // null até existir localização (o card esconde)
   remuneracao: number | null; // em créditos; null = "a combinar"
+  valorCombinado: number | null; // depois de aceitar, o proposto pela candidatura aceita; antes, igual à remuneração
   prazo: string | null; // ISO; null = sem prazo
   status: StatusServico;
   colaborador: AutorResumo | null; // quem foi aceito (Fase 17B); null enquanto aberto

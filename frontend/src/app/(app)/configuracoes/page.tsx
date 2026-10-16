@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronRight, faKey, faUserXmark } from "@fortawesome/free-solid-svg-icons";
 import { DeleteAccountDialog } from "@/components/app/delete-account-dialog";
+import { ExtratoDialog } from "@/components/app/extrato-dialog";
 import { PageTitle } from "@/components/app/page-title";
 import { normalizar, SearchBar } from "@/components/app/search-bar";
 import { usePageTransition } from "@/components/motion/page-transition";
@@ -25,6 +26,7 @@ export default function ConfiguracoesPage() {
   const [busca, setBusca] = useState("");
   const [privacidadeOpen, setPrivacidadeOpen] = useState(false);
   const [excluirOpen, setExcluirOpen] = useState(false);
+  const [extrato, setExtrato] = useState(false); // Fase 17C: "Créditos e Pagamentos" abre o extrato
   const sair = useLogout();
   const rotuloAparencia = useId();
   const descricaoTema = useDescricaoTema();
@@ -34,7 +36,7 @@ export default function ConfiguracoesPage() {
     { label: "Aparência", descricao: "Tema claro, escuro ou do sistema", aparencia: true },
     { label: "Notificações", descricao: "Preferências de alertas e e-mails", acao: () => emBreve("As notificações") },
     { label: "Privacidade e Segurança", descricao: "Senha, sessões e dados da conta", acao: () => setPrivacidadeOpen(true) },
-    { label: "Créditos e Pagamentos", descricao: "Histórico e formas de pagamento", acao: () => emBreve("Créditos e Pagamentos") },
+    { label: "Créditos e Pagamentos", descricao: "Histórico e formas de pagamento", acao: () => setExtrato(true) },
     { label: "Ajuda e Suporte", descricao: "Central de ajuda e contato", acao: () => emBreve("A central de ajuda") },
     { label: "Sobre o SkillHub", descricao: "Versão e termos de uso", acao: () => emBreve("A página Sobre o SkillHub") },
     { label: "Sair", descricao: "Encerrar sessão nesse dispositivo", acao: sair },
@@ -117,6 +119,7 @@ export default function ConfiguracoesPage() {
       </Dialog>
 
       {excluirOpen && user && <DeleteAccountDialog user={user} onClose={() => setExcluirOpen(false)} />}
+      {extrato && <ExtratoDialog open onOpenChange={setExtrato} />}
     </main>
   );
 }
