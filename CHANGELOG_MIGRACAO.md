@@ -9,6 +9,74 @@
 
 ---
 
+## Fase 17C — Créditos (reserva, pagamento, estorno e extrato)
+
+**Data:** 2026-10-16
+**Status:** Implementada, aguardando conferência visual e PR
+**Branch:** `feat/creditos`
+
+### Contexto
+
+Terceira subfase da Fase 17 (plano em `PLANO_17C.md`). Os créditos passam a circular:
+- aceitar uma candidatura **reserva** o valor combinado do saldo do autor;
+- concluir **paga** o colaborador;
+- cancelar um pedido em andamento **estorna** ao autor.
+
+Toda mudança de saldo gera uma linha no extrato, com o saldo depois dela.
+
+Decisões tomadas na aprovação do plano (todas as recomendações):
+- **Créditos no piloto:** o script administrativo `creditos:conceder`. O módulo `auth` não foi tocado.
+- **Pedido "a combinar" com valor proposto:** reserva o proposto. Sem remuneração nem proposta, não há movimentação.
+- **Colaborador que excluiu a conta:** concluir dá 409, e cancelar estorna.
+- **Extrato em diálogo:** abre por "Créditos e Pagamentos" (Configurações), por "Ver extrato" no chip e pelo card de créditos da sidebar.
+
+### Backend
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261016022736_credito` | Enum `TipoTransacao` e model `TransacaoCredito`, exatamente os da Seção 17C. No `User`, só a relação `transacoes`. O `servicoId` é uma coluna simples, sem relação, para o extrato do colaborador não perder a referência se o pedido sumir. |
+| `src/modules/credito/*`, `src/configs/creditos.ts`, `src/api/routes/credito.route.ts` | **Novos.** Um único `movimentar`, sempre dentro de transação. O débito é condicional (`credits >= valor`); sem saldo, devolve 409 "Créditos insuficientes" e tudo volta. Ele relê o saldo e grava a linha do extrato. Também: `reservar`, `pagar` (taxa arredondada para baixo; sem linha `TAXA` com taxa 0), `estornar`, `conceder` e `GET /creditos/extrato` (paginado por cursor). |
+| `src/modules/candidatura/*` | A reserva entra na transação de aceitar. |
+| `src/modules/servico/*` | Pagamento na transação de concluir, que só acontece com colaborador. Estorno na transação de cancelar, que agora só grava se o status não mudou. |
+| `scripts/conceder-creditos.ts`, `scripts/check-creditos.mjs`, `package.json` | `npm run creditos:conceder -- --email … --valor …` registra um `BONUS`. `npm run check:creditos` reprova qualquer menção a `credits` fora de `src/modules/credito`. |
+| `prisma/seed.ts` | Bônus de 500 créditos, uma vez, para os 8 clientes do seed, pelo mesmo caminho do script. |
+
+**`PLATFORM_FEE_PERCENT`:** de 0 a 100, padrão 0, lida a cada operação; um valor inválido vira 0, com aviso no log. O `.env` não foi alterado.
+
+### Frontend
+
+| Arquivo | Alteração |
+|---|---|
+| `src/components/app/extrato-dialog.tsx` | **Novo.** Extrato com tipo, pedido, data, valor com sinal e cor e o saldo depois. Tem "Carregar mais" (`useSWRInfinite`) e os estados de carregando, vazio e erro. |
+| `src/lib/creditos.ts`, `src/types/credito.ts` | **Novos.** `getExtrato`, `atualizarUsuario` (relê o `/auth/me`, sem um segundo estado de saldo) e o `formatCredits`, que saiu do chip. |
+| `src/components/app/servico-detalhe-dialog.tsx` | Mostra "Aceitar reserva X créditos do seu saldo" e, em andamento, quanto está reservado. O saldo é relido depois de aceitar, concluir e cancelar. |
+| `src/components/app/credits-chip.tsx`, `sidebar.tsx`, `app/(app)/configuracoes/page.tsx` | "Ver extrato" no popover; o card de créditos da sidebar abre o extrato; "Créditos e Pagamentos" deixa de ser "em breve". |
+| `e2e/fluxos.mjs` | Seção 15g, com 17 fluxos. Na 15f, os autores recebem saldo antes de aceitar. |
+
+### Validação
+
+- `prisma migrate status` limpo; `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
+- **`./e2e/run.sh`: 181/181 (17 novos).** Cobrem:
+  - **Bônus:** entra no saldo pelo script.
+  - **Reserva:** usa o valor proposto, com `saldoApos` igual ao saldo.
+  - **Saldo insuficiente:** 409, e o pedido continua aberto e a candidatura pendente.
+  - **Pagamento:** sem linha de taxa.
+  - **Estorno.**
+  - **"A combinar":** com e sem proposta.
+  - **Colaborador que saiu:** concluir dá 409, e cancelar estorna.
+  - **Corrida:** um autor com saldo para um pedido só aceita dois ao mesmo tempo; o resultado é 200 e 409, e o saldo nunca fica negativo.
+  - **Extrato x saldo:** a soma do extrato e o último `saldoApos` batem com `User.credits` para todos os usuários de teste.
+  - **Extrato:** 401, paginação, só os próprios e sem dados pessoais.
+  - **Tela:** o chip com o saldo novo; o extrato pelo chip e por Configurações.
+- **Taxa maior que 0 (teste local, fora do repositório):** com `PLATFORM_FEE_PERCENT=15` e um pedido de 99 créditos, o resultado foi `RESERVA -99`, `RECEBIMENTO +99` e `TAXA -14` (`floor(14,85)`). O colaborador ficou com 85; líquido mais taxa = reserva.
+- **Visual:** Serviços, Início e Configurações de quem não tem pedidos ficaram idênticos byte a byte aos da 17B (375 e 1440px, dois temas), inclusive a sidebar com o card virado botão. As telas novas (custo da reserva, saldo insuficiente, em andamento, extrato e extrato vazio) foram capturadas a 375 e 1440px, nos dois temas, sem erros no console.
+
+### Achados fora de escopo
+
+- Com taxa maior que 0, ela sai do colaborador e não vai para nenhuma conta: a plataforma não tem usuário. Quando a monetização for decidida, vale uma conta da plataforma para receber as linhas `TAXA`.
+
+---
+
 ## Fase 17B — Candidaturas e contratação
 
 **Data:** 2026-10-16
