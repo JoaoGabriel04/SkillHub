@@ -4,6 +4,8 @@
 // Rodar: docker compose exec backend npx prisma db seed
 // Idempotente (upsert por e-mail e por id fixo do pedido). Recusa rodar em produção.
 // Usuários: seed.<nome>@example.com, todos com a senha de desenvolvimento "seed1234", sem CPF.
+// Os 8 autores dos pedidos são Clientes; seed.ana e seed.pedro são Colaboradores (Fase 17B), para dar
+// para testar candidaturas localmente (sem candidaturas prontas).
 // O e2e não depende deste seed (cria os próprios dados).
 import bcrypt from "bcryptjs";
 import { PrismaClient, type CategoriaServico } from "@prisma/client";
@@ -27,6 +29,11 @@ const PESSOAS = {
   olivia: { nome: "Olívia Monteiro", foto: "1534528741775-53994a69daeb" },
   caetano: { nome: "Caetano Santos", foto: "1539571696357-5a69c17a67c6" },
   jose: { nome: "José Pereira", foto: "1506794778202-cad84cf45f1d" },
+} as const;
+
+const COLABORADORES = {
+  ana: { nome: "Ana Ribeiro", foto: "1544005313-94ddf0286df2", competencias: ["Professora", "Designer"] },
+  pedro: { nome: "Pedro Almeida", foto: "1519085360753-af0119f7cbe7", competencias: ["Técnico", "Desenvolvedor Web"] },
 } as const;
 type Pessoa = keyof typeof PESSOAS;
 
@@ -53,6 +60,14 @@ async function main() {
     });
     ids[chave] = user.id;
   }
+  for (const [chave, c] of Object.entries(COLABORADORES)) {
+    const email = `seed.${chave}@example.com`;
+    await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: { email, password: senha, fullName: c.nome, perfil: "Colaborador", competencias: [...c.competencias], urlPhoto: foto(c.foto), cidade: "São Paulo", estado: "SP", profileComplete: true },
+    });
+  }
   for (const p of PEDIDOS) {
     const id = `00000000-0000-4000-8000-${String(p.n).padStart(12, "0")}`;
     await prisma.servico.upsert({
@@ -70,7 +85,9 @@ async function main() {
       },
     });
   }
-  console.log(`Seed: ${Object.keys(PESSOAS).length} usuários e ${PEDIDOS.length} pedidos de serviço (senha dos usuários: ${SENHA_DEV}).`);
+  console.log(
+    `Seed: ${Object.keys(PESSOAS).length} clientes, ${Object.keys(COLABORADORES).length} colaboradores e ${PEDIDOS.length} pedidos de serviço (senha dos usuários: ${SENHA_DEV}).`
+  );
 }
 
 main()
