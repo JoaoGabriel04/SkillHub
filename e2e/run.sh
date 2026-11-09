@@ -29,6 +29,17 @@ cleanup() {
         c.uploader.destroy(`Skillhub/curriculos/${id}`, { resource_type: "raw", invalidate: true }),
       ])).catch((e) => console.error("[e2e] limpeza do Cloudinary falhou:", e.message));' $ids || true
   fi
+  # fotos de produto (Fase 18A): public_id próprio por foto, lido do banco antes de as contas caírem em cascata
+  local fotos
+  fotos=$(sql "select i.\"publicId\" from \"ProdutoImagem\" i join \"Produto\" p on p.id = i.\"produtoId\"
+    join \"User\" u on u.id = p.\"vendedorId\" where u.email like 'e2e.%@example.com' and i.\"publicId\" is not null" 2>/dev/null | tr -d '\r') || true
+  if [ -n "$fotos" ]; then
+    compose exec -T backend node -e '
+      const { v2: c } = require("cloudinary");
+      c.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
+      Promise.all(process.argv.slice(1).map((id) => c.uploader.destroy(id, { resource_type: "image", invalidate: true })))
+        .catch((e) => console.error("[e2e] limpeza das fotos de produto falhou:", e.message));' $fotos || true
+  fi
   sql "delete from \"User\" where email like 'e2e.%@example.com'" >/dev/null || true
   # e-mails de teste (recuperação de senha) na caixa do Mailpit
   curl -s -o /dev/null -X DELETE "http://localhost:8025/api/v1/search?query=to%3Aexample.com" || true

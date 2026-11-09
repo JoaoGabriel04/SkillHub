@@ -987,6 +987,338 @@ const colabCliente = sql(`select count(*) from "Servico" s join "User" u on u.id
 ok("avaliações (tela): Colaborações reais e Experiência sem o zero à esquerda", (await numeroPerfil("Colaborações")) === colabCliente && colabCliente !== "0" &&
   (await numeroPerfil("Experiência")) === "0", `${await numeroPerfil("Colaborações")} x ${colabCliente}`);
 
+// 15i. Produtos (Fase 18A): publicar com fotos, validação e perfis, listagem, detalhe, edição e remoção (com corridas),
+// contato por WhatsApp e privacidade do telefone, exclusão de conta do vendedor e a tela
+const respostasProd = []; // corpo de toda resposta de produto desta seção (menos /contato), para a varredura do telefone
+const registra = (r) => (respostasProd.push(JSON.stringify(r.corpo)), r);
+const chamarForm = async (metodo, rota, token, campos = {}, arquivos = []) => {
+  const body = new FormData();
+  for (const [k, v] of Object.entries(campos)) body.append(k, typeof v === "string" ? v : JSON.stringify(v));
+  for (const a of arquivos) body.append("fotos", new Blob([a.buffer], { type: a.mimeType }), a.name);
+  const r = await fetch(`${API}/api${rota}`, { method: metodo, headers: token ? { Authorization: `Bearer ${token}` } : {}, body })
+    .catch((e) => { throw new Error(`${metodo} ${rota}: ${e.cause?.message ?? e.message}`, { cause: e }); });
+  return { status: r.status, corpo: await r.json() };
+};
+// JPEG e WEBP de verdade (o Cloudinary decodifica a imagem), gerados pelo próprio Chromium
+const imagemCanvas = async (tipo) => Buffer.from((await page.evaluate((t) => {
+  const c = document.createElement("canvas"); c.width = 4; c.height = 4;
+  const g = c.getContext("2d"); g.fillStyle = "#3a7"; g.fillRect(0, 0, 4, 4);
+  return c.toDataURL(t).split(",")[1];
+}, tipo)), "base64");
+const JPEG = { name: "foto.jpg", mimeType: "image/jpeg", buffer: await imagemCanvas("image/jpeg") };
+const WEBP = { name: "foto.webp", mimeType: "image/webp", buffer: await imagemCanvas("image/webp") };
+const GRANDE = { name: "grande.png", mimeType: "image/png", buffer: Buffer.concat([PNG.buffer, Buffer.alloc(5 * 1024 * 1024 + 1 - PNG.buffer.length)]) };
+const FALSA = { name: "falsa.png", mimeType: "image/png", buffer: Buffer.from("isto nao e uma imagem") };
+const TEXTO = { name: "nota.txt", mimeType: "text/plain", buffer: Buffer.from("isto e texto") };
+const TEL_COLAB = "(11) 98888-7766", TEL_EMPRESA = "1133334444";
+const contaProd = async (nome, perfil, doc, phone = "11987654321") => {
+  const email = `e2e.produtos.${nome}@example.com`;
+  const base = { fullName: `Produtos ${nome} E2E`, phone, cep: "01310-100", rua: "Rua Teste", numero: "1", bairro: "Centro", cidade: "São Paulo", estado: "SP",
+    email, confirmEmail: email, password: "senha123", confirmPassword: "senha123" };
+  const { corpo } = await chamar("POST", `/auth/register/${perfil}`, null,
+    perfil === "empresa" ? { ...base, cnpj: doc } : { ...base, cpf: doc, dataNascimento: "1990-01-01", genero: "Outro" });
+  const { corpo: me } = await chamar("GET", "/auth/me", corpo.accessToken);
+  return { email, token: corpo.accessToken, id: me.user.id };
+};
+const vendedorP = await contaProd("colab", "colaborador", "900.000.018-01", TEL_COLAB);
+const empresaP = await contaProd("empresa", "empresa", "90.000.018/0001-01", TEL_EMPRESA);
+const clienteP = await contaProd("cliente", "cliente", "900.000.018-02");
+const outroP = await contaProd("outro", "colaborador", "900.000.018-03");
+// perfil incompleto: conta de login social que ainda não terminou o cadastro (como a do run.sh)
+const incompletoId = sql(`insert into "User" (id, email, "fullName", perfil, "profileComplete") values (gen_random_uuid(), 'e2e.produtos.incompleto@example.com', 'Produtos incompleto E2E', 'Colaborador', false) returning id`).split("\n")[0];
+const incompletoToken = execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "backend", "node", "-e",
+  "console.log(require('jsonwebtoken').sign({ sub: process.argv[1] }, process.env.JWT_ACCESS_TOKEN, { expiresIn: '15m' }))", incompletoId], { encoding: "utf8" }).trim();
+const camposProd = (extra = {}) => ({ nome: "Produto E2E de fumaça", descricao: "Descrição do produto de teste do e2e", categoria: "Arte e Decoração", preco: "30", estoque: "3", ...extra });
+const publicIdsDe = (produtoId) => sql(`select "publicId" from "ProdutoImagem" where "produtoId" = '${produtoId}' order by ordem`).split("\n").filter(Boolean);
+const extensoes = (produto) => produto.imagens.map((i) => i.url.split(".").pop());
+const cloudinaryConta = (prefixo) => Number(execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "backend", "node", "-e",
+  `const { v2: c } = require("cloudinary");
+   c.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
+   c.api.resources({ type: "upload", prefix: process.argv[1], max_results: 100 }).then((r) => console.log(r.resources.length), () => console.log(-1));`,
+  prefixo], { encoding: "utf8" }).trim());
+
+// publicar
+const prod1 = registra(await chamarForm("POST", "/produtos", vendedorP.token, camposProd(), [PNG]));
+const pProd1 = prod1.corpo.produto?.id;
+ok("produtos: Colaborador publica com 1 foto (capa no Cloudinary)", prod1.status === 201 && prod1.corpo.produto.imagens.length === 1 &&
+  prod1.corpo.produto.imagens[0].ordem === 0 && prod1.corpo.produto.capaUrl === prod1.corpo.produto.imagens[0].url && cloudinaryHas(publicIdsDe(pProd1)[0], "image"),
+  `${prod1.status} ${JSON.stringify(prod1.corpo).slice(0, 200)}`);
+const prodEmp = registra(await chamarForm("POST", "/produtos", empresaP.token,
+  camposProd({ nome: "Apostila E2E da empresa", descricao: "Material de apoio vendido pela empresa no e2e", categoria: "Educação e Apostilas", preco: "80", digital: true }),
+  [PNG, JPEG, WEBP, PNG]));
+const pEmp = prodEmp.corpo.produto?.id;
+ok("produtos: Empresa publica com 4 fotos, na ordem do envio", prodEmp.status === 201 && extensoes(prodEmp.corpo.produto).join() === "png,jpg,webp,png" &&
+  prodEmp.corpo.produto.imagens.map((i) => i.ordem).join() === "0,1,2,3" && prodEmp.corpo.produto.digital === true, `${prodEmp.status} ${extensoes(prodEmp.corpo.produto ?? { imagens: [] })}`);
+const contaProdutos = (id) => sql(`select count(*) from "Produto" where "vendedorId" = '${id}'`);
+const zeroFotos = await chamarForm("POST", "/produtos", vendedorP.token, camposProd());
+const cincoFotos = await chamarForm("POST", "/produtos", vendedorP.token, camposProd(), [PNG, PNG, PNG, PNG, PNG]);
+ok("produtos: 0 e 5 fotos dão 400 e não criam nada", zeroFotos.status === 400 && zeroFotos.corpo.error === "Envie de 1 a 4 fotos" &&
+  cincoFotos.status === 400 && cincoFotos.corpo.error === "Envie no máximo 4 fotos" && contaProdutos(vendedorP.id) === "1", `${zeroFotos.corpo.error} | ${cincoFotos.corpo.error}`);
+const falsa = await chamarForm("POST", "/produtos", vendedorP.token, camposProd(), [FALSA]);
+const texto = await chamarForm("POST", "/produtos", vendedorP.token, camposProd(), [TEXTO]);
+ok("produtos: arquivo que não é imagem dá 400 (conteúdo e tipo)", falsa.status === 400 && falsa.corpo.error.startsWith("Conteúdo do arquivo não corresponde") &&
+  texto.status === 400 && texto.corpo.error.startsWith("Tipo de arquivo inválido"), `${falsa.corpo.error} | ${texto.corpo.error}`);
+const grande = await chamarForm("POST", "/produtos", vendedorP.token, camposProd(), [GRANDE]);
+ok("produtos: foto acima de 5 MB dá 400", grande.status === 400 && grande.corpo.error === "Arquivo excede o limite de 5MB", grande.corpo.error);
+const prodInvalido = await chamarForm("POST", "/produtos", vendedorP.token, { nome: "ab", descricao: "curta", categoria: "Roxo", preco: "0", estoque: "-1" }, [PNG]);
+const decimal = await chamarForm("POST", "/produtos", vendedorP.token, camposProd({ preco: "1.5" }), [PNG]);
+const camposInvalidos = (prodInvalido.corpo.details ?? []).map((d) => d.field).sort().join();
+ok("produtos: validação (nome curto, descrição curta, categoria, preço 0 e decimal, estoque negativo)", prodInvalido.status === 400 &&
+  camposInvalidos === "categoria,descricao,estoque,nome,preco" && decimal.status === 400 && decimal.corpo.details?.[0]?.field === "preco", camposInvalidos);
+const doCliente = await chamarForm("POST", "/produtos", clienteP.token, camposProd(), [PNG]);
+const doIncompleto = await chamarForm("POST", "/produtos", incompletoToken, camposProd(), [PNG]);
+const semTokenP = await chamarForm("POST", "/produtos", null, camposProd(), [PNG]);
+ok("produtos: Cliente 403, perfil incompleto 403, sem token 401", doCliente.status === 403 && doCliente.corpo.error === "Só colaboradores e empresas vendem produtos" &&
+  doIncompleto.status === 403 && doIncompleto.corpo.error === "Complete seu perfil para publicar um produto" && semTokenP.status === 401,
+  `${doCliente.status} ${doIncompleto.status} ${semTokenP.status}`);
+ok("produtos: nenhum erro deixa foto no Cloudinary", cloudinaryConta(`Skillhub/produtos/${vendedorP.id}/`) === 1 &&
+  cloudinaryConta(`Skillhub/produtos/${clienteP.id}/`) === 0 && cloudinaryConta(`Skillhub/produtos/${incompletoId}/`) === 0);
+
+// listagem
+const listaP = async (token, query = "") => registra(await chamar("GET", `/produtos${query}`, token));
+const idsP = (r) => (r.corpo.produtos ?? []).map((p) => p.id);
+ok("produtos: o próprio produto fica de fora da lista; os outros o veem", !idsP(await listaP(vendedorP.token, "?busca=E2E&limit=50")).includes(pProd1) &&
+  idsP(await listaP(outroP.token, "?busca=E2E&limit=50")).includes(pProd1));
+const porCategoria = await listaP(outroP.token, `?categoria=${encodeURIComponent("Educação e Apostilas")}&limit=50`);
+ok("produtos: filtro por categoria (e categoria inválida dá 400)", idsP(porCategoria).includes(pEmp) && !idsP(porCategoria).includes(pProd1) &&
+  porCategoria.corpo.produtos.every((p) => p.categoria === "Educação e Apostilas") && (await listaP(outroP.token, "?categoria=Roxo")).status === 400);
+const busca = async (termo) => idsP(await listaP(outroP.token, `?busca=${encodeURIComponent(termo)}&limit=50`));
+const [porNome, porDescricao, porVendedor] = [await busca("produto e2e DE FUMAÇA"), await busca("apoio vendido"), await busca("produtos colab e2e")];
+ok("produtos: busca por nome, descrição e vendedor, sem diferenciar maiúsculas", porNome.includes(pProd1) && !porNome.includes(pEmp) &&
+  porDescricao.includes(pEmp) && !porDescricao.includes(pProd1) && porVendedor.includes(pProd1) && !porVendedor.includes(pEmp));
+const todosE2E = idsP(await listaP(outroP.token, "?busca=E2E&limit=50"));
+const paginados = []; let cursorP = null;
+do {
+  const r = await listaP(outroP.token, `?busca=E2E&limit=1${cursorP ? `&cursor=${cursorP}` : ""}`);
+  paginados.push(...idsP(r)); cursorP = r.corpo.nextCursor;
+} while (cursorP && paginados.length < 60);
+ok("produtos: paginação por cursor percorre tudo, na ordem, e termina em null (limit 51 dá 400)", paginados.join() === todosE2E.join() && todosE2E.length >= 2 &&
+  (await listaP(outroP.token, "?limit=51")).status === 400, `${paginados.length} x ${todosE2E.length}`);
+
+// detalhe
+const detalheP = async (id, token) => registra(await chamar("GET", `/produtos/${id}`, token));
+const det1 = await detalheP(pProd1, outroP.token);
+ok("produtos: detalhe 200 com fotos, descrição e o vendedor só com id, nome e foto", det1.status === 200 && det1.corpo.produto.imagens.length === 1 &&
+  det1.corpo.produto.descricao === "Descrição do produto de teste do e2e" && Object.keys(det1.corpo.produto.vendedor).sort().join() === "fullName,id,urlPhoto" &&
+  det1.corpo.produto.contatoDisponivel === true);
+// avaliações recebidas pelo vendedor (inseridas no banco: a 18A não cria avaliação de produto)
+sql(`insert into "Avaliacao" (id, "avaliadoId", nota) values (gen_random_uuid(), '${vendedorP.id}', 5), (gen_random_uuid(), '${vendedorP.id}', 4)`);
+const reputacaoSql = (id) => sql(`select coalesce(round(avg(nota)::numeric, 1)::text, 'null') || '|' || count(*) from "Avaliacao" where "avaliadoId" = '${id}'`);
+const repV = (await detalheP(pProd1, outroP.token)).corpo.produto.vendedorReputacao;
+const repE = (await detalheP(pEmp, outroP.token)).corpo.produto.vendedorReputacao;
+ok("produtos: vendedorReputacao confere com o SQL (com e sem avaliações)", `${repV.media}|${repV.total}` === reputacaoSql(vendedorP.id) && repV.media === 4.5 &&
+  `${repE.media}|${repE.total}` === reputacaoSql(empresaP.id) && repE.media === null && repE.total === 0, `${repV.media}|${repV.total} x ${reputacaoSql(vendedorP.id)}`);
+ok("produtos: id inexistente e id que não é UUID dão 404", (await detalheP("00000000-0000-4000-8000-00000000dead", outroP.token)).status === 404 &&
+  (await detalheP("nao-e-uuid", outroP.token)).status === 404 && (await chamar("GET", `/produtos/${pProd1}`)).status === 401);
+
+// edição e remoção
+const patchP = async (id, token, corpo) => registra(await chamar("PATCH", `/produtos/${id}`, token, corpo));
+ok("produtos: só o dono edita e remove (403 para os outros)", (await patchP(pProd1, outroP.token, { nome: "Tomado" })).status === 403 &&
+  (await chamar("DELETE", `/produtos/${pProd1}`, outroP.token)).status === 403 && sql(`select status from "Produto" where id = '${pProd1}'`) === "ATIVO");
+const comVendedorId = await patchP(pProd1, vendedorP.token, { preco: 45, vendedorId: outroP.id });
+ok("produtos: vendedorId no corpo é ignorado", comVendedorId.status === 200 && comVendedorId.corpo.produto.preco === 45 &&
+  sql(`select "vendedorId" from "Produto" where id = '${pProd1}'`) === vendedorP.id);
+const pausado = await patchP(pProd1, vendedorP.token, { status: "Pausado" });
+const meusP = async (token) => registra(await chamar("GET", "/produtos/meus", token)).corpo.produtos;
+ok("produtos: pausado some da lista e do detalhe dos outros; o dono vê, com o status", pausado.corpo.produto?.status === "Pausado" &&
+  !idsP(await listaP(outroP.token, "?busca=E2E&limit=50")).includes(pProd1) && (await detalheP(pProd1, outroP.token)).status === 404 &&
+  (await detalheP(pProd1, vendedorP.token)).status === 200 && (await meusP(vendedorP.token)).find((p) => p.id === pProd1)?.status === "Pausado");
+ok("produtos: ativar devolve à lista", (await patchP(pProd1, vendedorP.token, { status: "Ativo" })).corpo.produto?.status === "Ativo" &&
+  idsP(await listaP(outroP.token, "?busca=E2E&limit=50")).includes(pProd1));
+// fotos: acrescenta uma nova como capa, reordena (JSON) e troca a antiga por outra nova
+const [fotoA] = (await detalheP(pProd1, vendedorP.token)).corpo.produto.imagens;
+const comNova = registra(await chamarForm("PATCH", `/produtos/${pProd1}`, vendedorP.token, { imagens: ["nova:0", fotoA.id] }, [JPEG]));
+const [fotoB] = comNova.corpo.produto?.imagens ?? [];
+ok("produtos: PATCH acrescenta uma foto nova como capa", comNova.status === 200 && extensoes(comNova.corpo.produto).join() === "jpg,png" &&
+  comNova.corpo.produto.capaUrl === fotoB.url, `${comNova.status} ${JSON.stringify(comNova.corpo).slice(0, 160)}`);
+const reordenado = await patchP(pProd1, vendedorP.token, { imagens: [fotoA.id, fotoB.id] });
+ok("produtos: PATCH reordena (a capa volta a ser a antiga)", reordenado.corpo.produto?.imagens.map((i) => i.id).join() === `${fotoA.id},${fotoB.id}`);
+const publicIdA = publicIdsDe(pProd1)[0];
+const trocada = registra(await chamarForm("PATCH", `/produtos/${pProd1}`, vendedorP.token, { imagens: [fotoB.id, "nova:0"] }, [WEBP]));
+ok("produtos: PATCH remove uma foto (some do Cloudinary) e acrescenta outra", trocada.status === 200 && extensoes(trocada.corpo.produto).join() === "jpg,webp" &&
+  !cloudinaryHas(publicIdA, "image"));
+const antesFotos = publicIdsDe(pProd1).join();
+const semFotos = await patchP(pProd1, vendedorP.token, { imagens: [] });
+const cincoNoPatch = await chamarForm("PATCH", `/produtos/${pProd1}`, vendedorP.token, { imagens: [fotoB.id, "nova:0", "nova:1", "nova:2", "nova:3"] }, [PNG, PNG, PNG, PNG]);
+ok("produtos: PATCH que deixaria 0 ou 5 fotos dá 400 e nada muda", semFotos.status === 400 && cincoNoPatch.status === 400 && publicIdsDe(pProd1).join() === antesFotos,
+  `${semFotos.status} ${cincoNoPatch.status}`);
+// corrida: duas edições ao mesmo tempo, cada uma acrescentando 2 fotos a um produto com 2. A trava do produto faz uma
+// esperar a outra: a segunda parte do resultado da primeira (fica a lista dela), e nunca passa de 4
+const prodCorrida = registra(await chamarForm("POST", "/produtos", vendedorP.token, camposProd({ nome: "Produto E2E da corrida" }), [PNG, PNG])).corpo.produto;
+const listaCorrida = { imagens: [...prodCorrida.imagens.map((i) => i.id), "nova:0", "nova:1"] };
+const corridas = await Promise.all([0, 1].map(() => chamarForm("PATCH", `/produtos/${prodCorrida.id}`, vendedorP.token, listaCorrida, [PNG, PNG])));
+const ordensCorrida = sql(`select string_agg(ordem::text, ',' order by ordem) from "ProdutoImagem" where "produtoId" = '${prodCorrida.id}'`);
+ok("produtos: corrida de edições de fotos nunca passa de 4 (ordens 0 a 3)", corridas.some((r) => r.status === 200) &&
+  corridas.every((r) => r.status === 200 || r.status === 409) && ordensCorrida === "0,1,2,3", `${corridas.map((r) => r.status)} ${ordensCorrida}`);
+// corrida: editar (ativar) e remover ao mesmo tempo; o produto termina removido, nunca reativado
+const [editaJunto, removeJunto] = await Promise.all([patchP(prodCorrida.id, vendedorP.token, { status: "Ativo", nome: "Produto E2E reativado" }), chamar("DELETE", `/produtos/${prodCorrida.id}`, vendedorP.token)]);
+ok("produtos: corrida editar x remover termina REMOVIDO", removeJunto.status === 204 && [200, 404].includes(editaJunto.status) &&
+  sql(`select status from "Produto" where id = '${prodCorrida.id}'`) === "REMOVIDO", `${editaJunto.status} ${removeJunto.status}`);
+const pDel = registra(await chamarForm("POST", "/produtos", vendedorP.token, camposProd({ nome: "Produto E2E a remover" }), [PNG])).corpo.produto.id;
+const publicIdDel = publicIdsDe(pDel)[0];
+const removido = await chamar("DELETE", `/produtos/${pDel}`, vendedorP.token);
+ok("produtos: remover marca REMOVIDO, apaga a foto do Cloudinary e repetir dá 404", removido.status === 204 &&
+  sql(`select status from "Produto" where id = '${pDel}'`) === "REMOVIDO" && !cloudinaryHas(publicIdDel, "image") &&
+  (await chamar("DELETE", `/produtos/${pDel}`, vendedorP.token)).status === 404 && (await patchP(pDel, vendedorP.token, { nome: "Volta" })).status === 404);
+ok("produtos: removido não aparece em lista, meus nem detalhe (nem para o dono)", !idsP(await listaP(outroP.token, "?busca=E2E&limit=50")).includes(pDel) &&
+  !(await meusP(vendedorP.token)).some((p) => p.id === pDel) && (await detalheP(pDel, vendedorP.token)).status === 404 && (await detalheP(pDel, outroP.token)).status === 404);
+
+// contato
+const contatoP = (id, token) => chamar("GET", `/produtos/${id}/contato`, token);
+const textoContato = (nome) => encodeURIComponent(`Olá, vi seu produto ${nome} no SkillHub e tenho interesse.`);
+const c1 = await contatoP(pProd1, outroP.token);
+const cEmp = await contatoP(pEmp, outroP.token);
+ok("contato: link do wa.me com 55, os dígitos do telefone e a mensagem (telefone com máscara e sem)", c1.status === 200 &&
+  c1.corpo.url === `https://wa.me/5511988887766?text=${textoContato("Produto E2E de fumaça")}` && cEmp.corpo.url === `https://wa.me/551133334444?text=${textoContato("Apostila E2E da empresa")}`,
+  `${c1.corpo.url} | ${cEmp.corpo.url}`);
+ok("contato: sem token 401; o próprio produto 400", (await contatoP(pProd1)).status === 401 && (await contatoP(pProd1, vendedorP.token)).status === 400);
+await patchP(pProd1, vendedorP.token, { whatsappAtivo: false });
+const desligado = await contatoP(pProd1, outroP.token);
+ok("contato: whatsappAtivo desligado dá 404 com a mensagem (e o detalhe avisa)", desligado.status === 404 && desligado.corpo.error === "O vendedor não disponibilizou contato" &&
+  (await detalheP(pProd1, outroP.token)).corpo.produto.contatoDisponivel === false);
+await patchP(pProd1, vendedorP.token, { whatsappAtivo: true });
+sql(`update "User" set phone = null where id = '${empresaP.id}'`);
+const semTelefone = await contatoP(pEmp, outroP.token);
+ok("contato: vendedor sem telefone dá 404 com a mesma mensagem", semTelefone.status === 404 && semTelefone.corpo.error === "O vendedor não disponibilizou contato" &&
+  (await detalheP(pEmp, outroP.token)).corpo.produto.contatoDisponivel === false);
+sql(`update "User" set phone = '${TEL_EMPRESA}' where id = '${empresaP.id}'`);
+await patchP(pProd1, vendedorP.token, { status: "Pausado" });
+ok("contato: produto pausado ou removido dá 404", (await contatoP(pProd1, outroP.token)).status === 404 && (await contatoP(pDel, outroP.token)).status === 404);
+await patchP(pProd1, vendedorP.token, { status: "Ativo" });
+// privacidade: telefone e e-mail do vendedor em nenhuma resposta (lista, meus, detalhe, publicar, editar e resumo)
+registra(await chamar("GET", `/usuarios/${vendedorP.id}/resumo`, outroP.token));
+await meusP(empresaP.token);
+const vazamentos = ["98888-7766", "988887766", "1133334444", vendedorP.email, empresaP.email, "publicId"].filter((t) => respostasProd.some((r) => r.includes(t)));
+ok("produtos: o telefone (e o e-mail) não aparece em nenhuma outra resposta", vazamentos.length === 0 && respostasProd.length > 20, `${vazamentos} (${respostasProd.length} respostas)`);
+
+// exclusão de conta do vendedor: produtos e fotos somem do banco e do Cloudinary
+const saiP = await contaProd("sai", "colaborador", "900.000.018-04");
+const prodSai = (await chamarForm("POST", "/produtos", saiP.token, camposProd({ nome: "Produto de quem sai" }), [PNG])).corpo.produto.id;
+const publicIdSai = publicIdsDe(prodSai)[0];
+const saiuP = await chamar("DELETE", "/user", saiP.token, { password: "senha123" });
+ok("produtos: excluir a conta do vendedor apaga os produtos e as fotos", saiuP.status === 204 &&
+  sql(`select count(*) from "Produto" where "vendedorId" = '${saiP.id}'`) === "0" && sql(`select count(*) from "ProdutoImagem" where "produtoId" = '${prodSai}'`) === "0" &&
+  !cloudinaryHas(publicIdSai, "image"), `${saiuP.status}`);
+
+// telas
+const avisosProd = [];
+const contextoProd = async (email) => {
+  const c = await browser.newContext({ viewport: { width: 440, height: 956 } });
+  await c.request.post(`${API}/api/auth/login`, { data: { email, password: "senha123" } });
+  const p = await c.newPage();
+  p.on("pageerror", (e) => pageErrors.push(e.message));
+  // não contam: o 500 injetado de propósito (estado de erro) e o aviso do preload do logo do cabeçalho, que já
+  // existia antes da 18A e não é de produtos (achado fora de escopo no changelog)
+  const ignorado = (t) => t.includes("Failed to load resource") || /Logo-Skillhub\.png.*preloaded using link preload/.test(t);
+  p.on("console", (m) => ["warning", "error"].includes(m.type()) && !ignorado(m.text()) && avisosProd.push(m.text()));
+  return { c, p };
+};
+const tituloProdutos = (p) => p.getByRole("heading", { name: "Produtos", exact: true }).waitFor();
+// Cliente: sem Publicar e sem Seus produtos
+const telaCliente = await contextoProd(clienteP.email);
+await telaCliente.p.goto(B + "/produtos"); await tituloProdutos(telaCliente.p);
+await telaCliente.p.getByRole("region", { name: "Arte e Decoração" }).waitFor({ timeout: 10000 }).catch(() => {});
+ok("produtos (tela): Cliente não vê Publicar nem Seus produtos", (await telaCliente.p.getByRole("button", { name: "Publicar" }).count()) === 0 &&
+  (await telaCliente.p.getByText("Seus produtos").count()) === 0);
+await telaCliente.c.close();
+// Colaborador sem produtos: convite, e publica pelo diálogo
+const telaP = await contaProd("tela", "colaborador", "900.000.018-05", "(11) 97777-6655");
+const { c: ctxTela, p: pTela } = await contextoProd(telaP.email);
+await pTela.goto(B + "/produtos"); await tituloProdutos(pTela);
+await pTela.getByText("Você ainda não publicou nenhum produto.").waitFor({ timeout: 10000 }).catch(() => {});
+ok("produtos (tela): Seus produtos vazio convida a publicar", await pTela.getByText("Você ainda não publicou nenhum produto.").isVisible());
+await pTela.getByRole("button", { name: "Publicar", exact: true }).click();
+const dPub = pTela.getByRole("dialog", { name: "Publicar produto" });
+await dPub.waitFor();
+const postsProduto = []; pTela.on("request", (r) => r.method() === "POST" && r.url().includes("/api/produtos") && postsProduto.push(r.url()));
+const escolherFotos = (arquivos) => dPub.getByLabel("Escolher fotos").setInputFiles(arquivos.map((a) => ({ name: a.name, mimeType: a.mimeType, buffer: a.buffer })));
+await escolherFotos([GRANDE]);
+const erroGrande = await dPub.getByText("Cada imagem deve ter até 5MB.").isVisible();
+await escolherFotos([TEXTO]);
+ok("produtos (tela): foto grande e tipo errado avisam sem enviar nada", erroGrande && await dPub.getByText("Use imagens JPEG, PNG ou WEBP.").isVisible() &&
+  postsProduto.length === 0 && (await dPub.getByRole("listitem").count()) === 1);
+await dPub.getByLabel("Nome").fill("Produto pela tela E2E");
+await dPub.getByLabel("Descrição").fill("Feito para testar a publicação pela tela");
+await dPub.getByLabel("Categoria").selectOption("Moda e Acessórios");
+await dPub.getByLabel("Preço (créditos)").fill("35");
+await dPub.getByLabel("Estoque").fill("2");
+await escolherFotos([PNG, JPEG]);
+await dPub.getByRole("button", { name: "Mover a foto 2 para a esquerda" }).click(); // o JPEG vira a capa
+await dPub.getByRole("button", { name: "Remover a foto 2" }).click(); // sai o PNG
+await escolherFotos([WEBP]);
+await dPub.getByRole("button", { name: "Publicar", exact: true }).click();
+const seusProdutos = pTela.getByRole("region", { name: "Seus produtos" });
+await seusProdutos.getByText(/Produto pela tela E2E/).waitFor({ timeout: 15000 }).catch(() => {});
+const pTelaId = sql(`select id from "Produto" where "vendedorId" = '${telaP.id}'`);
+const urlsTela = sql(`select string_agg(url, ',' order by ordem) from "ProdutoImagem" where "produtoId" = '${pTelaId}'`).split(",").map((u) => u.split(".").pop());
+ok("produtos (tela): publicado pelo diálogo aparece em Seus produtos, com a capa escolhida", await seusProdutos.getByText(/Produto pela tela E2E/).isVisible() &&
+  urlsTela.join() === "jpg,webp", urlsTela.join());
+// outro usuário busca, abre o detalhe e fala com o vendedor (a navegação para o wa.me é interceptada)
+const { c: ctxOutro, p: pOutro } = await contextoProd(outroP.email);
+await ctxOutro.route("https://wa.me/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<p>wa.me</p>" }));
+await pOutro.goto(B + "/produtos"); await tituloProdutos(pOutro);
+await pOutro.getByRole("searchbox", { name: "Buscar produtos" }).fill("pela tela E2E");
+const cardProdTela = pOutro.getByRole("button", { name: /Produto pela tela E2E/ });
+await cardProdTela.waitFor({ timeout: 10000 }).catch(() => {});
+await cardProdTela.click();
+const dDet = pOutro.getByRole("dialog", { name: "Produto pela tela E2E" });
+await dDet.getByRole("button", { name: "Falar com o vendedor" }).waitFor({ timeout: 10000 }).catch(() => {});
+ok("produtos (tela): outro usuário busca e vê o detalhe (preço, estoque, vendedor sem avaliações)", await dDet.getByText("35 créditos").isVisible() &&
+  await dDet.getByText("2 disponíveis").isVisible() && await dDet.getByText("Produtos tela E2E").isVisible() && await dDet.getByText("Sem avaliações").isVisible());
+const [aba] = await Promise.all([ctxOutro.waitForEvent("page"), dDet.getByRole("button", { name: "Falar com o vendedor" }).click()]);
+await aba.waitForURL(/wa\.me/, { timeout: 10000 }).catch(() => {});
+ok("produtos (tela): Falar com o vendedor abre o WhatsApp numa nova aba", aba.url().startsWith("https://wa.me/5511977776655?text="), aba.url());
+await aba.close();
+await pOutro.keyboard.press("Escape");
+// o dono pausa, ativa e remove pelo detalhe
+const cardDono = seusProdutos.getByRole("button", { name: /Produto pela tela E2E/ });
+await cardDono.click();
+const dDono = pTela.getByRole("dialog", { name: "Produto pela tela E2E" });
+await dDono.getByRole("button", { name: "Pausar" }).click();
+await dDono.getByRole("button", { name: "Ativar" }).waitFor({ timeout: 8000 }).catch(() => {});
+await pTela.keyboard.press("Escape");
+await cardDono.getByText("Pausado").waitFor({ timeout: 8000 }).catch(() => {});
+ok("produtos (tela): Pausar marca o card como Pausado", await cardDono.getByText("Pausado").isVisible());
+await cardDono.click();
+await dDono.getByRole("button", { name: "Ativar" }).click();
+await dDono.getByRole("button", { name: "Pausar" }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("produtos (tela): Ativar volta", await dDono.getByRole("button", { name: "Pausar" }).isVisible());
+await dDono.getByRole("button", { name: "Remover" }).click();
+await dDono.getByRole("button", { name: "Sim, remover" }).click();
+await pTela.getByText("Você ainda não publicou nenhum produto.").waitFor({ timeout: 8000 }).catch(() => {});
+ok("produtos (tela): Remover com confirmação tira o produto de Seus produtos", await pTela.getByText("Você ainda não publicou nenhum produto.").isVisible() &&
+  sql(`select status from "Produto" where id = '${pTelaId}'`) === "REMOVIDO");
+await ctxTela.close();
+// estados: carregando (resposta atrasada), erro com "Tentar de novo" e vazio
+const listaDeProdutos = (url) => url.pathname === "/api/produtos";
+// a resposta atrasada pode chegar depois do unroute (e da navegação seguinte): aí o continue não vale mais
+await pOutro.route(listaDeProdutos, async (r) => { await new Promise((res) => setTimeout(res, 1500)); await r.continue().catch(() => {}); });
+await pOutro.goto(B + "/produtos"); await tituloProdutos(pOutro);
+ok("produtos (tela): esqueleto enquanto carrega", await pOutro.locator("[aria-busy=true]").first().isVisible());
+await pOutro.unroute(listaDeProdutos, undefined);
+await pOutro.route(listaDeProdutos, (r) => r.fulfill({ status: 500, contentType: "application/json", body: '{"error":"falha"}' }));
+await pOutro.goto(B + "/produtos"); await tituloProdutos(pOutro);
+await pOutro.getByText("Não foi possível carregar os produtos.").waitFor({ timeout: 15000 }).catch(() => {});
+const temErro = await pOutro.getByText("Não foi possível carregar os produtos.").isVisible();
+await pOutro.unroute(listaDeProdutos);
+await pOutro.getByRole("button", { name: "Tentar de novo" }).click();
+await pOutro.getByRole("region", { name: "Educação e Apostilas" }).waitFor({ timeout: 10000 }).catch(() => {});
+ok("produtos (tela): erro com Tentar de novo, que recarrega", temErro && await pOutro.getByRole("region", { name: "Educação e Apostilas" }).isVisible());
+await pOutro.getByRole("searchbox", { name: "Buscar produtos" }).fill("zzzz nada por aqui");
+await pOutro.getByText("Nenhum produto encontrado.").waitFor({ timeout: 8000 }).catch(() => {});
+ok("produtos (tela): busca sem resultado mostra o vazio", await pOutro.getByText("Nenhum produto encontrado.").isVisible());
+// Início: produtos da API em créditos; o clique abre o detalhe
+await pOutro.goto(B + "/inicio"); await pOutro.getByRole("heading", { name: "SkillHub" }).waitFor();
+const relevantes = pOutro.getByRole("region", { name: "Produtos" });
+await relevantes.getByText(/créditos$/).first().waitFor({ timeout: 10000 }).catch(() => {});
+const primeiroNome = await relevantes.locator("h3").first().textContent();
+await relevantes.getByRole("button").first().click();
+await pOutro.getByRole("dialog", { name: primeiroNome ?? "" }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("produtos (tela): o Início mostra os produtos em créditos e abre o detalhe", await pOutro.getByRole("dialog", { name: primeiroNome ?? "" }).isVisible(),
+  primeiroNome ?? "");
+await ctxOutro.close();
+ok("produtos (tela): console sem avisos nem erros", avisosProd.length === 0, avisosProd.slice(0, 3).join(" | "));
+
 // 16. Excluir conta com senha (o Cliente, já com a senha nova), com uma segunda aba aberta
 await page.goto(B + "/perfil"); await page.locator("h1").waitFor();
 ok("Cliente vê só as estatísticas no perfil", (await page.locator("main h2").allTextContents()).join(",") === "Experiências Profissionais");
