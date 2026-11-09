@@ -1,27 +1,20 @@
-import Image from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Avatar } from "@/components/app/avatar";
 import { ScrollRow } from "@/components/app/scroll-row";
 import { TransitionLink } from "@/components/motion/page-transition";
-import { ContentCard } from "@/components/ui/content-card";
 import { ctaButtonClass } from "@/components/ui/cta-button";
 import { EVENTO_FUNDOS } from "@/lib/brand";
-import { getProdutos } from "@/lib/mock/produtos";
 import { cn } from "@/lib/utils";
 import { BuscaGlobal } from "./busca-global";
-import { GRADE_XL } from "./grade";
 import { colaboradores, eventos } from "./mock";
+import { ProdutosRelevantes } from "./produtos-relevantes";
 import { ServicosRecentes } from "./servicos-recentes";
-
-const formatPreco = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 // designs/New Início.png — medidas do mockup mobile (440px); a partir de sm o texto e os cards
 // crescem (os carrosséis continuam carrossel). A partir de xl, o layout de designs/New Início - Desktop.png
 // (Fase 16.2): busca no topo, eventos na largura toda e duas colunas (colaboradores e 2 serviços à
 // esquerda, 2 produtos numa coluna de 380px à direita). Só classes xl: no mesmo markup, sem duplicar a árvore.
-export default async function InicioPage() {
-  const produtos = await getProdutos();
-
+export default function InicioPage() {
   return (
     <main className="pb-4">
       <section className="mt-[53px] sm:mt-14 xl:mt-0 xl:flex xl:items-start xl:justify-between xl:gap-8">
@@ -88,35 +81,7 @@ export default async function InicioPage() {
 
         <ServicosRecentes />
 
-        {/* Produtos relevantes */}
-        <section className="mt-[20px] sm:mt-10 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0">
-          <h2 className="text-[15px] text-foreground-secondary sm:text-[18px] lg:text-[20px]">Produtos Relevantes</h2>
-          <ScrollRow label="Produtos" className="mt-[20px]" trilhaClassName={cn(GRADE_XL, "xl:gap-4")}>
-            {produtos.map((produto, i) => (
-              <TransitionLink
-                key={produto.id}
-                href="/produtos"
-                className={cn("group w-[176px] transition-transform hover:-translate-y-1 sm:w-[210px] lg:w-[240px] xl:w-auto", i >= 2 && "xl:hidden")}
-              >
-                <ContentCard className="flex flex-col overflow-hidden font-secondary">
-                  <div className="relative h-[199px] bg-surface-2 sm:h-[236px] lg:h-[270px] xl:h-[236px]">
-                    <Image
-                      src={produto.imagemUrl}
-                      alt={produto.nome}
-                      fill
-                      sizes="(min-width: 1280px) 182px, (min-width: 1024px) 240px, (min-width: 640px) 210px, 176px"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="px-3 py-[10px]">
-                    <h3 className="truncate text-[13px] text-foreground sm:text-[14px] lg:text-[15px]">{produto.nome}</h3>
-                    <p className="mt-[2px] text-[13px] font-semibold text-accent-text sm:text-[14px] lg:text-[15px]">{formatPreco(produto.preco)}</p>
-                  </div>
-                </ContentCard>
-              </TransitionLink>
-            ))}
-          </ScrollRow>
-        </section>
+        <ProdutosRelevantes />
       </div>
     </main>
   );
