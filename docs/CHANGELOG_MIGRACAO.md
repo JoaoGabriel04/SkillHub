@@ -9,6 +9,95 @@
 
 ---
 
+## Fase 18A: catálogo de produtos e contato por WhatsApp
+
+**Data:** 2026-11-09 (implementação em 2026-11-03 e 04)
+**Status:** Implementada, PR aberto
+**Branch:** `feat/produtos-catalogo`
+
+### Contexto
+
+Primeira das três subfases de `docs/especificacoes/SKILLHUB_PRODUTOS_LOJA.md` (Produtos como loja), com o plano em `docs/planos/PLANO_18A.md`. Os produtos saem do mock e vão para o banco: publicar com fotos, editar, pausar, remover, busca e filtros no servidor, detalhe e contato com o vendedor por link do WhatsApp. **Não mexe em créditos:** carrinho, checkout e pedido são da 18B.
+
+Base: `origin/main` em `26ba19d`, a mesma do documento. O documento estava na raiz, fora do git, e foi movido sem alteração para `docs/especificacoes/`.
+
+Decisões tomadas na aprovação do plano ("faça o recomendado", todas as recomendações da Seção 9):
+- **D1:** 1 crédito = R$ 1, só para o indicador de renda e a levar ao professor. Aparece só em comentário; nada no código converte valores.
+- **D2:** só Colaborador e Empresa com perfil completo publicam. Cliente recebe 403 e não vê o botão.
+- **D3:** o "(Jovem aprendiz)" sai do card; nenhum campo novo no perfil.
+- **D5:** esgotado continua visível, com a etiqueta "Esgotado".
+- **D9:** os banners de Destaques ficam estáticos em `lib/mock/produtos.ts` até a Fase 19.
+- **D8:** `contatoDisponivel` (booleano) no detalhe, para não mostrar um botão que sempre daria 404.
+- **D10:** uma requisição por categoria nas linhas de `/produtos` (`limit=12`).
+- **D11:** o card do Início abre o detalhe.
+- **D12:** `lib/mock/pessoas.ts` fica para a 18C (agora sem uso).
+- **D13:** o filtro de texto se chama `busca`, como na especificação.
+- **D14:** o PATCH das fotos recebe a lista final em ordem (`imagens`, com ids existentes e `"nova:N"`).
+- **D15:** teto de 9999 no estoque.
+
+### Arquivos
+
+**Backend**
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261104023202_produto` | Enums `CategoriaProduto` e `StatusProduto`, models `Produto` e `ProdutoImagem`, exatamente como na Seção 4.1 do documento (sem desvio). No `User`, só a relação inversa `produtosVendidos`. |
+| `src/modules/produto/` | **Novo:** `categoria.map.ts`, `produto.schema.ts` (Zod, com coerção do multipart), `produto.repository.ts` (único ponto que escreve em `Produto` e `ProdutoImagem`), `produto.service.ts`, `produto.controller.ts` e `whatsapp.ts` (normalização do telefone e o link `wa.me`). |
+| `src/api/routes/produto.route.ts`, `src/api/routes/index.ts` | **Novo** router `/produtos`, todo com `authenticate`; `/meus` antes de `/:id`. |
+| `src/configs/multer.ts` | `produtoFotosUpload`: campo `fotos`, de 1 a 4 arquivos, com as mesmas regras de tipo, assinatura e 5 MB. Os uploads de foto de perfil e currículo não mudaram. |
+| `src/modules/user/user.service.ts` | Exclusão de conta: lê os `publicId` das fotos dos produtos antes do `delete` (os produtos caem em cascata) e os apaga do Cloudinary depois, com "melhor esforço". |
+| `prisma/seed.ts` | 8 produtos nas 5 categorias (um digital, um esgotado, um pausado), fotos por URL com `publicId` nulo, uma vendedora Empresa nova ("Ateliê Costa") e telefone fictício nos vendedores do seed. |
+
+**Frontend**
+
+| Arquivo | Alteração |
+|---|---|
+| `src/types/produto.ts`, `src/lib/produtos.ts`, `src/lib/validation/produto.ts` | **Novos:** tipos, cliente da API com as chaves do SWR, e a validação (as regras do backend, mais as das fotos). |
+| `src/app/(app)/produtos/page.tsx` | Lê a API. Chips e busca filtram no servidor (debounce de 300ms). "Publicar" e "Seus produtos" para quem vende. Estados de carregando (esqueleto), vazio e erro com "Tentar de novo". As fotos visíveis na primeira tela carregam sem lazy (as 2 primeiras linhas, até 6 por linha, e os 10 primeiros resultados da busca), para o Next não avisar de LCP com lazy. |
+| `src/components/app/produto-card.tsx` | Mesmo visual, agora com "N créditos", a capa da API, a etiqueta "Esgotado"/"Pausado" e o clique abrindo o detalhe. |
+| `src/components/app/produto-card-esqueleto.tsx`, `produto-detalhe-dialog.tsx`, `publicar-produto-dialog.tsx` | **Novos:** esqueleto do card; detalhe (fotos com troca, vendedor com média, "Falar com o vendedor", e Editar/Pausar/Remover para o dono); publicar e editar (fotos com pré-visualização, troca de ordem e remoção). |
+| `src/app/(app)/inicio/produtos-relevantes.tsx`, `inicio/page.tsx`, `inicio/mock.ts` | A seção "Produtos Relevantes" vira componente cliente lendo `GET /produtos?limit=8`, com o mesmo markup. Sem produtos ou com erro, a seção some. |
+| `src/lib/mock/produtos.ts` | Ficam só os Destaques. |
+
+**e2e:** `e2e/fluxos.mjs` ganhou a seção `15i` (48 verificações), e o `cleanup` do `e2e/run.sh` também apaga do Cloudinary as fotos de produto dos usuários `e2e.*`.
+
+Nenhuma dependência nova.
+
+### Regras que valem daqui em diante
+
+- **Telefone privado:** só sai dentro do link de `GET /produtos/:id/contato`. O repositório lê o telefone numa consulta à parte, e ele nunca entra no objeto da resposta. O e2e varre lista, meus, detalhe, publicar, editar e o resumo do usuário atrás do telefone (com e sem máscara) e do e-mail.
+- **Escrita condicional:** editar, pausar e remover usam `updateMany` com `vendedorId` e `status` na condição, dentro de transação. Um produto removido nunca volta, e uma edição de fotos nunca deixa o produto com 0 nem com mais de 4.
+- **Fotos no Cloudinary:** `Skillhub/produtos/<vendedorId>/<produtoId>-<imagemId>`. Se uma foto falhar no upload, as outras são apagadas e a resposta é 502. Se o banco falhar depois do upload, as fotos novas também são apagadas.
+
+### Validação
+
+- `prisma migrate status` ("Database schema is up to date"); `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
+- **`./e2e/run.sh`: 276/276** (antes: 228/228; 48 novos), cobrindo a Seção 4.5 inteira. Entre os novos: publicar com 1 e 4 fotos, 0, 5, arquivo falso e acima de 5 MB; validação de cada campo; 403 para Cliente e perfil incompleto e 401 sem token; listagem sem o próprio produto, com filtro, busca e cursor; pausado e removido; `vendedorReputacao` contra SQL; edição e remoção só pelo dono; duas corridas (duas edições de fotos simultâneas, e editar com remover); contato e privacidade; exclusão de conta do vendedor; e as telas.
+- **Rodadas:** 5 de 5 seguidas, todas com 276/276. Numa bateria anterior (04/11), uma rodada caiu no meio com `socket hang up` (ver "Achados fora de escopo"); a bateria final, de 09/11, passou inteira.
+- **Visual, byte a byte:** Serviços, Perfil, Configurações, Comunidade, login, cadastro, o detalhe de um pedido de serviço aberto e o popover de créditos (este só abaixo de `lg`, onde o chip existe), a 375 e 1440px, nos dois temas: 30 capturas.
+  - **Método:** as capturas da base foram feitas com o frontend de `26ba19d` (os arquivos da 18A tirados de lado e restaurados depois, conferidos por hash), contra o mesmo backend e o mesmo banco. Usuário Colaborador com 0 crédito, mouse fora da página, "menos movimento" ligado. Duas capturas de cada lado.
+  - **Resultado:** 28 de 30 idênticas à base. As outras duas (`cadastro_1440`, nos dois temas) diferem em 1.962 pixels na faixa y 125 a 179, a da animação das telas de entrada. Duas capturas da própria base do `/login` também variam nessa faixa (11.465 pixels): é ruído de renderização, e cada uma tem pelo menos um par antes x depois idêntico.
+- **Telas novas**, capturadas a 375 e 1440px nos dois temas para a conferência visual: Início, `/produtos` com "Seus produtos" vazia e cheia, carregando, erro, detalhe (comprador e dono), confirmação de remoção, publicar (vazio e com erros) e editar.
+- **Diferenças previstas:** `/produtos` (dados reais, preços em créditos, sem "Jovem aprendiz", "Publicar" e "Seus produtos" para quem vende) e Início (só a seção "Produtos Relevantes", com as fotos do seed e "N créditos").
+
+### Depois do merge
+
+- **Reconstruir o backend com volumes novos:** `docker compose up -d --build -V backend`. O Prisma Client é gerado no build da imagem, mas o `node_modules` fica num volume anônimo que o compose reaproveita até no `--build`. Sem o `-V`, o client antigo continua lá, sem o model `Produto`, e todas as rotas de produto dão 500 (`Cannot read properties of undefined (reading 'findMany')`).
+- Rodar o seed, se quiser os produtos de exemplo.
+
+### Achados fora de escopo
+
+- **Queda intermitente do e2e** (`socket hang up` / `other side closed` vindo do backend), a mesma do PR #17. Aconteceu de novo numa rodada da 18A, no login da seção de avaliações, sem erro nem reinício no log. A causa segue em aberto.
+- **Migrations com dono `root`:** criadas pelo `prisma migrate dev` dentro do container, o `git checkout` não consegue apagá-las nem regravá-las. Sugestão: `sudo chown -R $USER backend/prisma/migrations`.
+- **Capa de pedido antigo (para a 18B):** remover um produto apaga as fotos no Cloudinary, como pede o documento. Na 18B, o snapshot da capa num pedido antigo deixa de abrir. O plano da 18B precisa decidir entre guardar as fotos enquanto houver pedido ou mostrar um marcador.
+- **Duas edições de fotos ao mesmo tempo:** a trava garante de 1 a 4 fotos, mas vale a última que chega. Se as duas acrescentam fotos, a segunda pode tirar as que a primeira acabou de pôr. Hoje é aceitável (só o dono edita); uma versão do produto no PATCH resolveria.
+- **Foto órfã:** se o processo cair entre o upload e o banco, a foto fica no Cloudinary. O prefixo pelo vendedor facilita a limpeza manual.
+- **Aviso de LCP nas capturas de página inteira:** o screenshot `fullPage` estica a viewport, e o Next passa a ver como "acima da dobra" fotos que estão bem abaixo (por exemplo, a da última categoria a 375px). Navegando normalmente, não há aviso. É artefato do método de captura, não da página.
+- **`lib/mock/pessoas.ts`** ficou sem uso (limpeza na 18C, como pede o documento).
+- **Cadastro de Empresa** continua desabilitado na tela. Pela tela, só Colaborador publica; Empresa publica pela API e pelo seed.
+
+---
+
 ## Ajustes de domínio antes da Fase 18 (PR B)
 
 **Data:** 2026-10-16
