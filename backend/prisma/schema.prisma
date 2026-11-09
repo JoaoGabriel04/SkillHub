@@ -49,6 +49,8 @@ model User {
   avaliacoesFeitas     Avaliacao[] @relation("AvaliacoesFeitas")
   avaliacoesRecebidas  Avaliacao[] @relation("AvaliacoesRecebidas")
   produtosVendidos     Produto[] @relation("ProdutosVendidos")
+  compras              PedidoProduto[] @relation("Compras")
+  vendas               PedidoProduto[] @relation("Vendas")
 }
 
 // Link de "esqueci a senha": guarda só o hash SHA-256 do token enviado por e-mail
@@ -145,9 +147,11 @@ model TransacaoCredito {
   saldoApos  Int
   // só referência, sem relação: o extrato é histórico e não perde o id se o pedido sumir
   servicoId  String?
+  pedidoId   String? // Fase 18B: pedido de produtos (também só referência)
   createdAt  DateTime      @default(now())
 
   @@index([userId, createdAt])
+  @@index([pedidoId])
 }
 
 // Avaliações entre as partes de um pedido concluído (Fase 17D): o autor avalia o colaborador e vice-versa,
@@ -197,6 +201,7 @@ model Produto {
   vendedorId    String
   vendedor      User             @relation("ProdutosVendidos", fields: [vendedorId], references: [id], onDelete: Cascade)
   imagens       ProdutoImagem[]
+  itensPedido   ItemPedido[]
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -212,5 +217,57 @@ model ProdutoImagem {
   publicId  String? // Cloudinary; null nas fotos do seed
   ordem     Int     // 0 = capa
 
+  @@index([produtoId])
+}
+
+// Pedidos de produtos (Fase 18B): um por vendedor em cada checkout. O total é reservado do comprador até a confirmação
+// do recebimento (paga o vendedor) ou o cancelamento (estorna). SetNull nas partes: o pedido continua contando para os
+// KPIs de volume e renda (status, total, concluidoEm) mesmo que uma conta seja excluída.
+enum StatusPedidoProduto {
+  AGUARDANDO_ENVIO
+  ENVIADO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum ParteDoPedido {
+  COMPRADOR
+  VENDEDOR
+}
+
+model PedidoProduto {
+  id           String              @id @default(uuid())
+  compradorId  String?
+  comprador    User?               @relation("Compras", fields: [compradorId], references: [id], onDelete: SetNull)
+  vendedorId   String?
+  vendedor     User?               @relation("Vendas", fields: [vendedorId], references: [id], onDelete: SetNull)
+  status       StatusPedidoProduto @default(AGUARDANDO_ENVIO)
+  total        Int                 // em créditos, soma dos itens
+  observacao   String?             // até 300
+  canceladoPor ParteDoPedido?
+  itens        ItemPedido[]
+  createdAt    DateTime            @default(now())
+  enviadoEm    DateTime?
+  concluidoEm  DateTime?           // KPI: volume de transações concluídas e renda gerada (total)
+  canceladoEm  DateTime?
+
+  @@index([compradorId, createdAt])
+  @@index([vendedorId, createdAt])
+  @@index([status, enviadoEm])     // npm run pedidos:pendentes
+}
+
+model ItemPedido {
+  id            String        @id @default(uuid())
+  pedidoId      String
+  pedido        PedidoProduto @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produtoId     String?       // SetNull: o histórico não depende do produto
+  produto       Produto?      @relation(fields: [produtoId], references: [id], onDelete: SetNull)
+  nome          String        // snapshot
+  precoUnitario Int           // snapshot, em créditos
+  quantidade    Int           // 1 a 99
+  imagemUrl     String?       // snapshot da capa
+  digital       Boolean       @default(false) // snapshot: "entregue" no lugar de "enviado"
+
+  @@index([pedidoId])
   @@index([produtoId])
 }

@@ -10,7 +10,8 @@
     "postinstall": "prisma skills sync || exit 0",
     "creditos:conceder": "tsx scripts/conceder-creditos.ts",
     "plataforma:garantir": "tsx scripts/garantir-conta-plataforma.ts",
-    "check:creditos": "node scripts/check-creditos.mjs"
+    "check:creditos": "node scripts/check-creditos.mjs",
+    "pedidos:pendentes": "tsx scripts/pedidos-pendentes.ts"
   },
   "keywords": [],
   "author": "",
