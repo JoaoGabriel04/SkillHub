@@ -9,6 +9,160 @@
 
 ---
 
+## Fase 18B: carrinho, checkout e pedido
+
+**Data:** 2026-11-09
+**Status:** Implementada, PR aberto
+**Branch:** `feat/produtos-pedidos`
+
+### Contexto
+
+Segunda subfase de `docs/especificacoes/SKILLHUB_PRODUTOS_LOJA.md` (Seção 5), com o plano em `docs/planos/PLANO_18B.md`. Os produtos passam a ser comprados em créditos:
+- carrinho no navegador;
+- checkout com um pedido por vendedor, numa só transação que baixa o estoque e reserva os créditos;
+- envio, confirmação do recebimento (paga o vendedor, com a taxa configurável), cancelamento com estorno e devolução do estoque;
+- compras, vendas e o contato pelo WhatsApp entre as partes.
+
+Base: `origin/main` em `1948361` (o merge do PR #18). A troca de branch esbarrou de novo na migration da 18A com dono `root`; o conteúdo era idêntico ao da `main`, e a `main` local foi adiantada só pelo índice. A migration nova foi criada pelo `prisma migrate dev` **rodado no host** (contra o Postgres na porta 5432), então já nasceu com o dono certo.
+
+Decisões tomadas na aprovação do plano (as recomendações da Seção 9), mais quatro ajustes:
+- **D1:** 1 crédito = R$ 1, só para o indicador de renda, a levar ao professor. A renda de produtos vem de `PedidoProduto.total` com `CONCLUIDO`.
+- **D2:** a confirmação automática não entra; há o `npm run pedidos:pendentes`, só de listagem (abaixo).
+- **D3:** um pedido por vendedor.
+- **D4:** a entrega é combinada pelo WhatsApp, sem copiar endereço. O detalhe mostra só cidade e bairro da outra parte. O `whatsappAtivo` do produto não vale para o contato do pedido.
+- **D5:** se o vendedor exclui a conta com o pedido `ENVIADO`, o comprador pode cancelar e é estornado. É a única exceção à tabela da Seção 5.4, e está na condição do `updateMany` (ajuste 1). Confirmar, sem vendedor, dá 409 "O vendedor excluiu a conta".
+- **D6:** o PATCH do produto com `estoque` exige o `estoqueLido`; se houve venda entre a leitura e o salvar, dá 409 e não grava. A tela só manda os dois quando o estoque mudou (ajuste 3).
+- **D7:** a capa de um pedido cujo produto foi removido mostra o ícone de sacola quando a imagem falha.
+- **D8:** os 5 desvios do schema (abaixo).
+- **D9:** o teste de 15% fica no `scripts/verificar-taxa.ts`, num processo à parte, como na 17C.
+- **D10:** "Suas compras" e "Suas vendas" só aparecem com ao menos 1 pedido.
+- **D11:** "Comprar agora" abre o checkout só com o item, sem mexer no carrinho.
+- **D12:** o carrinho relê cada produto com `GET /produtos/:id`, sem rota nova.
+- **D13:** de 1 a 20 itens distintos por checkout, de 1 a 99 de cada.
+- **D14:** a correção do keep-alive só entraria se a Etapa 0 confirmasse a causa. Não confirmou (abaixo).
+- **D15:** devolução e disputa ficam fora (risco, abaixo).
+- **Ajuste 2:** `pagarPedido` e `estornarPedido` usam `pedido.total` e abortam (erro interno, a transação volta inteira) se o pedido não tiver exatamente uma `RESERVA`, do comprador, de `-total`.
+- **Ajuste 4:** a taxa de falha da reprodução do "socket hang up" está abaixo.
+
+### Etapa 0: diagnóstico do "socket hang up"
+
+O e2e caiu com `socket hang up` na 18A (PR #18) e com `other side closed` no PR #17, sem erro nem reinício no log do backend.
+
+**Hipótese** (do plano): corrida de keep-alive. O Playwright usa um agente HTTP global com `keepAlive: true` e sem limite de ociosidade, compartilhado entre contextos. O servidor fecha sockets ociosos. O `execFileSync` do e2e trava o processo de teste exatamente quando o servidor fecha, e o socket fechado é reaproveitado.
+
+**Reprodução** (script no scratchpad, fora do repositório): pedido, pausa ociosa com o último 1s travado por `execFileSync("sleep")`, pedido novo por um contexto novo (no Playwright) ou pelo `fetch`.
+
+| Alvo | Pausa | Playwright | `fetch` |
+|---|---|---|---|
+| backend do compose | 4,8 a 5,2s | 0 de 300 (0,0%) | 0 de 300 (0,0%) |
+| backend do compose | 5,8 a 6,2s | 0 de 60 (0,0%) | 0 de 60 (0,0%) |
+| servidor Node local, fora do Docker | 5,8 a 6,2s | 0 de 40 (0,0%) | 0 de 40 (0,0%) |
+
+- **Taxa de falha antes: 0% (0 de 800).** Como a causa não se confirmou, **a correção não entrou** (D14), e não há medida "depois". O `backend/src/index.ts` não mudou.
+- **Achado no caminho:** o Node 24.22 do container anuncia `Keep-Alive: timeout=5`, mas só fecha o socket ocioso aos **6s** (`keepAliveTimeoutBuffer` de 1000ms). Essa folga já é a proteção contra a corrida que a hipótese descrevia. A primeira bateria (pausas até 5,2s) nem chegava à janela; a segunda mirou nela e também não falhou. Contra o servidor local, cerca de 20 dos 82 pedidos reaproveitaram o socket, sem nenhuma falha.
+- **Descartados:**
+  - reinício do container: `RestartCount=0` e nenhum "Restarting" no log;
+  - memória: 88 MiB, sem `OOMKilled`;
+  - pool do Prisma: 1 conexão ativa num `max_connections` de 100, e nenhum `P2024` no log (um pool esgotado daria 500 com log, não um socket cortado);
+  - a corrida de keep-alive, pelas medidas acima.
+- **O que fica:** a regra de 5 rodadas seguidas continua, sem retry no teste. Durante o desenvolvimento da 18B, duas das rodadas de depuração caíram fora da 18B, as duas logo depois de um login, esperando o `/inicio`. Nenhuma foi `socket hang up` (Achados fora de escopo).
+
+### Arquivos
+
+**Backend**
+
+| Arquivo | Alteração |
+|---|---|
+| `prisma/schema.prisma` + migration `20261109144915_pedido_produto` | Enums `StatusPedidoProduto` e `ParteDoPedido`; models `PedidoProduto` e `ItemPedido` (Seção 5.1, com os 5 desvios abaixo); `TransacaoCredito.pedidoId` (só referência, com índice); as relações `compras`, `vendas` e `itensPedido`. |
+| `src/modules/pedido/` | **Novo:** `pedido.schema.ts`, `pedido.repository.ts` (o único que escreve em `PedidoProduto` e `ItemPedido`), `pedido.service.ts`, `pedido.controller.ts` e `status.map.ts`. |
+| `src/api/routes/pedido.route.ts`, `index.ts` | **Novo** router `/pedidos`, todo com `authenticate`; `/compras` e `/vendas` antes de `/:id`. |
+| `src/modules/credito/credito.service.ts`, `credito.repository.ts` | `pedidoId` no `movimentar` e no extrato; `reservarPedido`, `pagarPedido` e `estornarPedido` (ajuste 2); a taxa virou `cobrarTaxa`, usada pelos serviços e pelos pedidos. O 409 de saldo leva `code: "SALDO_INSUFICIENTE"`. Os caminhos de serviço não mudaram de comportamento. |
+| `src/modules/produto/produto.repository.ts` | `paraCheckout`, `baixarEstoque` (condição com status, preço e estoque), `estadoParaCheckout` e `devolverEstoque`. Continua sendo o único que escreve em `Produto.estoque`. O PATCH ganhou a condição do `estoqueLido` (D6). |
+| `src/modules/produto/produto.schema.ts`, `produto.service.ts` | `estoqueLido`, obrigatório quando o corpo traz `estoque` (D6). |
+| `src/modules/produto/whatsapp.ts` | `linkWhatsappPedido`, com a mensagem de quem comprou e de quem vendeu. |
+| `src/utils/AppError.ts` | `extra` opcional (o `code` e o produto do 409). Os usos de antes não mudaram. |
+| `scripts/pedidos-pendentes.ts`, `package.json` | **Novo** `npm run pedidos:pendentes`. |
+| `scripts/verificar-taxa.ts` | Os 6 casos de pedido com 15%; a conservação passa a somar as reservas de pedido em aberto. |
+
+**Desvios da Seção 5.1** (D8):
+1. `canceladoPor` é o enum `ParteDoPedido`, e não `String`.
+2. `ItemPedido.digital`, em snapshot ("Entregue" no lugar de "Enviado").
+3. `@@index([status, enviadoEm])`, para o `pedidos:pendentes`.
+4. `ItemPedido.@@index([produtoId])`, para o `SetNull` ao apagar produtos.
+5. `TransacaoCredito.@@index([pedidoId])`.
+
+**Frontend**
+
+| Arquivo | Alteração |
+|---|---|
+| `src/types/pedido.ts`, `src/lib/pedidos.ts`, `src/lib/validation/pedido.ts` | **Novos.** |
+| `src/stores/carrinho-store.ts` | **Novo.** Zustand com `persist`, sobre um adaptador com `try/catch` (com o `localStorage` bloqueado, o carrinho funciona na memória). Um carrinho por conta (`donoId`). `skipHydration`, para o servidor e o navegador renderizarem igual. |
+| `src/components/app/botao-carrinho.tsx`, `carrinho-dialog.tsx`, `checkout-dialog.tsx` | **Novos.** O botão com a contagem no título de Produtos; o carrinho agrupado por vendedor, com indisponível fora do total; o checkout com saldo, observação e o estado de saldo insuficiente. |
+| `src/components/app/pedido-card.tsx`, `pedido-detalhe-dialog.tsx`, `pedido-foto.tsx` | **Novos.** O card de pedido (as medidas do `ProdutoCard`; o carregando reaproveita o `ProdutoCardEsqueleto`, sem arquivo novo); o detalhe com a linha do tempo, os itens, a outra parte (cidade e bairro) e as ações do papel; a foto com o marcador (D7). |
+| `src/components/app/produto-detalhe-dialog.tsx` | Quantidade, "Adicionar ao carrinho" e "Comprar agora". |
+| `src/components/app/publicar-produto-dialog.tsx`, `src/lib/produtos.ts` | `estoque` + `estoqueLido` só quando o estoque mudou (D6). |
+| `src/components/app/extrato-dialog.tsx`, `src/types/credito.ts` | "Pedido: nome do primeiro item (+N)". |
+| `src/app/(app)/produtos/page.tsx` | O carrinho no título (para todos), e as linhas "Suas compras" e "Suas vendas", com carregando e erro. |
+
+Ícones novos em Lucide (`ShoppingCart`, `Minus`, `Plus`, `Trash`). O "Falar com o vendedor/comprador" do pedido usa o mesmo ícone do WhatsApp (Font Awesome) do detalhe do produto, para as duas telas ficarem iguais. Nenhuma dependência nova.
+
+**e2e:** `e2e/fluxos.mjs` ganhou a seção `15j` (63 verificações), e a 15g conta 12 casos de taxa no lugar de 6. O `cleanup` do `e2e/run.sh` apaga, antes das contas, os pedidos em que uma das partes é `e2e.*` (com `SetNull`, eles não caem com as contas).
+
+### Regras que valem daqui em diante
+
+- **Ordem das travas** em toda transação que mexe em mais de uma linha:
+  1. a linha do pedido;
+  2. as linhas de `Produto`, em ordem crescente de id;
+  3. os usuários, sempre com a conta da plataforma por último.
+  Com isso não há deadlock. Se ainda assim o Postgres acusar conflito (`P2034`), a resposta é 409 `CONFLITO`, e não 500.
+- **Créditos só pelo `credito.service`** (o `check:creditos` passa). **Estoque só pelo `produto.repository`.**
+- **Telefone privado:** sai só em `GET /pedidos/:id/contato`, para as partes e com o pedido em aberto. As respostas de pedido trazem só a cidade e o bairro da outra parte.
+- **Primeiro item:** os itens de um pedido saem sempre em ordem de nome, então o resumo, o extrato e a mensagem do contato citam o mesmo.
+
+### Exclusão de conta hoje (o bloqueio é da 18C)
+
+- **Comprador sai com pedido em aberto:**
+  - o extrato dele some (`TransacaoCredito.user` é `Cascade`), e a reserva vai junto;
+  - o vendedor ainda vê o pedido e pode cancelar (o estoque volta, sem estorno);
+  - ninguém confirma.
+- **Vendedor sai com pedido aguardando envio:** o comprador cancela e é estornado. O estoque não volta, porque o produto caiu em cascata.
+- **Vendedor sai com pedido enviado:** D5 (acima).
+- **Pedidos concluídos ficam**, com `total` e `concluidoEm`, e continuam contando para volume e renda.
+
+### Validação
+
+- `prisma migrate status` sem pendências; `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
+- **`./e2e/run.sh`: 345/345** (antes: 276/276; 69 novos: 63 na `15j` e 6 casos de pedido no script da taxa, chamado pela 15g). Cobrem a Seção 5.7 inteira e os itens a a i do pedido: compra, atomicidade por estoque e por saldo, `PRECO_ALTERADO`, `INDISPONIVEL`, as 4 corridas (5 vezes cada por rodada), o ciclo, os cancelamentos, consultas e privacidade, o extrato, o `pedidos:pendentes`, o histórico, a exclusão de conta hoje, a conferência da reserva, o D6 e as telas.
+- **Rodadas:** 5 de 5 seguidas, todas com 345/345, depois de reiniciar o container do frontend (ver Achados fora de escopo). No fim, nenhuma conta de teste e nenhum pedido sem as duas partes ficaram no banco.
+- **Visual, byte a byte:** Serviços, Perfil, Configurações, Comunidade, Início, login, cadastro, o detalhe de um pedido de serviço, o popover de créditos (abaixo de `lg`) e o extrato vazio, a 375 e 1440px, nos dois temas: **38 de 38 idênticas à base**.
+  - **Método:** o mesmo da 18A. A base foi capturada com o frontend de `1948361` (os 16 arquivos da 18B tirados de lado e restaurados, conferidos por hash), contra o mesmo backend e o mesmo banco, com duas capturas de cada lado.
+  - **Ruído:** 4 telas variam entre duas capturas da própria base (`cadastro_1440` nos dois temas, `creditos-popover_375_claro` e `inicio_1440_escuro`), e cada uma tem um par antes x depois idêntico.
+- **Diferenças previstas:** `/produtos` (o carrinho no título e as linhas Suas compras e Suas vendas) e o detalhe do produto (quantidade, Adicionar ao carrinho, Comprar agora).
+- **Telas novas**, 60 capturas a 375 e 1440px nos dois temas, sem aviso nem erro no console: `/produtos` com compras e com vendas, o carrinho (com indisponível e vazio), o checkout, o saldo insuficiente, o detalhe do produto com a compra, o pedido em cada status e papel, as confirmações de cancelar e de confirmar o recebimento, e o extrato com as linhas de pedido.
+
+### Depois do merge
+
+- **`docker compose up -d --build -V backend`.** Sem o `-V`, o volume anônimo do `node_modules` mantém o Prisma Client antigo, e as rotas de pedido dão 500.
+- Nenhum seed novo.
+
+### Proposta para uma fase futura
+
+- **Confirmação automática do recebimento:** pedidos `ENVIADO` há mais de N dias seriam concluídos por uma tarefa agendada, com aviso às duas partes. Hoje só existe a listagem (`npm run pedidos:pendentes`). Decidir N, o aviso e quem pode contestar.
+
+### Achados fora de escopo
+
+- **Duas quedas do e2e em rodadas de depuração, fora da 18B:**
+  - **15a2:** `page.waitForURL("**/inicio")` esgotou os 30s depois do clique em Entrar (`e2e/fluxos.mjs:335`).
+  - **Passo 8:** o login com "Lembre de mim" espera o `/inicio` por só 5s e engole o erro (`.catch(() => {})`). O clique seguinte, em Configurações, não navegou.
+  - As duas são login seguido da transição de entrada (a colmeia, que bloqueia cliques até voltar ao repouso). É o mesmo mecanismo que a A5 da faxina corrigiu no passo 16, com o `transicaoParada()`, e que não foi aplicado nesses dois pontos.
+  - Coincidiram com o `next dev` do container em 1 GB de memória depois de um dia de hot reload. Depois de reiniciar o container, não voltaram. **Não mexi nesses testes** (fora da 18B); a correção seria o `transicaoParada()` depois desses dois logins, sem aumentar timeout.
+- **`next/image` e a mesma foto em vários lugares:** o Next guarda o `loading` de cada imagem pela URL otimizada. Com a mesma foto em duas linhas (uma acima da dobra, sem lazy, e outra abaixo, com lazy), o aviso de LCP com lazy aparece mesmo com a imagem certa sem lazy. O aviso só existe em desenvolvimento. Aconteceu no e2e porque todos os produtos da 15j usavam a mesma URL; agora cada um tem a sua.
+- **Migrations antigas com dono `root`** (as da 17 e a da 18A): `sudo chown -R $USER backend/prisma/migrations`. A da 18B foi criada no host e não tem o problema.
+- **Devolução e disputa (D15):** não há mediação. Se o vendedor marca como enviado e não entrega, o comprador não tem como cancelar nem contestar pela plataforma (a reserva fica presa até o vendedor cancelar). Fica como risco.
+- **Pedido de quem excluiu a conta:** a reserva some com o extrato do comprador (Cascade). Quando a 18C trouxer o bloqueio, isso deixa de acontecer com pedido em aberto.
+
+---
+
 ## Fase 18A: catálogo de produtos e contato por WhatsApp
 
 **Data:** 2026-11-09 (implementação em 2026-11-03 e 04)
