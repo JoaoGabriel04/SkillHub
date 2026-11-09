@@ -48,6 +48,7 @@ model User {
   transacoes           TransacaoCredito[] @relation("Transacoes")
   avaliacoesFeitas     Avaliacao[] @relation("AvaliacoesFeitas")
   avaliacoesRecebidas  Avaliacao[] @relation("AvaliacoesRecebidas")
+  produtosVendidos     Produto[] @relation("ProdutosVendidos")
 }
 
 // Link de "esqueci a senha": guarda só o hash SHA-256 do token enviado por e-mail
@@ -166,4 +167,50 @@ model Avaliacao {
 
   @@unique([servicoId, avaliadorId])
   @@index([avaliadoId])
+}
+
+// Loja de produtos (Fase 18A). Preço em créditos; o estoque só é escrito pelo produto.repository.
+enum CategoriaProduto {
+  ARTE_DECORACAO
+  ALIMENTOS_BEBIDAS
+  MODA_ACESSORIOS
+  SERVICOS_DIGITAIS
+  EDUCACAO_APOSTILAS
+}
+
+enum StatusProduto {
+  ATIVO
+  PAUSADO
+  REMOVIDO // exclusão lógica (o histórico de pedidos da 18B usa snapshots)
+}
+
+model Produto {
+  id            String           @id @default(uuid())
+  nome          String           // 3 a 80
+  descricao     String           // 10 a 1000
+  categoria     CategoriaProduto
+  preco         Int              // em créditos, >= 1
+  estoque       Int              // >= 0; 0 = "Esgotado" (continua visível, sem compra)
+  digital       Boolean          @default(false) // sem frete: o "envio" é a entrega digital
+  whatsappAtivo Boolean          @default(true)
+  status        StatusProduto    @default(ATIVO)
+  vendedorId    String
+  vendedor      User             @relation("ProdutosVendidos", fields: [vendedorId], references: [id], onDelete: Cascade)
+  imagens       ProdutoImagem[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([status, categoria, createdAt])
+  @@index([vendedorId])
+}
+
+model ProdutoImagem {
+  id        String  @id @default(uuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  url       String
+  publicId  String? // Cloudinary; null nas fotos do seed
+  ordem     Int     // 0 = capa
+
+  @@index([produtoId])
 }
