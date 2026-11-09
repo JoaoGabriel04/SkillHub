@@ -47,7 +47,7 @@ export function ExtratoDialog({ open, onOpenChange }: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] text-foreground">{t.tipo}</p>
                     <p className="truncate text-[11px] text-muted-foreground">
-                      {t.servico?.titulo ?? (t.tipo === "Bônus" ? "Créditos concedidos pelo SkillHub" : "Pedido removido")} ·{" "}
+                      {t.servico?.titulo ?? t.pedido?.rotulo ?? (t.tipo === "Bônus" ? "Créditos concedidos pelo SkillHub" : "Pedido removido")} ·{" "}
                       {new Date(t.createdAt).toLocaleDateString("pt-BR")}
                     </p>
                   </div>

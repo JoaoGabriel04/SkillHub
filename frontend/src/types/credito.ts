@@ -8,4 +8,5 @@ export type Transacao = {
   saldoApos: number;
   createdAt: string; // ISO
   servico: { id: string; titulo: string } | null; // null: sem pedido (bônus) ou pedido que não existe mais
+  pedido: { id: string; rotulo: string } | null; // Fase 18B: pedido de produtos ("Pedido: nome do primeiro item (+N)")
 };
