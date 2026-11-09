@@ -1,22 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLaptop, faUserTie } from "@fortawesome/free-solid-svg-icons";
+import { faLaptop, faPlus, faUserTie } from "@fortawesome/free-solid-svg-icons";
 import { ChipRow } from "@/components/app/chip-row";
 import { PageTitle } from "@/components/app/page-title";
 import { ProdutoCard } from "@/components/app/produto-card";
+import { ProdutoCardEsqueleto } from "@/components/app/produto-card-esqueleto";
+import { PublicarProdutoDialog } from "@/components/app/publicar-produto-dialog";
 import { ScrollRow } from "@/components/app/scroll-row";
-import { normalizar, SearchBar } from "@/components/app/search-bar";
+import { SearchBar } from "@/components/app/search-bar";
 import { SectionHeader } from "@/components/app/section-header";
-import { ctaButtonClass } from "@/components/ui/cta-button";
+import { ContentCard } from "@/components/ui/content-card";
+import { CtaButton, ctaButtonClass } from "@/components/ui/cta-button";
 import { emBreve } from "@/lib/em-breve";
-import { CATEGORIAS_PRODUTO, getDestaques, getProdutos, type CategoriaProduto, type Destaque } from "@/lib/mock/produtos";
+import { getDestaques, type Destaque } from "@/lib/mock/produtos";
+import { CHAVE_MEUS_PRODUTOS, chaveProdutos, getMeusProdutos, getProdutos, type FiltrosProdutos } from "@/lib/produtos";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
+import { CATEGORIAS_PRODUTO, type CategoriaProduto } from "@/types/produto";
 
 // Faixa listrada do topo e da base dos banners (no mockup era roxa; segue o ciano da marca, --stripe por tema)
 const LISTRA = "bg-[repeating-linear-gradient(135deg,var(--stripe)_0_4px,transparent_4px_8px)]";
+const POR_LINHA = 12; // produtos por linha de categoria (a seta abre a categoria inteira)
+const LIMITE = 50; // o máximo por requisição da API; "carregar mais" fica para quando o volume justificar
 
 function DestaqueBanner({ destaque }: { destaque: Destaque }) {
   return (
@@ -44,30 +52,83 @@ function DestaqueBanner({ destaque }: { destaque: Destaque }) {
   );
 }
 
+// Busca só depois que a pessoa para de digitar, para não pedir à API a cada tecla
+function useDebounce<T>(valor: T, ms = 300) {
+  const [atrasado, setAtrasado] = useState(valor);
+  useEffect(() => {
+    const t = setTimeout(() => setAtrasado(valor), ms);
+    return () => clearTimeout(t);
+  }, [valor, ms]);
+  return atrasado;
+}
+
+const buscarProdutos = ([, filtros]: ReturnType<typeof chaveProdutos>) => getProdutos(filtros);
+// as linhas por categoria: uma requisição por categoria (decisão D10), cada linha com os mais recentes dela
+const CHAVE_LINHAS = ["produtos", "linhas"] as const;
+const buscarLinhas = () => Promise.all(CATEGORIAS_PRODUTO.map((categoria) => getProdutos({ categoria, limit: POR_LINHA })));
+
+function LinhaEsqueleto() {
+  return (
+    <section className="mt-[20px] sm:mt-10" aria-busy>
+      <span className="block h-4 w-40 animate-pulse rounded bg-foreground/10" />
+      <ScrollRow label="Carregando" className="mt-[10px] sm:mt-4">
+        {[0, 1, 2].map((i) => (
+          <ProdutoCardEsqueleto key={i} />
+        ))}
+      </ScrollRow>
+    </section>
+  );
+}
+
+function ErroAoCarregar({ onTentar }: { onTentar: () => void }) {
+  return (
+    <div role="alert" className="mt-12 flex flex-col items-center gap-3 text-center">
+      <p className="font-secondary text-[13px] text-muted-foreground sm:text-[15px]">Não foi possível carregar os produtos.</p>
+      <CtaButton onClick={onTentar} className="h-8 px-4">
+        Tentar de novo
+      </CtaButton>
+    </div>
+  );
+}
+
 // designs/New Produtos.png — atalhos de categoria no topo (filtram), busca, banners e uma linha por categoria.
+// Fase 18A: dados da API (GET /produtos). Categoria e busca vão na requisição. Quem vende (Colaborador e Empresa)
+// tem "Publicar" e a linha "Seus produtos" (GET /produtos/meus), no padrão de "Seus pedidos" dos Serviços.
 export default function ProdutosPage() {
-  const { data: produtos } = useSWR("produtos", getProdutos);
+  const perfil = useAuthStore((s) => s.user?.perfil);
+  const vende = perfil === "Colaborador" || perfil === "Empresa";
   const { data: destaques } = useSWR("produtos/destaques", getDestaques);
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState<CategoriaProduto | null>(null);
+  const [publicando, setPublicando] = useState(false);
+  const termo = useDebounce(busca.trim());
 
   const filtrando = Boolean(busca.trim() || categoria);
-  const resultados = useMemo(() => {
-    const termo = normalizar(busca);
-    return (produtos ?? []).filter(
-      (p) =>
-        (!termo || normalizar(`${p.nome} ${p.vendedor.fullName} ${p.categoria}`).includes(termo)) &&
-        (!categoria || p.categoria === categoria)
-    );
-  }, [produtos, busca, categoria]);
+  const filtros: FiltrosProdutos = { limit: LIMITE, ...(categoria && { categoria }), ...(termo && { busca: termo }) };
+  const resultados = useSWR(filtrando ? chaveProdutos(filtros) : null, buscarProdutos, { keepPreviousData: true });
+  const porCategoria = useSWR(filtrando ? null : CHAVE_LINHAS, buscarLinhas);
+  const meus = useSWR(vende ? CHAVE_MEUS_PRODUTOS : null, getMeusProdutos);
+  const lista = filtrando ? resultados : porCategoria;
 
-  const linhas = CATEGORIAS_PRODUTO.map((c) => ({ categoria: c, itens: (produtos ?? []).filter((p) => p.categoria === c) })).filter(
-    (linha) => linha.itens.length > 0
-  );
+  const linhas = CATEGORIAS_PRODUTO.map((c, i) => ({ categoria: c, itens: porCategoria.data?.[i] ?? [] })).filter((linha) => linha.itens.length > 0);
+  // fotos sem lazy nas 2 primeiras linhas com cards (Seus produtos e/ou categorias), até 6 por linha: é o que cabe
+  // na primeira tela (2 linhas no celular, até 6 cards a 1920px), e qualquer uma dessas fotos pode ser o LCP
+  const linhasNaDobra = [...(vende && meus.data?.length ? ["Seus produtos"] : []), ...linhas.map((l) => l.categoria)].slice(0, 2);
+  const naDobra = (linha: string, i: number) => linhasNaDobra.includes(linha) && i < 6;
 
   return (
     <main className="pb-4">
-      <PageTitle>Produtos</PageTitle>
+      {vende ? (
+        <div className="flex items-end justify-between gap-3">
+          <PageTitle>Produtos</PageTitle>
+          <CtaButton onClick={() => setPublicando(true)} className="flex h-8 shrink-0 items-center gap-2 px-3 sm:h-9 sm:px-4">
+            <FontAwesomeIcon icon={faPlus} className="text-[11px] sm:text-[12px]" />
+            Publicar
+          </CtaButton>
+        </div>
+      ) : (
+        <PageTitle>Produtos</PageTitle>
+      )}
 
       <ChipRow label="Categorias" className="mt-[20px] justify-between gap-2 sm:mt-6 sm:justify-start sm:gap-8">
         {CATEGORIAS_PRODUTO.map((c) => (
@@ -88,11 +149,13 @@ export default function ProdutosPage() {
 
       <SearchBar value={busca} onChange={setBusca} placeholder="ex: Livro de Programação" label="Buscar produtos" className="mt-[12px] sm:mt-5" />
 
-      {filtrando ? (
+      {lista.error ? (
+        <ErroAoCarregar onTentar={() => lista.mutate()} />
+      ) : filtrando ? (
         <section className="mt-[20px] sm:mt-8">
           <div className="flex items-center justify-between">
             <h2 className="text-[15px] text-foreground-secondary sm:text-[18px] lg:text-[20px]">
-              {categoria ?? "Resultados"} <span className="text-muted-foreground">({resultados.length})</span>
+              {categoria ?? "Resultados"} {resultados.data && <span className="text-muted-foreground">({resultados.data.length})</span>}
             </h2>
             <button
               type="button"
@@ -105,15 +168,24 @@ export default function ProdutosPage() {
               Limpar filtros
             </button>
           </div>
-          {resultados.length === 0 ? (
+          {!resultados.data ? (
+            <ul aria-busy className="mt-[18px] grid grid-cols-2 gap-x-[20px] gap-y-[18px] sm:grid-cols-3 lg:grid-cols-5">
+              {[0, 1, 2].map((i) => (
+                <li key={i}>
+                  <ProdutoCardEsqueleto className="w-full" />
+                </li>
+              ))}
+            </ul>
+          ) : resultados.data.length === 0 ? (
             <p className="mt-10 text-center font-secondary text-[13px] text-muted-foreground sm:text-[15px]">
               {categoria && !busca.trim() ? "Ainda não há produtos nessa categoria." : "Nenhum produto encontrado."}
             </p>
           ) : (
             <ul className="mt-[18px] grid grid-cols-2 gap-x-[20px] gap-y-[18px] sm:grid-cols-3 lg:grid-cols-5">
-              {resultados.map((p) => (
+              {resultados.data.map((p, i) => (
                 <li key={p.id}>
-                  <ProdutoCard produto={p} className="w-full" />
+                  <ProdutoCard produto={p} className="w-full" acimaDaDobra={i < 10} />
+                  {/* 10 sem lazy: o que cabe na 1ª tela (2 linhas de 5 no desktop, 4-5 de 2 no celular) */}
                 </li>
               ))}
             </ul>
@@ -128,18 +200,55 @@ export default function ProdutosPage() {
               ))}
             </ScrollRow>
           )}
-          {linhas.map((linha) => (
-            <section key={linha.categoria} className="mt-[20px] sm:mt-10">
-              <SectionHeader title={linha.categoria} onMore={() => setCategoria(linha.categoria)} />
-              <ScrollRow label={linha.categoria} className="mt-[10px] sm:mt-4">
-                {linha.itens.map((p) => (
-                  <ProdutoCard key={p.id} produto={p} />
+          {/* "Seus produtos" sem produtos: o lugar fica visível, com o convite para publicar o primeiro */}
+          {vende && meus.data?.length === 0 && (
+            <section className="mt-[20px] sm:mt-10">
+              <SectionHeader title="Seus produtos" />
+              <ContentCard className="mt-[10px] flex flex-col items-start gap-3 px-4 py-4 font-secondary sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <p className="text-[13px] text-foreground-secondary sm:text-[14px]">
+                  Você ainda não publicou nenhum produto. Tem algo para vender? Publique e ele aparece aqui.
+                </p>
+                <CtaButton onClick={() => setPublicando(true)} className="flex h-8 shrink-0 items-center gap-2 px-4">
+                  <FontAwesomeIcon icon={faPlus} className="text-[11px] sm:text-[12px]" />
+                  Publicar produto
+                </CtaButton>
+              </ContentCard>
+            </section>
+          )}
+          {vende && !!meus.data?.length && (
+            <section className="mt-[20px] sm:mt-10">
+              <SectionHeader title="Seus produtos" />
+              <ScrollRow label="Seus produtos" className="mt-[10px] sm:mt-4">
+                {meus.data.map((p, i) => (
+                  <ProdutoCard key={p.id} produto={p} acimaDaDobra={naDobra("Seus produtos", i)} />
                 ))}
               </ScrollRow>
             </section>
-          ))}
+          )}
+          {!porCategoria.data ? (
+            <>
+              <LinhaEsqueleto />
+              <LinhaEsqueleto />
+            </>
+          ) : linhas.length === 0 ? (
+            <p className="mt-12 text-center font-secondary text-[13px] text-muted-foreground sm:text-[15px]">Ainda não há produtos à venda.</p>
+          ) : (
+            linhas.map((linha) => (
+              <section key={linha.categoria} className="mt-[20px] sm:mt-10">
+                <SectionHeader title={linha.categoria} onMore={() => setCategoria(linha.categoria)} />
+                <ScrollRow label={linha.categoria} className="mt-[10px] sm:mt-4">
+                  {linha.itens.map((p, i) => (
+                    <ProdutoCard key={p.id} produto={p} acimaDaDobra={naDobra(linha.categoria, i)} />
+                  ))}
+                </ScrollRow>
+              </section>
+            ))
+          )}
         </>
       )}
+
+      {/* montado só enquanto aberto: o formulário sempre começa vazio */}
+      {publicando && <PublicarProdutoDialog open onOpenChange={setPublicando} />}
     </main>
   );
 }

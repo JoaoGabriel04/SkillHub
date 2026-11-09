@@ -3,7 +3,7 @@ import { faBook, faCode, faTrophy } from "@fortawesome/free-solid-svg-icons";
 import type { EventoFundo } from "@/lib/brand";
 
 // ⚠️ DADOS DE EXEMPLO — o backend ainda não tem eventos nem listagem de colaboradores.
-// Serviços e produtos do Início vêm de lib/mock (os mesmos das páginas Serviços e Produtos).
+// Serviços (Fase 17A) e produtos (Fase 18A) do Início vêm da API.
 
 export type Evento = { id: string; titulo: string; descricao: string; cta: string; icon: IconDefinition; fundo: EventoFundo };
 export type Pessoa = { id: string; nome: string };

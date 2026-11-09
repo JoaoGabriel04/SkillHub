@@ -6,6 +6,7 @@ import type { UpdateProfileInput } from "./user.schema.js";
 import { completeProfileSchema, type CompleteProfileInput } from "../auth/auth.schema.js";
 import { destroyAsset, uploadBuffer } from "../../configs/cloudinary.js";
 import servicoService from "../servico/servico.service.js";
+import produtoService from "../produto/produto.service.js";
 
 // Token válido de uma conta que não existe mais (ex.: excluída em outra aba): 401, como em
 // /auth/me e /auth/refresh — o front tenta o refresh, ele falha e a sessão é encerrada.
@@ -100,10 +101,13 @@ const userService = {
 
     // banco primeiro: se falhar, nada foi apagado. Os arquivos usam public_id fixo por usuário
     // (ver uploadAvatar/uploadCurriculo), então dá para removê-los mesmo sem a URL salva.
+    // Fase 18A: os produtos caem em cascata; as fotos deles são lidas antes, para sair do Cloudinary depois.
+    const fotosDosProdutos = await produtoService.fotosDoVendedor(userId);
     await userRepository.delete(userId);
     await Promise.all([
       destroyAsset(`Skillhub/avatars/${userId}`, "image"),
       destroyAsset(`Skillhub/curriculos/${userId}`, "raw"),
+      produtoService.apagarFotos(fotosDosProdutos),
     ]);
   },
 };
