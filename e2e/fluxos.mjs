@@ -776,7 +776,7 @@ const taxa = JSON.parse(execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "
   "-e", "PLATFORM_ACCOUNT_ID=00000000-0000-4000-8000-0000000e2e01", "-e", "PLATFORM_ACCOUNT_EMAIL=e2e.plataforma@example.com",
   "backend", "npx", "tsx", "scripts/verificar-taxa.ts"], { encoding: "utf8" }).trim().split("\n").at(-1));
 for (const r of taxa) ok(r.nome, r.ok, r.info);
-ok("taxa 15%: o script conferiu os 6 casos", taxa.length === 6, taxa.length);
+ok("taxa 15%: o script conferiu os 12 casos (6 de serviço e 6 de pedido)", taxa.length === 12, taxa.length);
 
 // extrato
 ok("créditos: extrato sem token dá 401", (await chamar("GET", "/creditos/extrato")).status === 401);
@@ -1318,6 +1318,525 @@ ok("produtos (tela): o Início mostra os produtos em créditos e abre o detalhe"
   primeiroNome ?? "");
 await ctxOutro.close();
 ok("produtos (tela): console sem avisos nem erros", avisosProd.length === 0, avisosProd.slice(0, 3).join(" | "));
+
+// 15j. Pedidos (Fase 18B): checkout com reserva, estoque e um pedido por vendedor, corridas, ciclo, cancelamentos,
+// consultas e privacidade, créditos, histórico, exclusão de conta (sem o bloqueio da 18C), conferência da reserva,
+// estoque editado x venda (D6) e as telas do carrinho, do checkout e do pedido
+const respostasPed = []; // corpo de toda resposta de pedido (e do extrato) desta seção, para a varredura de dados pessoais
+const api = async (metodo, rota, token, corpo) => { const r = await chamar(metodo, rota, token, corpo); respostasPed.push(JSON.stringify(r.corpo)); return r; };
+const TEL_COMPRADOR = "(21) 97777-1212", TEL_VENDEDOR = "11966665544";
+const RUA_SECRETA = "Rua Pedido Secreto", NUM_SECRETO = "987A", CEP_SECRETO = "04567-890", COMPL_SECRETO = "Bloco Sigiloso";
+const contaPed = async (nome, perfil, doc, phone) => {
+  const email = `e2e.pedidos.${nome}@example.com`;
+  const base = { fullName: `Pedidos ${nome} E2E`, phone, cep: CEP_SECRETO, rua: RUA_SECRETA, numero: NUM_SECRETO, complemento: COMPL_SECRETO,
+    bairro: "Vila Teste", cidade: "Campinas", estado: "SP", email, confirmEmail: email, password: "senha123", confirmPassword: "senha123" };
+  const { corpo } = await chamar("POST", `/auth/register/${perfil}`, null,
+    perfil === "empresa" ? { ...base, cnpj: doc } : { ...base, cpf: doc, dataNascimento: "1990-01-01", genero: "Outro" });
+  const { corpo: me } = await chamar("GET", "/auth/me", corpo.accessToken);
+  return { email, token: corpo.accessToken, id: me.user.id };
+};
+const compradorA = await contaPed("comprador", "cliente", "900.000.019-01", TEL_COMPRADOR);
+const comprador2 = await contaPed("comprador2", "colaborador", "900.000.019-02", "11955554433");
+const comprador3 = await contaPed("comprador3", "cliente", "900.000.019-05", "11922221100");
+const vendA = await contaPed("vendedor", "colaborador", "900.000.019-03", TEL_VENDEDOR);
+const vendB = await contaPed("empresa", "empresa", "90.000.019/0001-01", "1144445555");
+const terceiro = await contaPed("terceiro", "cliente", "900.000.019-04", "11933332211");
+const incPedId = sql(`insert into "User" (id, email, "fullName", perfil, "profileComplete") values (gen_random_uuid(), 'e2e.pedidos.incompleto@example.com', 'Pedidos incompleto E2E', 'Cliente', false) returning id`).split("\n")[0];
+const incPedToken = execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "backend", "node", "-e",
+  "console.log(require('jsonwebtoken').sign({ sub: process.argv[1] }, process.env.JWT_ACCESS_TOKEN, { expiresIn: '15m' }))", incPedId], { encoding: "utf8" }).trim();
+conceder(compradorA.email, 5000);
+conceder(comprador2.email, 50);
+
+// produtos direto no banco (sem Cloudinary): a foto é uma URL do seed, com publicId nulo. Cada produto ganha uma URL
+// própria (o mesmo arquivo, com um parâmetro a mais): o next/image guarda o lazy/eager de cada imagem pela URL, e cópias da
+// mesma URL em linhas diferentes (uma acima da dobra, outra abaixo) davam um falso aviso de LCP com lazy
+const FOTO_SEED = "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=70&fit=crop";
+let fotosCriadas = 0;
+const prodSql = (vendedorId, nome, preco, estoque, { digital = false, status = "ATIVO" } = {}) => {
+  const foto = `${FOTO_SEED}&e2e=${++fotosCriadas}`;
+  const id = sql(`insert into "Produto" (id, nome, descricao, categoria, preco, estoque, digital, status, "vendedorId", "updatedAt")
+    values (gen_random_uuid(), '${nome}', 'Produto de teste dos pedidos E2E', 'ARTE_DECORACAO', ${preco}, ${estoque}, ${digital}, '${status}', '${vendedorId}', now()) returning id`).split("\n")[0];
+  sql(`insert into "ProdutoImagem" (id, "produtoId", url, ordem) values (gen_random_uuid(), '${id}', '${foto}', 0)`);
+  return id;
+};
+const estoqueDe = (id) => Number(sql(`select estoque from "Produto" where id = '${id}'`));
+const statusPed = (id) => sql(`select status from "PedidoProduto" where id = '${id}'`);
+const linhasDe = (pedidoId) => sql(`select coalesce(string_agg(tipo || ' ' || valor, ',' order by "createdAt", id), '') from "TransacaoCredito" where "pedidoId" = '${pedidoId}'`);
+const pedidosDoComprador = (id) => Number(sql(`select count(*) from "PedidoProduto" where "compradorId" = '${id}'`));
+const it = (produtoId, quantidade, precoEsperado) => ({ produtoId, quantidade, precoEsperado });
+const comprar = (conta, itens, observacao) => api("POST", "/pedidos", conta.token, { itens, ...(observacao !== undefined && { observacao }) });
+const acaoPed = (id, acao, conta) => api("POST", `/pedidos/${id}/${acao}`, conta?.token);
+const detalhePed = (id, conta) => api("GET", `/pedidos/${id}`, conta?.token);
+const pedidoUnico = async (comprador, produtoId, quantidade, preco) => (await comprar(comprador, [it(produtoId, quantidade, preco)])).corpo.pedidos?.[0]?.id;
+const status2 = (rs) => rs.map((r) => r.status).sort().join(",");
+const apagarDepois = []; // pedidos em que o fluxo excluiu as duas contas: o cleanup não os acha pelas partes
+
+// compra
+const pA = prodSql(vendA.id, "Caneca E2E", 40, 5);
+const saldoA0 = saldoDe(compradorA.email);
+const rPed1 = await comprar(compradorA, [it(pA, 2, 40)], "Pode deixar na portaria.");
+const ped1 = rPed1.corpo.pedidos?.[0];
+ok("pedidos: o Cliente compra; o estoque cai, a reserva com o pedidoId sai do saldo e o extrato bate", rPed1.status === 201 && rPed1.corpo.pedidos.length === 1 &&
+  ped1.status === "Aguardando envio" && ped1.total === 80 && estoqueDe(pA) === 3 && linhasDe(ped1.id) === "RESERVA -80" &&
+  saldoDe(compradorA.email) === saldoA0 - 80 && extratoBate(compradorA.email), `${rPed1.status} ${JSON.stringify(rPed1.corpo).slice(0, 200)}`);
+ok("pedidos: itens em snapshot (nome, preço, quantidade, capa e digital) e a observação", ped1?.itens[0].nome === "Caneca E2E" && ped1.itens[0].precoUnitario === 40 &&
+  ped1.itens[0].quantidade === 2 && ped1.itens[0].imagemUrl === sql(`select url from "ProdutoImagem" where "produtoId" = '${pA}'`) && ped1.itens[0].digital === false && ped1.observacao === "Pode deixar na portaria.");
+const pB1 = prodSql(vendA.id, "Quadro E2E", 30, 4), pB3 = prodSql(vendA.id, "Moldura E2E", 15, 4);
+const pB2 = prodSql(vendB.id, "Apostila E2E do pedido", 50, 10, { digital: true });
+const rPed2 = await comprar(compradorA, [it(pB1, 1, 30), it(pB2, 2, 50), it(pB3, 1, 15)]);
+const ped2A = rPed2.corpo.pedidos?.find((p) => p.outraParte?.id === vendA.id), ped2B = rPed2.corpo.pedidos?.find((p) => p.outraParte?.id === vendB.id);
+ok("pedidos: carrinho com 2 vendedores vira 2 pedidos e 2 reservas, na mesma transação", rPed2.status === 201 && rPed2.corpo.pedidos.length === 2 &&
+  ped2A?.total === 45 && ped2B?.total === 100 && linhasDe(ped2A.id) === "RESERVA -45" && linhasDe(ped2B.id) === "RESERVA -100" &&
+  sql(`select count(distinct xmin::text) from "PedidoProduto" where id in ('${ped2A.id}', '${ped2B.id}')`) === "1" &&
+  ped2A.primeiroItem === "Moldura E2E" && ped2A.outrosItens === 1, `${rPed2.status} ${JSON.stringify(rPed2.corpo).slice(0, 200)}`);
+// atomicidade
+const pC1 = prodSql(vendA.id, "Atomico um E2E", 10, 5), pC2 = prodSql(vendB.id, "Atomico dois E2E", 10, 1), pC3 = prodSql(vendA.id, "Atomico tres E2E", 10, 5);
+const antesAtom = pedidosDoComprador(compradorA.id), saldoAtom = saldoDe(compradorA.email);
+const rAtom = await comprar(compradorA, [it(pC1, 1, 10), it(pC2, 2, 10), it(pC3, 1, 10)]);
+ok("pedidos: um item esgotado entre três dá 409 ESGOTADO apontando o produto, e nada muda", rAtom.status === 409 && rAtom.corpo.code === "ESGOTADO" &&
+  rAtom.corpo.produtoId === pC2 && rAtom.corpo.estoque === 1 && pedidosDoComprador(compradorA.id) === antesAtom && saldoDe(compradorA.email) === saldoAtom &&
+  estoqueDe(pC1) === 5 && estoqueDe(pC2) === 1 && estoqueDe(pC3) === 5, JSON.stringify(rAtom.corpo));
+const pD1 = prodSql(vendA.id, "Saldo um E2E", 40, 3), pD2 = prodSql(vendB.id, "Saldo dois E2E", 40, 3);
+const rSaldo = await comprar(comprador2, [it(pD1, 1, 40), it(pD2, 1, 40)]);
+ok("pedidos: saldo para só um dos 2 pedidos dá 409 e nada é criado, reservado nem baixado", rSaldo.status === 409 && rSaldo.corpo.code === "SALDO_INSUFICIENTE" &&
+  pedidosDoComprador(comprador2.id) === 0 && saldoDe(comprador2.email) === 50 && estoqueDe(pD1) === 3 && estoqueDe(pD2) === 3 && extratoBate(comprador2.email),
+  JSON.stringify(rSaldo.corpo));
+const pE = prodSql(vendA.id, "Preco muda E2E", 40, 3);
+await chamar("PATCH", `/produtos/${pE}`, vendA.token, { preco: 45 });
+const rPreco = await comprar(compradorA, [it(pE, 1, 40)]);
+ok("pedidos: preço diferente do visto dá 409 PRECO_ALTERADO com o preço atual, sem cobrar", rPreco.status === 409 && rPreco.corpo.code === "PRECO_ALTERADO" &&
+  rPreco.corpo.precoAtual === 45 && rPreco.corpo.produtoId === pE && estoqueDe(pE) === 3, JSON.stringify(rPreco.corpo));
+const pPaus = prodSql(vendA.id, "Pausado E2E", 10, 3, { status: "PAUSADO" }), pRem = prodSql(vendA.id, "Removido E2E", 10, 3, { status: "REMOVIDO" });
+const rPaus = await comprar(compradorA, [it(pPaus, 1, 10)]), rRem = await comprar(compradorA, [it(pRem, 1, 10)]);
+const rNada = await comprar(compradorA, [it("00000000-0000-4000-8000-00000000dead", 1, 10)]);
+ok("pedidos: produto pausado, removido ou inexistente dá 409 INDISPONIVEL", [rPaus, rRem, rNada].every((r) => r.status === 409 && r.corpo.code === "INDISPONIVEL"),
+  [rPaus, rRem, rNada].map((r) => `${r.status} ${r.corpo.code}`).join(" | "));
+ok("pedidos: comprar o próprio produto dá 403", (await comprar(vendA, [it(pA, 1, 40)])).status === 403);
+ok("pedidos: perfil incompleto 403, sem token 401", (await chamar("POST", "/pedidos", incPedToken, { itens: [it(pA, 1, 40)] })).status === 403 &&
+  (await chamar("POST", "/pedidos", null, { itens: [it(pA, 1, 40)] })).status === 401);
+const invalidos = [
+  { itens: [it(pA, 0, 40)] }, { itens: [it(pA, 100, 40)] }, { itens: [it(pA, 1.5, 40)] }, { itens: [it(pA, 1, 40)], observacao: "x".repeat(301) },
+  { itens: [] }, { itens: Array.from({ length: 21 }, () => it(crypto.randomUUID(), 1, 10)) }, { itens: [it(pA, 1, 40), it(pA, 1, 40)] }, { itens: [{ produtoId: pA, quantidade: 1 }] },
+];
+const rInv = await Promise.all(invalidos.map((c) => chamar("POST", "/pedidos", compradorA.token, c)));
+ok("pedidos: validação (quantidade 0, 100 e 1.5, observação de 301, 0 e 21 itens, repetido, sem precoEsperado) dá 400", rInv.every((r) => r.status === 400) &&
+  estoqueDe(pA) === 3, rInv.map((r) => r.status).join(","));
+
+// corridas (item e): cada uma 5 vezes, sempre um sucesso e um 409
+conceder(comprador2.email, 1000);
+let corridaEstoque = true, corridaSaldo = true, corridaConfCanc = true, corridaConf2 = true;
+const infoCorrida = [];
+for (let k = 0; k < 5; k++) {
+  const ultima = prodSql(vendA.id, `Ultima unidade ${k} E2E`, 10, 1);
+  const rs = await Promise.all([comprar(compradorA, [it(ultima, 1, 10)]), comprar(comprador2, [it(ultima, 1, 10)])]);
+  const okK = status2(rs) === "201,409" && rs.find((r) => r.status === 409).corpo.code === "ESGOTADO" && estoqueDe(ultima) === 0 &&
+    sql(`select count(*) from "ItemPedido" where "produtoId" = '${ultima}'`) === "1";
+  corridaEstoque &&= okK; if (!okK) infoCorrida.push(`estoque ${k}: ${status2(rs)} ${estoqueDe(ultima)}`);
+}
+ok("pedidos (corrida): dois compradores na última unidade, 5 vezes: um 201 e um 409 ESGOTADO, estoque 0", corridaEstoque, infoCorrida.join(" | "));
+for (let k = 0; k < 5; k++) {
+  conceder(comprador3.email, 30);
+  const x = prodSql(vendA.id, `Saldo corrida a${k} E2E`, 30, 5), y = prodSql(vendB.id, `Saldo corrida b${k} E2E`, 30, 5);
+  const rs = await Promise.all([comprar(comprador3, [it(x, 1, 30)]), comprar(comprador3, [it(y, 1, 30)])]);
+  const okK = status2(rs) === "201,409" && rs.find((r) => r.status === 409).corpo.code === "SALDO_INSUFICIENTE" && saldoDe(comprador3.email) === 0 &&
+    estoqueDe(x) + estoqueDe(y) === 9 && extratoBate(comprador3.email);
+  corridaSaldo &&= okK; if (!okK) infoCorrida.push(`saldo ${k}: ${status2(rs)} ${saldoDe(comprador3.email)}`);
+}
+ok("pedidos (corrida): dois checkouts com saldo para um, 5 vezes: um 201 e um 409, saldo nunca negativo, estoque baixa uma vez", corridaSaldo, infoCorrida.join(" | "));
+for (let k = 0; k < 5; k++) {
+  const x = prodSql(vendA.id, `Conf canc ${k} E2E`, 20, 2);
+  const pid = await pedidoUnico(compradorA, x, 1, 20);
+  await acaoPed(pid, "enviar", vendA);
+  const [conf, canc] = await Promise.all([acaoPed(pid, "confirmar-recebimento", compradorA), acaoPed(pid, "cancelar", vendA)]);
+  const ganhou = conf.status === 200 ? "confirmar" : "cancelar";
+  const okK = status2([conf, canc]) === "200,409" && (ganhou === "confirmar"
+    ? statusPed(pid) === "CONCLUIDO" && linhasDe(pid) === "RESERVA -20,RECEBIMENTO 20" && estoqueDe(x) === 1
+    : statusPed(pid) === "CANCELADO" && linhasDe(pid) === "RESERVA -20,ESTORNO 20" && estoqueDe(x) === 2) && extratoBate(compradorA.email) && extratoBate(vendA.email);
+  corridaConfCanc &&= okK; if (!okK) infoCorrida.push(`conf x canc ${k}: ${conf.status}/${canc.status} ${linhasDe(pid)}`);
+}
+ok("pedidos (corrida): confirmar x cancelar ao mesmo tempo, 5 vezes: um 200 e um 409, pago ou estornado, nunca os dois", corridaConfCanc, infoCorrida.join(" | "));
+for (let k = 0; k < 5; k++) {
+  const x = prodSql(vendA.id, `Conf dupla ${k} E2E`, 20, 2);
+  const pid = await pedidoUnico(compradorA, x, 1, 20);
+  await acaoPed(pid, "enviar", vendA);
+  const rs = await Promise.all([acaoPed(pid, "confirmar-recebimento", compradorA), acaoPed(pid, "confirmar-recebimento", compradorA)]);
+  const okK = status2(rs) === "200,409" && linhasDe(pid) === "RESERVA -20,RECEBIMENTO 20";
+  corridaConf2 &&= okK; if (!okK) infoCorrida.push(`conf 2x ${k}: ${status2(rs)} ${linhasDe(pid)}`);
+}
+ok("pedidos (corrida): confirmar duas vezes ao mesmo tempo, 5 vezes: um 200 e um 409, um só pagamento", corridaConf2, infoCorrida.join(" | "));
+
+// ciclo
+const saldoVendA = saldoDe(vendA.email);
+const env1 = await acaoPed(ped1.id, "enviar", vendA);
+ok("pedidos: o vendedor marca como enviado e o enviadoEm fica gravado", env1.status === 200 && env1.corpo.pedido.status === "Enviado" &&
+  sql(`select "enviadoEm" is not null from "PedidoProduto" where id = '${ped1.id}'`) === "t");
+const conf1 = await acaoPed(ped1.id, "confirmar-recebimento", compradorA);
+ok("pedidos: o comprador confirma; o vendedor recebe, sem linha de taxa com taxa 0, e o concluidoEm fica gravado", conf1.status === 200 &&
+  conf1.corpo.pedido.status === "Concluído" && linhasDe(ped1.id) === "RESERVA -80,RECEBIMENTO 80" && saldoDe(vendA.email) === saldoVendA + 80 &&
+  sql(`select "concluidoEm" is not null from "PedidoProduto" where id = '${ped1.id}'`) === "t" && extratoBate(vendA.email) && extratoBate(compradorA.email), linhasDe(ped1.id));
+ok("pedidos: transições fora da tabela dão 409 (enviar concluído, confirmar antes do envio, cancelar concluído)",
+  (await acaoPed(ped1.id, "enviar", vendA)).status === 409 && (await acaoPed(ped2A.id, "confirmar-recebimento", compradorA)).status === 409 &&
+  (await acaoPed(ped1.id, "cancelar", compradorA)).status === 409 && (await acaoPed(ped1.id, "cancelar", vendA)).status === 409);
+ok("pedidos: papel errado dá 403 (comprador enviando, vendedor confirmando)", (await acaoPed(ped2A.id, "enviar", compradorA)).status === 403 &&
+  (await acaoPed(ped2A.id, "confirmar-recebimento", vendA)).status === 403);
+const envDig = await acaoPed(ped2B.id, "enviar", vendB);
+ok("pedidos: pedido digital é marcado como entregue pelo mesmo enviar", envDig.status === 200 && envDig.corpo.pedido.itens.every((i) => i.digital === true));
+
+// cancelamentos
+const canc1 = await acaoPed(ped2A.id, "cancelar", compradorA);
+ok("pedidos: o comprador cancela antes do envio; estorno inteiro e estoque devolvido", canc1.status === 200 && canc1.corpo.pedido.canceladoPor === "Comprador" &&
+  sql(`select "canceladoEm" is not null from "PedidoProduto" where id = '${ped2A.id}'`) === "t" && linhasDe(ped2A.id) === "RESERVA -45,ESTORNO 45" &&
+  estoqueDe(pB1) === 4 && estoqueDe(pB3) === 4, linhasDe(ped2A.id));
+ok("pedidos: enviar um pedido cancelado dá 409", (await acaoPed(ped2A.id, "enviar", vendA)).status === 409);
+const pF = prodSql(vendA.id, "Cancela vendedor E2E", 25, 4);
+const ped20 = await pedidoUnico(compradorA, pF, 1, 25);
+const canc20 = await acaoPed(ped20, "cancelar", vendA);
+ok("pedidos: o vendedor cancela antes do envio", canc20.status === 200 && canc20.corpo.pedido.canceladoPor === "Vendedor" && linhasDe(ped20) === "RESERVA -25,ESTORNO 25" && estoqueDe(pF) === 4);
+const ped21 = await pedidoUnico(compradorA, pF, 2, 25);
+await acaoPed(ped21, "enviar", vendA);
+ok("pedidos: o vendedor cancela depois do envio", (await acaoPed(ped21, "cancelar", vendA)).status === 200 && linhasDe(ped21) === "RESERVA -50,ESTORNO 50" && estoqueDe(pF) === 4);
+const ped22 = await pedidoUnico(compradorA, pF, 1, 25);
+await acaoPed(ped22, "enviar", vendA);
+ok("pedidos: o comprador não cancela depois do envio (409), e nada muda", (await acaoPed(ped22, "cancelar", compradorA)).status === 409 &&
+  statusPed(ped22) === "ENVIADO" && linhasDe(ped22) === "RESERVA -25" && estoqueDe(pF) === 3);
+const pR = prodSql(vendA.id, "Removido depois E2E", 12, 3);
+const ped23 = await pedidoUnico(compradorA, pR, 1, 12);
+const remR = await chamar("DELETE", `/produtos/${pR}`, vendA.token);
+ok("pedidos: cancelar pedido de produto removido estorna e devolve o estoque (o produto continua fora da loja)", remR.status === 204 &&
+  (await acaoPed(ped23, "cancelar", vendA)).status === 200 && estoqueDe(pR) === 3 && sql(`select status from "Produto" where id = '${pR}'`) === "REMOVIDO" &&
+  linhasDe(ped23) === "RESERVA -12,ESTORNO 12");
+
+// consultas e privacidade (item f)
+const compras1 = await api("GET", "/pedidos/compras?limit=1", compradorA.token);
+const compras2 = await api("GET", `/pedidos/compras?limit=1&cursor=${compras1.corpo.nextCursor}`, compradorA.token);
+const todasCompras = await api("GET", "/pedidos/compras?limit=50", compradorA.token);
+const vendasA = await api("GET", "/pedidos/vendas?limit=50", vendA.token);
+ok("pedidos: compras e vendas só do usuário, mais recentes primeiro, com cursor", compras1.status === 200 && !!compras1.corpo.nextCursor &&
+  compras1.corpo.pedidos[0].id !== compras2.corpo.pedidos[0].id && compras1.corpo.pedidos[0].createdAt >= compras2.corpo.pedidos[0].createdAt &&
+  todasCompras.corpo.pedidos.every((p) => p.papel === "comprador") && vendasA.corpo.pedidos.every((p) => p.papel === "vendedor") &&
+  todasCompras.corpo.nextCursor === null && (await chamar("GET", "/pedidos/compras?limit=51", compradorA.token)).status === 400);
+ok("pedidos: detalhe para as duas partes, 403 para um terceiro, 404 para inexistente e id inválido", (await detalhePed(ped22, compradorA)).status === 200 &&
+  (await detalhePed(ped22, vendA)).status === 200 && (await detalhePed(ped22, terceiro)).status === 403 &&
+  (await detalhePed("00000000-0000-4000-8000-00000000dead", compradorA)).status === 404 && (await detalhePed("nao-e-uuid", compradorA)).status === 404);
+const vistoPeloVendedor = await detalhePed(ped22, vendA);
+ok("pedidos: o detalhe traz só a cidade e o bairro da outra parte", vistoPeloVendedor.corpo.pedido.outraParteLocal?.cidade === "Campinas" &&
+  vistoPeloVendedor.corpo.pedido.outraParteLocal?.bairro === "Vila Teste" && vistoPeloVendedor.corpo.pedido.outraParte.id === compradorA.id &&
+  ![RUA_SECRETA, NUM_SECRETO, CEP_SECRETO, COMPL_SECRETO].some((t) => JSON.stringify(vistoPeloVendedor.corpo).includes(t)));
+const contatoPed = (id, conta) => chamar("GET", `/pedidos/${id}/contato`, conta?.token);
+const pG = prodSql(vendA.id, "Contato E2E", 10, 5);
+const pedAberto = await pedidoUnico(compradorA, pG, 1, 10);
+const cComp = await contatoPed(pedAberto, compradorA), cVend = await contatoPed(pedAberto, vendA);
+ok("pedidos: o contato dá o link da outra parte, com o primeiro item na mensagem", cComp.status === 200 &&
+  cComp.corpo.url === `https://wa.me/5511966665544?text=${encodeURIComponent("Olá, comprei Contato E2E no SkillHub e quero combinar a entrega.")}` &&
+  cVend.corpo.url === `https://wa.me/5521977771212?text=${encodeURIComponent("Olá, vendi Contato E2E para você no SkillHub e quero combinar a entrega.")}`,
+  `${cComp.corpo.url} | ${cVend.corpo.url}`);
+await acaoPed(pedAberto, "enviar", vendA);
+const cEnviado = await contatoPed(pedAberto, compradorA);
+sql(`update "User" set phone = null where id = '${vendA.id}'`);
+const cSemTel = await contatoPed(pedAberto, compradorA);
+const detSemTel = await detalhePed(pedAberto, compradorA);
+sql(`update "User" set phone = '${TEL_VENDEDOR}' where id = '${vendA.id}'`);
+ok("pedidos: contato em Enviado 200; encerrado 409; terceiro 403; sem token 401; outra parte sem telefone 404", cEnviado.status === 200 &&
+  (await contatoPed(ped1.id, compradorA)).status === 409 && (await contatoPed(pedAberto, terceiro)).status === 403 && (await contatoPed(pedAberto)).status === 401 &&
+  cSemTel.status === 404 && detSemTel.corpo.pedido.contatoDisponivel === false, `${cEnviado.status} ${cSemTel.status}`);
+
+// créditos e taxa (itens a e d)
+const extComp = await api("GET", "/creditos/extrato?limit=50", compradorA.token);
+const extVend = await api("GET", "/creditos/extrato?limit=50", vendA.token);
+const linhaExt = (ext, pedidoId, tipo) => ext.corpo.transacoes.find((t) => t.pedido?.id === pedidoId && t.tipo === tipo);
+ok("pedidos: o extrato mostra Pedido: primeiro item (+N) na reserva do comprador e no recebimento do vendedor",
+  linhaExt(extComp, ped2A.id, "Reserva")?.pedido.rotulo === "Pedido: Moldura E2E (+1)" && linhaExt(extVend, ped1.id, "Recebimento")?.pedido.rotulo === "Pedido: Caneca E2E",
+  JSON.stringify(linhaExt(extComp, ped2A.id, "Reserva")));
+
+// script pedidos:pendentes (item h): só listagem
+sql(`update "PedidoProduto" set "enviadoEm" = now() - interval '8 days' where id = '${ped22}'`);
+const contagens = () => sql(`select (select count(*) from "PedidoProduto") || '/' || (select count(*) from "TransacaoCredito") || '/' || (select count(*) from "Produto")`);
+const antesScript = contagens();
+const pendentes = execFileSync("docker", ["compose", "-f", COMPOSE_FILE, "exec", "-T", "backend", "npm", "run", "-s", "pedidos:pendentes"], { encoding: "utf8" });
+ok("pedidos: pedidos:pendentes lista o enviado há 8 dias e não o de hoje, sem e-mail nem telefone, e não muda nada", pendentes.includes(ped22) &&
+  !pendentes.includes(pedAberto) && !pendentes.includes(compradorA.email) && !pendentes.includes("97777") && contagens() === antesScript, pendentes.slice(0, 200));
+
+// histórico (item c)
+const pH = prodSql(vendA.id, "Historico E2E", 18, 2);
+const pedH = await pedidoUnico(compradorA, pH, 1, 18);
+await chamar("DELETE", `/produtos/${pH}`, vendA.token);
+const detH = await detalhePed(pedH, compradorA);
+await acaoPed(pedH, "enviar", vendA);
+ok("pedidos: remover o produto não quebra o pedido aberto, que segue até Concluído", detH.status === 200 && detH.corpo.pedido.itens[0].nome === "Historico E2E" &&
+  (await acaoPed(pedH, "confirmar-recebimento", compradorA)).corpo.pedido?.status === "Concluído");
+const vendSai = await contaPed("vendsai", "colaborador", "900.000.019-06", "11911112222");
+const pVendSai = prodSql(vendSai.id, "Vendedor sai E2E", 22, 3);
+const pedSai = await pedidoUnico(compradorA, pVendSai, 1, 22);
+await acaoPed(pedSai, "enviar", vendSai); await acaoPed(pedSai, "confirmar-recebimento", compradorA);
+const saiuV = await chamar("DELETE", "/user", vendSai.token, { password: "senha123" });
+const detSai = await detalhePed(pedSai, compradorA);
+ok("pedidos: o vendedor de um pedido concluído exclui a conta; o pedido fica, com Usuário removido e o snapshot", saiuV.status === 204 &&
+  detSai.corpo.pedido.outraParte === null && detSai.corpo.pedido.itens[0].produtoId === null && detSai.corpo.pedido.total === 22 && !!detSai.corpo.pedido.concluidoEm);
+const compSai = await contaPed("compsai", "cliente", "900.000.019-07", "11911113333");
+conceder(compSai.email, 100);
+const pSaiC = prodSql(vendA.id, "Comprador sai E2E", 33, 3);
+const pedSai2 = await pedidoUnico(compSai, pSaiC, 1, 33);
+await acaoPed(pedSai2, "enviar", vendA); await acaoPed(pedSai2, "confirmar-recebimento", compSai);
+const rendaAntes = sql(`select sum(total) from "PedidoProduto" where "vendedorId" = '${vendA.id}' and status = 'CONCLUIDO'`);
+const saiuC = await chamar("DELETE", "/user", compSai.token, { password: "senha123" });
+ok("pedidos: o comprador de um pedido concluído exclui a conta; o pedido e a renda do vendedor ficam", saiuC.status === 204 &&
+  (await detalhePed(pedSai2, vendA)).corpo.pedido.outraParte === null &&
+  sql(`select sum(total) from "PedidoProduto" where "vendedorId" = '${vendA.id}' and status = 'CONCLUIDO'`) === rendaAntes);
+
+// exclusão de conta hoje, com pedido em aberto (o bloqueio é da 18C)
+const compY = await contaPed("compy", "cliente", "900.000.019-08", "11911114444");
+conceder(compY.email, 100);
+const pY = prodSql(vendA.id, "Comprador sai aberto E2E", 15, 3);
+const pedY = await pedidoUnico(compY, pY, 1, 15);
+await acaoPed(pedY, "enviar", vendA);
+const saiuY = await chamar("DELETE", "/user", compY.token, { password: "senha123" });
+const detY = await detalhePed(pedY, vendA);
+const cancY = await acaoPed(pedY, "cancelar", vendA);
+ok("pedidos (hoje): comprador sai com pedido enviado; o vendedor ainda vê e cancela, o estoque volta, sem 500", saiuY.status === 204 && detY.status === 200 &&
+  detY.corpo.pedido.outraParte === null && cancY.status === 200 && estoqueDe(pY) === 3 && linhasDe(pedY) === "", `${cancY.status} ${linhasDe(pedY)}`);
+const vendZ = await contaPed("vendz", "colaborador", "900.000.019-09", "11911115555");
+const pedZ = await pedidoUnico(compradorA, prodSql(vendZ.id, "Vendedor sai aguardando E2E", 14, 3), 1, 14);
+await chamar("DELETE", "/user", vendZ.token, { password: "senha123" });
+const cancZ = await acaoPed(pedZ, "cancelar", compradorA);
+ok("pedidos (hoje): vendedor sai com pedido aguardando envio; o comprador cancela e o estorno volta inteiro", cancZ.status === 200 && linhasDe(pedZ) === "RESERVA -14,ESTORNO 14");
+const vendW = await contaPed("vendw", "colaborador", "900.000.019-10", "11911116666");
+const pedW = await pedidoUnico(compradorA, prodSql(vendW.id, "Vendedor sai enviado E2E", 16, 3), 1, 16);
+await acaoPed(pedW, "enviar", vendW);
+await chamar("DELETE", "/user", vendW.token, { password: "senha123" });
+const confW = await acaoPed(pedW, "confirmar-recebimento", compradorA);
+const cancW = await acaoPed(pedW, "cancelar", compradorA);
+ok("pedidos (D5): vendedor sai com pedido enviado; confirmar dá 409 e o comprador cancela, com o estorno inteiro", confW.status === 409 &&
+  confW.corpo.error === "O vendedor excluiu a conta" && cancW.status === 200 && cancW.corpo.pedido.canceladoPor === "Comprador" && linhasDe(pedW) === "RESERVA -16,ESTORNO 16",
+  `${confW.status} ${confW.corpo.error} | ${cancW.status}`);
+
+// conferência da reserva (ajuste 2): sem a RESERVA certa, nenhum crédito se move
+const pK = prodSql(vendA.id, "Reserva confere E2E", 21, 5);
+const pedK = await pedidoUnico(compradorA, pK, 1, 21);
+await acaoPed(pedK, "enviar", vendA);
+const saldoVendK = saldoDe(vendA.email);
+sql(`update "TransacaoCredito" set tipo = 'BONUS' where "pedidoId" = '${pedK}' and tipo = 'RESERVA'`); // a reserva "some" (o extrato continua batendo)
+const confK = await acaoPed(pedK, "confirmar-recebimento", compradorA);
+ok("pedidos: sem a RESERVA do pedido, confirmar dá 500 e nada muda", confK.status === 500 && statusPed(pedK) === "ENVIADO" && saldoDe(vendA.email) === saldoVendK &&
+  !linhasDe(pedK).includes("RECEBIMENTO"), `${confK.status} ${linhasDe(pedK)}`);
+sql(`update "TransacaoCredito" set tipo = 'RESERVA' where "pedidoId" = '${pedK}' and tipo = 'BONUS'`);
+sql(`update "PedidoProduto" set total = total + 1 where id = '${pedK}'`); // a reserva deixa de valer -total
+const cancK = await acaoPed(pedK, "cancelar", vendA);
+ok("pedidos: com a RESERVA diferente do total, cancelar dá 500 e nada muda (sem estorno, estoque igual)", cancK.status === 500 && statusPed(pedK) === "ENVIADO" &&
+  linhasDe(pedK) === "RESERVA -21" && estoqueDe(pK) === 4, `${cancK.status} ${linhasDe(pedK)}`);
+sql(`update "PedidoProduto" set total = total - 1 where id = '${pedK}'`);
+ok("pedidos: com a reserva certa de volta, o cancelamento funciona", (await acaoPed(pedK, "cancelar", vendA)).status === 200 && linhasDe(pedK) === "RESERVA -21,ESTORNO 21");
+
+// estoque editado x venda (D6)
+const pS = prodSql(vendA.id, "Estoque lido E2E", 10, 5);
+const semLido = await chamar("PATCH", `/produtos/${pS}`, vendA.token, { estoque: 9 });
+ok("produtos (D6): PATCH com estoque e sem estoqueLido dá 400; sem estoque, não pede", semLido.status === 400 &&
+  semLido.corpo.details?.some((d) => d.field === "estoqueLido") && (await chamar("PATCH", `/produtos/${pS}`, vendA.token, { nome: "Estoque lido E2E" })).status === 200);
+ok("produtos (D6): PATCH com o estoqueLido certo grava", (await chamar("PATCH", `/produtos/${pS}`, vendA.token, { estoque: 7, estoqueLido: 5 })).status === 200 && estoqueDe(pS) === 7);
+await pedidoUnico(compradorA, pS, 1, 10);
+const lidoVelho = await chamar("PATCH", `/produtos/${pS}`, vendA.token, { estoque: 10, estoqueLido: 7 });
+ok("produtos (D6): uma venda entre a leitura e o PATCH dá 409 e o estoque fica o da venda", lidoVelho.status === 409 &&
+  lidoVelho.corpo.error === "O estoque mudou (houve uma venda). Confira e salve de novo." && estoqueDe(pS) === 6, `${lidoVelho.status} ${estoqueDe(pS)}`);
+
+// telas (Cliente a 440px)
+const avisosPed = [];
+const contextoPed = async (email, opcoes = {}) => {
+  const c = await browser.newContext({ viewport: { width: 440, height: 956 }, ...opcoes });
+  await c.request.post(`${API}/api/auth/login`, { data: { email, password: "senha123" } });
+  await c.route("https://wa.me/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<p>wa.me</p>" }));
+  const p = await c.newPage();
+  p.on("pageerror", (e) => pageErrors.push(e.message));
+  const ignorado = (t) => t.includes("Failed to load resource") || /Logo-Skillhub\.png.*preloaded using link preload/.test(t);
+  // com a página, para o aviso dizer onde apareceu
+  p.on("console", (m) => ["warning", "error"].includes(m.type()) && !ignorado(m.text()) && avisosPed.push(`[${p.url().replace(B, "")}] ${m.text()}`));
+  return { c, p };
+};
+const pT1 = prodSql(vendA.id, "Vaso tela E2E", 25, 3), pT2 = prodSql(vendB.id, "Livro tela E2E", 35, 5), pT3 = prodSql(vendA.id, "Pano tela E2E", 9, 2);
+const { c: ctxC, p: pC } = await contextoPed(compradorA.email);
+const abrirProduto = async (p, nome) => {
+  await p.goto(B + "/produtos"); await tituloProdutos(p);
+  await p.getByRole("searchbox", { name: "Buscar produtos" }).fill(nome);
+  await p.getByRole("button", { name: new RegExp(nome) }).first().click();
+  const d = p.getByRole("dialog", { name: nome });
+  await d.getByRole("button", { name: "Adicionar ao carrinho" }).waitFor({ timeout: 10000 }).catch(() => {});
+  return d;
+};
+const carrinhoBtn = (p) => p.getByRole("button", { name: /^Carrinho/ });
+let dT = await abrirProduto(pC, "Vaso tela E2E");
+await dT.getByRole("button", { name: "Aumentar" }).click(); await dT.getByRole("button", { name: "Aumentar" }).click();
+const travouNoEstoque = await dT.getByRole("button", { name: "Aumentar" }).isDisabled();
+await dT.getByRole("button", { name: "Diminuir" }).click(); await dT.getByRole("button", { name: "Diminuir" }).click();
+await dT.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+await pC.keyboard.press("Escape");
+await carrinhoBtn(pC).and(pC.getByRole("button", { name: "Carrinho: 1 item" })).waitFor({ timeout: 5000 }).catch(() => {});
+ok("pedidos (tela): a quantidade para no estoque, e Adicionar ao carrinho mostra a contagem", travouNoEstoque && (await carrinhoBtn(pC).getAttribute("aria-label")) === "Carrinho: 1 item",
+  await carrinhoBtn(pC).getAttribute("aria-label"));
+for (const nome of ["Livro tela E2E", "Pano tela E2E"]) {
+  dT = await abrirProduto(pC, nome);
+  await dT.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await pC.keyboard.press("Escape");
+}
+await chamar("PATCH", `/produtos/${pT3}`, vendA.token, { status: "Pausado" }); // depois de adicionar: fica indisponível
+await pC.reload(); await tituloProdutos(pC);
+await carrinhoBtn(pC).and(pC.getByRole("button", { name: "Carrinho: 3 itens" })).waitFor({ timeout: 5000 }).catch(() => {});
+ok("pedidos (tela): recarregar a página mantém o carrinho", (await carrinhoBtn(pC).getAttribute("aria-label")) === "Carrinho: 3 itens");
+const chipAntes = await pC.getByRole("button", { name: /^Créditos:/ }).getAttribute("aria-label"); // lido antes do diálogo (ele esconde o resto)
+await carrinhoBtn(pC).click();
+const dCar = pC.getByRole("dialog", { name: "Carrinho" });
+await dCar.getByText("Indisponível").waitFor({ timeout: 10000 }).catch(() => {});
+ok("pedidos (tela): carrinho agrupado por vendedor, com o pausado indisponível e fora do total", await dCar.getByRole("region", { name: "Itens de Pedidos vendedor E2E" }).isVisible() &&
+  await dCar.getByRole("region", { name: "Itens de Pedidos empresa E2E" }).isVisible() && await dCar.getByText("Indisponível").isVisible() &&
+  await dCar.getByText("60 créditos", { exact: true }).last().isVisible());
+await dCar.getByRole("button", { name: "Finalizar compra" }).click();
+const dChk = pC.getByRole("dialog", { name: "Finalizar compra" });
+await dChk.waitFor();
+ok("pedidos (tela): o checkout mostra o total, o aviso da reserva e o do WhatsApp", await dChk.getByRole("button", { name: "Reservar 60 créditos" }).isVisible() &&
+  await dChk.getByText("O vendedor poderá falar com você pelo WhatsApp para combinar a entrega.").isVisible());
+await dChk.getByLabel("Observação (opcional)").fill("Entregar à tarde.");
+await dChk.getByRole("button", { name: "Reservar 60 créditos" }).click();
+const comprasTela = pC.getByRole("region", { name: "Suas compras" });
+await comprasTela.getByText(/Vaso tela E2E/).waitFor({ timeout: 15000 }).catch(() => {});
+const chipDepois = await pC.getByRole("button", { name: /^Créditos:/ }).getAttribute("aria-label");
+ok("pedidos (tela): depois do checkout, os itens saem do carrinho, o saldo do chip cai e Suas compras mostra os pedidos",
+  await comprasTela.getByText(/Vaso tela E2E/).isVisible() && await comprasTela.getByText(/Livro tela E2E/).isVisible() &&
+  (await carrinhoBtn(pC).getAttribute("aria-label")) === "Carrinho: 1 item" && chipAntes !== chipDepois && sql(`select count(*) from "PedidoProduto" where observacao = 'Entregar à tarde.'`) === "2",
+  `${chipAntes} -> ${chipDepois}`);
+// PRECO_ALTERADO pela tela: o preço muda entre abrir o checkout e reservar
+await chamar("PATCH", `/produtos/${pT3}`, vendA.token, { status: "Ativo" });
+await carrinhoBtn(pC).click();
+await dCar.getByRole("button", { name: "Finalizar compra" }).click();
+await dChk.waitFor();
+await chamar("PATCH", `/produtos/${pT3}`, vendA.token, { preco: 11 });
+await dChk.getByRole("button", { name: /^Reservar/ }).click();
+await dChk.getByText("O preço de Pano tela E2E mudou para 11 créditos. Confira o carrinho.").waitFor({ timeout: 8000 }).catch(() => {});
+ok("pedidos (tela): preço alterado mostra a mensagem com o produto, sem cobrar", await dChk.getByText("O preço de Pano tela E2E mudou para 11 créditos. Confira o carrinho.").isVisible() &&
+  estoqueDe(pT3) === 2);
+await pC.keyboard.press("Escape");
+// Comprar agora: o checkout só com o item, sem mexer no carrinho
+dT = await abrirProduto(pC, "Livro tela E2E");
+await dT.getByRole("button", { name: "Comprar agora" }).click();
+await dChk.waitFor();
+const soUmItem = await dChk.getByRole("button", { name: "Reservar 35 créditos" }).isVisible();
+await dChk.getByRole("button", { name: "Voltar" }).click();
+const voltouAoDetalhe = await pC.getByRole("dialog", { name: "Livro tela E2E" }).waitFor({ timeout: 5000 }).then(() => true, () => false);
+await pC.keyboard.press("Escape"); // o diálogo esconde o resto da página: o carrinho é lido depois de fechar
+await pC.getByRole("dialog").waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
+ok("pedidos (tela): Comprar agora abre o checkout só com o item, o Voltar volta ao produto e o carrinho não muda", soUmItem && voltouAoDetalhe &&
+  (await carrinhoBtn(pC).getAttribute("aria-label")) === "Carrinho: 1 item");
+// estados de Suas compras: carregando e erro com Tentar de novo
+await pC.route("**/api/pedidos/compras**", async (r) => { await new Promise((x) => setTimeout(x, 3000)); await r.continue().catch(() => {}); });
+await pC.goto(B + "/produtos"); await tituloProdutos(pC);
+const carregandoCompras = await pC.locator("section[aria-busy]").first().isVisible();
+await comprasTela.waitFor({ timeout: 10000 }).catch(() => {}); // a resposta atrasada chega antes de trocar a rota
+await pC.unroute("**/api/pedidos/compras**");
+await pC.route("**/api/pedidos/compras**", (r) => r.fulfill({ status: 500, contentType: "application/json", body: '{"error":"x"}' }));
+await pC.goto(B + "/produtos"); await tituloProdutos(pC);
+await pC.getByText("Não foi possível carregar suas compras.").waitFor({ timeout: 15000 }).catch(() => {});
+const erroCompras = await pC.getByText("Não foi possível carregar suas compras.").isVisible();
+await pC.unroute("**/api/pedidos/compras**");
+await pC.getByRole("button", { name: "Tentar de novo" }).first().click();
+await comprasTela.waitFor({ timeout: 10000 }).catch(() => {});
+ok("pedidos (tela): Suas compras com carregando e erro com Tentar de novo, que recarrega", carregandoCompras && erroCompras && await comprasTela.isVisible());
+// o vendedor marca como enviado (com a cidade e o bairro do comprador)
+const { c: ctxV, p: pV } = await contextoPed(vendA.email);
+await pV.goto(B + "/produtos"); await tituloProdutos(pV);
+const vendasTela = pV.getByRole("region", { name: "Suas vendas" });
+await vendasTela.getByRole("button", { name: /Vaso tela E2E/ }).click();
+const dVend = pV.getByRole("dialog", { name: "Pedido de Vaso tela E2E" });
+await dVend.getByText("Campinas, Vila Teste").waitFor({ timeout: 8000 }).catch(() => {});
+const localVisivel = await dVend.getByText("Campinas, Vila Teste").isVisible();
+await dVend.getByRole("button", { name: "Marcar como enviado" }).click();
+await dVend.getByText("Venda · Enviado").waitFor({ timeout: 8000 }).catch(() => {});
+ok("pedidos (tela): o vendedor vê o comprador com cidade e bairro e marca como enviado", localVisivel && await dVend.getByText("Venda · Enviado").isVisible());
+await ctxV.close();
+// o comprador fala com o vendedor e confirma o recebimento
+await pC.goto(B + "/produtos"); await tituloProdutos(pC);
+await comprasTela.getByRole("button", { name: /Vaso tela E2E/ }).click();
+const dComp = pC.getByRole("dialog", { name: "Pedido de Vaso tela E2E" });
+await dComp.getByRole("button", { name: "Falar com o vendedor" }).waitFor({ timeout: 8000 }).catch(() => {});
+const [abaPed] = await Promise.all([ctxC.waitForEvent("page", { timeout: 10000 }), dComp.getByRole("button", { name: "Falar com o vendedor" }).click()]);
+await abaPed.waitForURL("https://wa.me/**", { timeout: 10000 }).catch(() => {});
+ok("pedidos (tela): Falar com o vendedor no pedido abre o WhatsApp do vendedor", abaPed.url().startsWith("https://wa.me/5511966665544?text="), abaPed.url());
+await abaPed.close();
+const saldoVendT = saldoDe(vendA.email);
+await dComp.getByRole("button", { name: "Confirmar recebimento" }).click();
+await dComp.getByRole("button", { name: "Sim, confirmar" }).click();
+await dComp.getByText("Compra · Concluído").waitFor({ timeout: 8000 }).catch(() => {});
+ok("pedidos (tela): confirmar o recebimento, com confirmação, conclui e paga o vendedor", await dComp.getByText("Compra · Concluído").isVisible() &&
+  saldoDe(vendA.email) === saldoVendT + 25);
+await pC.keyboard.press("Escape");
+// a Empresa cancela a venda do Livro pela tela
+const { c: ctxB, p: pBt } = await contextoPed(vendB.email);
+await pBt.goto(B + "/produtos"); await tituloProdutos(pBt);
+await pBt.getByRole("region", { name: "Suas vendas" }).getByRole("button", { name: /Livro tela E2E/ }).click();
+const dCanc = pBt.getByRole("dialog", { name: "Pedido de Livro tela E2E" });
+const saldoCompT = saldoDe(compradorA.email);
+await dCanc.getByRole("button", { name: "Cancelar pedido" }).click();
+await dCanc.getByRole("button", { name: "Sim, cancelar" }).click();
+await dCanc.getByText("Cancelado pelo vendedor").waitFor({ timeout: 8000 }).catch(() => {});
+ok("pedidos (tela): o vendedor cancela, com confirmação; a linha do tempo diz quem cancelou e o comprador recebe o estorno",
+  await dCanc.getByText("Cancelado pelo vendedor").isVisible() && saldoDe(compradorA.email) === saldoCompT + 35);
+await ctxB.close();
+// saldo insuficiente: Faltam N e o atalho para o extrato
+const { c: ctx3, p: p3 } = await contextoPed(comprador3.email);
+const d3 = await abrirProduto(p3, "Livro tela E2E");
+await d3.getByRole("button", { name: "Comprar agora" }).click();
+const dChk3 = p3.getByRole("dialog", { name: "Finalizar compra" });
+await dChk3.getByText("Faltam 35 créditos para esta compra.").waitFor({ timeout: 8000 }).catch(() => {});
+const faltam = await dChk3.getByText("Faltam 35 créditos para esta compra.").isVisible();
+await dChk3.getByRole("button", { name: "Ver extrato" }).click();
+await p3.getByRole("dialog", { name: "Extrato de créditos" }).waitFor({ timeout: 8000 }).catch(() => {});
+ok("pedidos (tela): saldo insuficiente mostra quanto falta e abre o extrato", faltam && await p3.getByRole("dialog", { name: "Extrato de créditos" }).isVisible());
+await ctx3.close();
+// carrinho com o localStorage bloqueado: funciona na sessão, sem quebrar
+const { c: ctxBloq, p: pBloq } = await contextoPed(comprador2.email);
+await ctxBloq.addInitScript(() => {
+  for (const m of ["getItem", "setItem", "removeItem"]) Storage.prototype[m] = () => { throw new DOMException("bloqueado", "SecurityError"); };
+});
+const erros0 = pageErrors.length;
+const dBloq = await abrirProduto(pBloq, "Livro tela E2E");
+await dBloq.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+await pBloq.keyboard.press("Escape");
+ok("pedidos (tela): com o localStorage bloqueado, o carrinho funciona na sessão e a página não quebra",
+  (await carrinhoBtn(pBloq).getAttribute("aria-label")) === "Carrinho: 1 item" && pageErrors.length === erros0, pageErrors.slice(erros0).join(" | "));
+await ctxBloq.close();
+// estoque pela tela (D6): editar só o nome não manda o estoque; mudar o estoque manda o estoque e o lido
+const { c: ctxE, p: pE6 } = await contextoPed(vendA.email);
+const patches = []; pE6.on("request", (r) => r.method() === "PATCH" && r.url().includes("/api/produtos/") && patches.push(r.postDataJSON?.() ?? null));
+const editarPelaTela = async (alterar) => {
+  await pE6.goto(B + "/produtos"); await tituloProdutos(pE6);
+  await pE6.getByRole("region", { name: "Seus produtos" }).getByRole("button", { name: /Estoque lido E2E/ }).click();
+  await pE6.getByRole("dialog", { name: "Estoque lido E2E" }).getByRole("button", { name: "Editar" }).click();
+  const dEd = pE6.getByRole("dialog", { name: "Editar produto" });
+  await dEd.waitFor();
+  await alterar(dEd);
+  await dEd.getByRole("button", { name: "Salvar", exact: true }).click();
+  await dEd.waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+};
+await editarPelaTela((d) => d.getByLabel("Descrição").fill("Descrição nova do produto de estoque lido"));
+await editarPelaTela((d) => d.getByLabel("Estoque", { exact: true }).fill("8"));
+ok("produtos (tela, D6): editar sem mexer no estoque não manda o estoque; mudar o estoque manda o estoque e o lido",
+  patches.length === 2 && !("estoque" in (patches[0] ?? {})) && !("estoqueLido" in (patches[0] ?? {})) && patches[1]?.estoque === 8 && patches[1]?.estoqueLido === 6 &&
+  estoqueDe(pS) === 8, JSON.stringify(patches));
+await ctxE.close();
+// outra conta no mesmo navegador começa com o carrinho vazio (o carrinho guardado é da conta anterior)
+await ctxC.request.post(`${API}/api/auth/login`, { data: { email: terceiro.email, password: "senha123" } });
+await pC.goto(B + "/produtos"); await tituloProdutos(pC);
+await carrinhoBtn(pC).waitFor();
+ok("pedidos (tela): outra conta no mesmo navegador começa com o carrinho vazio", (await carrinhoBtn(pC).getAttribute("aria-label")) === "Carrinho vazio");
+await ctxC.close();
+ok("pedidos (tela): console sem avisos nem erros", avisosPed.length === 0, avisosPed.slice(0, 3).join(" | "));
+
+// privacidade (item f): telefone, e-mail e endereço das partes em nenhuma resposta de pedido nem do extrato
+const segredos = ["97777-1212", "977771212", "966665544", "1144445555", compradorA.email, vendA.email, vendB.email, RUA_SECRETA, NUM_SECRETO, CEP_SECRETO, "04567890", COMPL_SECRETO];
+const vazouPed = segredos.filter((t) => respostasPed.some((r) => r.includes(t)));
+ok("pedidos: telefone, e-mail e endereço não aparecem em nenhuma resposta de pedido nem do extrato", vazouPed.length === 0 && respostasPed.length > 60,
+  `${vazouPed} (${respostasPed.length} respostas)`);
+// extrato x saldo para todos os usuários de teste, e os pedidos sem nenhuma parte (as contas saíram) apagados pelo id
+const usuariosE2E = sql(`select email from "User" where email like 'e2e.%@example.com' and "profileComplete"`).split("\n").filter(Boolean);
+ok("pedidos: extrato x saldo bate para todos os usuários de teste", usuariosE2E.every(extratoBate), usuariosE2E.filter((e) => !extratoBate(e)).join(","));
+apagarDepois.push(...sql(`select id from "PedidoProduto" where "compradorId" is null and "vendedorId" is null`).split("\n").filter(Boolean)
+  .filter((id) => [pedSai, pedSai2, pedY, pedZ, pedW].includes(id)));
+if (apagarDepois.length) sql(`delete from "PedidoProduto" where id in (${apagarDepois.map((id) => `'${id}'`).join(",")})`);
 
 // 16. Excluir conta com senha (o Cliente, já com a senha nova), com uma segunda aba aberta
 await page.goto(B + "/perfil"); await page.locator("h1").waitFor();
