@@ -262,7 +262,8 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
       if (soft) return revealSoft();
       pulseRef.current?.kill();
       // a página antiga pode ter deixado o layout borrado (ver cover)
-      gsap.set(pageExitTargets(), { clearProps: "transform,filter,opacity" });
+      const saiu = pageExitTargets();
+      if (saiu.length) gsap.set(saiu, { clearProps: "transform,filter,opacity" });
 
       const overlay = overlayRef.current!;
       overlay.style.animation = "none";
@@ -348,11 +349,12 @@ export function PageTransitionProvider({ children }: { children: ReactNode }) {
       gsap.set(logoRef.current, { autoAlpha: 0, scale: 0.4, filter: "blur(0px)" });
 
       const stagger = (i: number) => cellsRef.current[i].d * 0.42;
-      gsap
-        .timeline({ onUpdate: draw, onComplete: () => (onCovered(), startPulse()) })
-        // a página que sai afunda e desfoca enquanto a colmeia avança
-        .to(pageExitTargets(), { scale: 0.96, filter: "blur(6px)", opacity: 0.4, duration: 0.6, ease: "power2.in" }, 0)
-        .fromTo(cellsRef.current, { glow: 1 }, { glow: 0, duration: 0.65, ease: "power2.out", stagger }, 0)
+      const tl = gsap.timeline({ onUpdate: draw, onComplete: () => (onCovered(), startPulse()) });
+      // a página que sai afunda e desfoca enquanto a colmeia avança. Sem nenhum [data-page-exit] na tela (o layout
+      // ainda não montou, ou uma tela fora dos layouts), não há o que afundar, e o GSAP avisaria "target not found"
+      const saindo = pageExitTargets();
+      if (saindo.length) tl.to(saindo, { scale: 0.96, filter: "blur(6px)", opacity: 0.4, duration: 0.6, ease: "power2.in" }, 0);
+      tl.fromTo(cellsRef.current, { glow: 1 }, { glow: 0, duration: 0.65, ease: "power2.out", stagger }, 0)
         .to(cellsRef.current, { s: 1, duration: 0.42, ease: "hexPop", stagger }, 0)
         .to(logoRef.current, { autoAlpha: 1, scale: 1, duration: 0.45, ease: "back.out(2.2)" }, ">-0.2");
     },

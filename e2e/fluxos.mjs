@@ -131,14 +131,16 @@ ok("sair → /login", page.url().endsWith("/login"));
 await page.goto(B + "/inicio"); await page.waitForURL("**/login", { timeout: 5000 }).catch(() => {});
 ok("deslogado em /inicio vai pro /login", page.url().endsWith("/login"));
 // 8. login com lembre de mim desmarcado → cookie de sessão
+// os dois logins esperam a colmeia parar antes do clique (a do Sair e a do redirecionamento ainda bloqueiam a tela) e depois dele
+await transicaoParada();
 await page.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await page.getByPlaceholder("Senha").fill("senha123");
-await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 5000 }).catch(() => {});
+await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 5000 }).catch(() => {}); await transicaoParada();
 let ck = (await ctx.cookies()).find((c) => c.name === "refresh_token");
 ok("login sem 'lembre de mim' → cookie de sessão", page.url().endsWith("/inicio") && ck?.expires === -1, `expires=${ck?.expires}`);
-await sair(); await page.waitForURL("**/login");
+await sair(); await page.waitForURL("**/login"); await transicaoParada();
 await page.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await page.getByPlaceholder("Senha").fill("senha123");
 await page.getByText("Lembre de mim").click();
-await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 5000 }).catch(() => {});
+await page.getByRole("button", { name: "Entrar", exact: true }).click(); await page.waitForURL("**/inicio", { timeout: 5000 }).catch(() => {}); await transicaoParada();
 ck = (await ctx.cookies()).find((c) => c.name === "refresh_token");
 ok("login com 'lembre de mim' → cookie de 7 dias", ck && ck.expires > Date.now() / 1000 + 6 * 86400, `expires em ${ck ? ((ck.expires - Date.now() / 1000) / 86400).toFixed(1) : "?"} dias`);
 await sair(); await page.waitForURL("**/login");
@@ -330,9 +332,9 @@ pc.on("pageerror", (e) => pageErrors.push(e.message));
 await pc.goto(B + "/cadastro"); await pc.getByRole("radio", { name: "Cliente" }).click(); await pc.getByRole("button", { name: "Continuar" }).click();
 await pc.getByPlaceholder("Nome completo").waitFor();
 for (const campo of await pc.locator("input:visible, select:visible").all()) await campo.focus();
-await pc.goto(B + "/login");
+await pc.goto(B + "/login"); await transicaoParada(pc); // o splash da carga bloqueia o clique até parar
 await pc.getByPlaceholder("Email").fill("e2e.cliente@example.com"); await pc.getByPlaceholder("Senha").fill(NOVA_SENHA);
-await pc.getByRole("button", { name: "Entrar", exact: true }).click(); await pc.waitForURL("**/inicio");
+await pc.getByRole("button", { name: "Entrar", exact: true }).click(); await pc.waitForURL("**/inicio"); await transicaoParada(pc);
 for (const [nome, rota] of [["Serviços", "/servicos"], ["Produtos", "/produtos"], ["Comunidade", "/comunidade"], ["Perfil", "/perfil"]]) {
   await pc.getByRole("link", { name: nome }).last().click(); await pc.waitForURL("**" + rota);
 }
