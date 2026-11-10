@@ -1818,6 +1818,24 @@ ok("produtos (tela, D6): editar sem mexer no estoque não manda o estoque; mudar
   patches.length === 2 && !("estoque" in (patches[0] ?? {})) && !("estoqueLido" in (patches[0] ?? {})) && patches[1]?.estoque === 8 && patches[1]?.estoqueLido === 6 &&
   estoqueDe(pS) === 8, JSON.stringify(patches));
 await ctxE.close();
+// janela de pouca altura (440x500): o modal do detalhe do produto cabe na janela, com o título e o X, e a rolagem
+// interna alcança o último botão (ProfileDialog com altura máxima e rolagem só no conteúdo)
+const { c: ctxBaixo, p: pBaixo } = await contextoPed(comprador2.email, { viewport: { width: 440, height: 500 } });
+const dBaixo = await abrirProduto(pBaixo, "Livro tela E2E");
+const ultimoBaixo = dBaixo.getByRole("button", { name: "Falar com o vendedor" });
+await ultimoBaixo.waitFor({ state: "attached", timeout: 10000 }).catch(() => {});
+const caixaBaixo = await dBaixo.boundingBox();
+const tituloBaixo = await dBaixo.getByRole("heading", { name: "Livro tela E2E" }).boundingBox();
+const fecharBaixo = await dBaixo.getByRole("button", { name: "Fechar" }).boundingBox();
+const escondidoAntes = await ultimoBaixo.evaluate((el) => el.getBoundingClientRect().bottom > window.innerHeight);
+await ultimoBaixo.scrollIntoViewIfNeeded();
+const botaoBaixo = await ultimoBaixo.boundingBox();
+const rolouDentro = await dBaixo.locator("form > div").first().evaluate((el) => el.scrollTop > 0);
+const naJanela = (b) => !!b && b.y >= 0 && b.y + b.height <= 500;
+ok("produtos (tela): a 440x500, o detalhe do produto cabe na janela, com título e X, e a rolagem interna alcança o último botão",
+  naJanela(caixaBaixo) && naJanela(tituloBaixo) && naJanela(fecharBaixo) && escondidoAntes && rolouDentro && naJanela(botaoBaixo),
+  JSON.stringify({ caixa: caixaBaixo, escondidoAntes, rolouDentro, botao: botaoBaixo }));
+await ctxBaixo.close();
 // outra conta no mesmo navegador começa com o carrinho vazio (o carrinho guardado é da conta anterior)
 await ctxC.request.post(`${API}/api/auth/login`, { data: { email: terceiro.email, password: "senha123" } });
 await pC.goto(B + "/produtos"); await tituloProdutos(pC);

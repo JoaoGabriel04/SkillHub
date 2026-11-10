@@ -234,3 +234,30 @@
 [data-page-swap] [data-page-exit] main {
   opacity: 0;
 }
+
+/* Rolagem interna dos modais (ProfileDialog, Fase 18B): barra fina, só com tokens, e calha sempre reservada
+   (scrollbar-gutter: stable), para o conteúdo não andar quando a barra aparece. A calha tem 6px, a largura da barra;
+   o ProfileDialog desconta esses 6px do padding da direita, então o conteúdo tem a mesma largura de antes. */
+.rolagem-modal {
+  scrollbar-gutter: stable;
+}
+.rolagem-modal::-webkit-scrollbar {
+  width: 6px;
+}
+.rolagem-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rolagem-modal::-webkit-scrollbar-thumb {
+  background: var(--border-input);
+  border-radius: 9999px;
+}
+.rolagem-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+/* navegadores sem ::-webkit-scrollbar (Firefox): a barra fina padrão, com as mesmas cores */
+@supports not selector(::-webkit-scrollbar) {
+  .rolagem-modal {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-input) transparent;
+  }
+}

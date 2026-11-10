@@ -57,14 +57,20 @@ O e2e caiu com `socket hang up` na 18A (PR #18) e com `other side closed` no PR 
 | backend do compose | 4,8 a 5,2s | 0 de 300 (0,0%) | 0 de 300 (0,0%) |
 | backend do compose | 5,8 a 6,2s | 0 de 60 (0,0%) | 0 de 60 (0,0%) |
 | servidor Node local, fora do Docker | 5,8 a 6,2s | 0 de 40 (0,0%) | 0 de 40 (0,0%) |
+| backend do compose, **pausa inteira travada** (como as `sql()` seguidas do e2e) | 6,2 a 6,8s | 0 de 10 (0,0%) | 0 de 10 (0,0%) |
+| backend do compose, **pausa inteira travada** | 5,8 a 7,0s | 0 de 60 (0,0%) | 0 de 60 (0,0%) |
 
-- **Taxa de falha antes: 0% (0 de 800).** Como a causa não se confirmou, **a correção não entrou** (D14), e não há medida "depois". O `backend/src/index.ts` não mudou.
+- **Taxa de falha antes: 0% (0 de 940).** Como a causa não se confirmou, **a correção não entrou** (D14), e não há medida "depois". O `backend/src/index.ts` não mudou.
 - **Achado no caminho:** o Node 24.22 do container anuncia `Keep-Alive: timeout=5`, mas só fecha o socket ocioso aos **6s** (`keepAliveTimeoutBuffer` de 1000ms). Essa folga já é a proteção contra a corrida que a hipótese descrevia. A primeira bateria (pausas até 5,2s) nem chegava à janela; a segunda mirou nela e também não falhou. Contra o servidor local, cerca de 20 dos 82 pedidos reaproveitaram o socket, sem nenhuma falha.
 - **Descartados:**
   - reinício do container: `RestartCount=0` e nenhum "Restarting" no log;
   - memória: 88 MiB, sem `OOMKilled`;
   - pool do Prisma: 1 conexão ativa num `max_connections` de 100, e nenhum `P2024` no log (um pool esgotado daria 500 com log, não um socket cortado);
   - a corrida de keep-alive, pelas medidas acima.
+- **Nova ocorrência, depois do diagnóstico:** numa rodada de verificação dos modais (abaixo), o e2e caiu com `POST /pedidos: other side closed` (undici), na 15j. Era um socket reaproveitado (3.070 bytes escritos e 5.614 lidos antes), sem reinício do backend, logo depois de uma sequência de chamadas `sql()` síncronas (o `prodSql`), sem nenhum `await` entre elas. Isso aponta para a mesma família (um socket ocioso reaproveitado logo depois de o processo de teste ficar travado), mas as duas baterias com a pausa inteira travada também deram 0 de 140. A janela é mais estreita do que a reprodução alcança, e **a causa continua não confirmada**. Por isso a correção do keep-alive continua fora (D14).
+  - Depois disso, a queda se repetiu em mais 2 rodadas, sempre no `POST /pedidos` da 15j (duas vezes na mesma linha, logo depois de seis `sql()` síncronas). Ao todo, foram 3 de 6 rodadas.
+  - Achado da investigação: a reprodução usava `GET /health`, e o undici repete sozinho uma requisição idempotente (GET) quando o socket reaproveitado cai, o que esconderia o erro. Refiz com `POST` (sem token, 401): de novo 0 de 60, com a pausa inteira travada.
+  - Não houve reinício do `tsx watch` nem erro no log do backend ou do Postgres no minuto das quedas, e o pool estava folgado (1 conexão ativa e 6 ociosas).
 - **O que fica:** a regra de 5 rodadas seguidas continua, sem retry no teste. Durante o desenvolvimento da 18B, duas das rodadas de depuração caíram fora da 18B, as duas logo depois de um login, esperando o `/inicio`. Nenhuma foi `socket hang up` (Achados fora de escopo).
 
 ### Arquivos
@@ -104,6 +110,15 @@ O e2e caiu com `socket hang up` na 18A (PR #18) e com `other side closed` no PR 
 | `src/components/app/extrato-dialog.tsx`, `src/types/credito.ts` | "Pedido: nome do primeiro item (+N)". |
 | `src/app/(app)/produtos/page.tsx` | O carrinho no título (para todos), e as linhas "Suas compras" e "Suas vendas", com carregando e erro. |
 
+**Modais com altura máxima e rolagem interna** (commit próprio, `fix: modais com altura máxima e rolagem interna`). Em janela de pouca altura, o detalhe do produto passava da janela e era cortado em cima e embaixo, sem como rolar: o `ProfileDialog` usa o `DialogContent` do shadcn, centralizado e sem altura máxima. A correção é só na casca e vale para todos os modais que usam o `ProfileDialog` (produto, publicar produto, serviço, publicar serviço, extrato, edições do Perfil, carrinho, checkout e pedido). O `ui/dialog.tsx` não mudou, e nenhum modal fora do `ProfileDialog` mudou.
+
+| Arquivo | Alteração |
+|---|---|
+| `src/components/app/perfil/profile-dialog.tsx` | A caixa vira coluna flex (`flex!`, porque o `cn` do projeto não tira o `grid` do shadcn) com `max-h-[calc(100dvh-2rem)]`. O título, a descrição e o X ficam fixos no topo, e o Cancelar/Salvar no rodapé; só o conteúdo (com a mensagem de erro) rola. A rolagem (`overflow-y-auto`, a calha e o padding compensado) só liga quando o conteúdo passa da altura, medida por um `ResizeObserver`. Quando o modal cabe, a área é um bloco comum. |
+| `src/app/globals.css` | `.rolagem-modal`: barra de 6px, polegar em `--border-input` (`--muted-foreground` no hover), trilho transparente, `scrollbar-gutter: stable`, e a barra fina padrão (com as mesmas cores) nos navegadores sem `::-webkit-scrollbar`. |
+
+Por que a rolagem só liga quando precisa, e por que a caixa não tem `overflow-hidden`: as duas coisas, mesmo sem nada para rolar, mudam o desenho do Chromium. Aparecem diferenças de 1 nível de cor nos cantos dos botões e nas bordas, de 2 a 42 pixels por modal. A comparação byte a byte pegou isso. Testei uma propriedade de cada vez: sem as duas, todos os modais saem idênticos; com qualquer uma delas, não. O conteúdo rolado não aparece nos cantos de baixo porque a própria área que rola tem os cantos arredondados.
+
 Ícones novos em Lucide (`ShoppingCart`, `Minus`, `Plus`, `Trash`). O "Falar com o vendedor/comprador" do pedido usa o mesmo ícone do WhatsApp (Font Awesome) do detalhe do produto, para as duas telas ficarem iguais. Nenhuma dependência nova.
 
 **e2e:** `e2e/fluxos.mjs` ganhou a seção `15j` (63 verificações), e a 15g conta 12 casos de taxa no lugar de 6. O `cleanup` do `e2e/run.sh` apaga, antes das contas, os pedidos em que uma das partes é `e2e.*` (com `SetNull`, eles não caem com as contas).
@@ -132,12 +147,24 @@ O e2e caiu com `socket hang up` na 18A (PR #18) e com `other side closed` no PR 
 ### Validação
 
 - `prisma migrate status` sem pendências; `tsc` (frontend e backend), `eslint`, `next build`, `check:cores`, `check:contrast` e `check:creditos` sem erros.
-- **`./e2e/run.sh`: 345/345** (antes: 276/276; 69 novos: 63 na `15j` e 6 casos de pedido no script da taxa, chamado pela 15g). Cobrem a Seção 5.7 inteira e os itens a a i do pedido: compra, atomicidade por estoque e por saldo, `PRECO_ALTERADO`, `INDISPONIVEL`, as 4 corridas (5 vezes cada por rodada), o ciclo, os cancelamentos, consultas e privacidade, o extrato, o `pedidos:pendentes`, o histórico, a exclusão de conta hoje, a conferência da reserva, o D6 e as telas.
-- **Rodadas:** 5 de 5 seguidas, todas com 345/345, depois de reiniciar o container do frontend (ver Achados fora de escopo). No fim, nenhuma conta de teste e nenhum pedido sem as duas partes ficaram no banco.
+- **`./e2e/run.sh`: 346/346** (antes: 276/276; 70 novos: 64 na `15j`, incluindo a altura dos modais a 440x500 e 6 casos de pedido no script da taxa, chamado pela 15g). Cobrem a Seção 5.7 inteira e os itens a a i do pedido: compra, atomicidade por estoque e por saldo, `PRECO_ALTERADO`, `INDISPONIVEL`, as 4 corridas (5 vezes cada por rodada), o ciclo, os cancelamentos, consultas e privacidade, o extrato, o `pedidos:pendentes`, o histórico, a exclusão de conta hoje, a conferência da reserva, o D6 e as telas.
+- **Rodadas da 18B (antes da correção dos modais):** 5 de 5 seguidas, todas com 345/345, depois de reiniciar o container do frontend (ver Achados fora de escopo). No fim, nenhuma conta de teste e nenhum pedido sem as duas partes ficaram no banco.
+- **Rodadas com a correção dos modais (346 verificações): a regra de 5 seguidas NÃO foi cumprida.**
+  - Rodadas 1 e 2: 346/346.
+  - Rodada 3: 345/346. A falha foi um aviso `GSAP target  not found` no console de `/produtos`, que vem da transição de página (`page-transition.tsx`, Fase 16), quando ela roda sem nenhum `[data-page-exit]` na tela (fora da Fase 18).
+  - Rodadas 4 e 5: pararam com `POST /pedidos: other side closed` na 15j (Etapa 0).
+  - O item novo da altura dos modais passou em todas as rodadas que chegaram até ele (1, 2 e 3). As quedas não têm relação com a correção, que só muda o frontend.
 - **Visual, byte a byte:** Serviços, Perfil, Configurações, Comunidade, Início, login, cadastro, o detalhe de um pedido de serviço, o popover de créditos (abaixo de `lg`) e o extrato vazio, a 375 e 1440px, nos dois temas: **38 de 38 idênticas à base**.
   - **Método:** o mesmo da 18A. A base foi capturada com o frontend de `1948361` (os 16 arquivos da 18B tirados de lado e restaurados, conferidos por hash), contra o mesmo backend e o mesmo banco, com duas capturas de cada lado.
   - **Ruído:** 4 telas variam entre duas capturas da própria base (`cadastro_1440` nos dois temas, `creditos-popover_375_claro` e `inicio_1440_escuro`), e cada uma tem um par antes x depois idêntico.
 - **Diferenças previstas:** `/produtos` (o carrinho no título e as linhas Suas compras e Suas vendas) e o detalhe do produto (quantidade, Adicionar ao carrinho, Comprar agora).
+- **Modais (altura máxima e rolagem interna):**
+  - **Alturas baixas (1440x500 e 375x600, nos dois temas):** o detalhe do produto com 2 fotos, publicar produto, publicar serviço, extrato, detalhe do serviço e editar dados pessoais cabem na janela, com o título e o X visíveis, e a rolagem alcança o último botão. Antes, o detalhe do produto chegava a 861px de altura (o título, o X e o último botão ficavam fora da janela), e o publicar serviço passava da janela em 1440x500.
+  - **Alturas normais (1440x900 e 375x812, nos dois temas), contra uma base capturada duas vezes:** **20 de 24 idênticas byte a byte.** As 4 que mudam, com o motivo:
+    - **Detalhe do produto a 375x812 (2 telas):** antes, ele **não cabia** (850px numa janela de 812, com o X cortado no topo). Agora cabe e rola. É a correção.
+    - **Extrato a 375x812 (2 telas):** antes, o conteúdo **vazava pela direita**, com os valores (−45,00, +200,00) e a descrição cortados na borda da tela. No `grid` do shadcn, um texto com `truncate` alargava a coluna além da caixa. Na coluna flex, a largura é a da caixa, o `truncate` funciona e os valores aparecem inteiros. O carrinho a 375 tinha o mesmo vazamento (o Finalizar compra e o total passavam da margem direita) e agora também fica dentro da margem.
+  - **Modais da 18B (carrinho, checkout e pedido), contra as capturas de antes da correção:** as diferenças são o horário da linha do tempo do pedido (os pedidos são criados na hora), o fundo atrás do vidro (os dados variam entre execuções, como na base) e o vazamento corrigido do carrinho e do extrato a 375.
+  - **A barra de rolagem não aparece nas capturas:** o Chromium sem interface oculta as barras. A calha de 6px está reservada, e a largura do conteúdo é a mesma com e sem rolagem.
 - **Telas novas**, 60 capturas a 375 e 1440px nos dois temas, sem aviso nem erro no console: `/produtos` com compras e com vendas, o carrinho (com indisponível e vazio), o checkout, o saldo insuficiente, o detalhe do produto com a compra, o pedido em cada status e papel, as confirmações de cancelar e de confirmar o recebimento, e o extrato com as linhas de pedido.
 
 ### Depois do merge
