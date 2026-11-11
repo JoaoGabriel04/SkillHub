@@ -158,7 +158,7 @@ const produtoService = {
 
   atualizar: async (id: string, usuarioId: string, dados: AtualizarProdutoInput, arquivos: Express.Multer.File[]) => {
     const produto = await produtoDoDono(id, usuarioId);
-    const { imagens, status, categoria, ...resto } = dados;
+    const { imagens, status, categoria, estoqueLido, ...resto } = dados;
     if (arquivos.length > 0 && !imagens) throw new AppError("Informe a ordem das fotos (campo imagens)", 400);
     const plano = imagens && planoDeFotos(imagens, produto.imagens, arquivos.length);
 
@@ -172,7 +172,8 @@ const produtoService = {
           ...(categoria && { categoria: categoriaProdutoDoRotulo(categoria) }),
           ...(status && { status: STATUS_DO_ROTULO[status] }),
         },
-        plano && { final: plano.map((f) => ("nova" in f ? { nova: novas[f.nova] } : f)) }
+        plano && { final: plano.map((f) => ("nova" in f ? { nova: novas[f.nova] } : f)) },
+        resto.estoque !== undefined ? estoqueLido : undefined
       )
       .catch(async (err) => {
         await apagarFotos(novas.map((n) => n.publicId));

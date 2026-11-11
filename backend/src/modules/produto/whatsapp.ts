@@ -10,5 +10,13 @@ export function normalizarTelefone(telefone: string | null): string | null {
   return null;
 }
 
+// Fase 18B: contato entre as partes de um pedido (GET /pedidos/:id/contato), para combinar a entrega
+export const linkWhatsappPedido = (telefone: string, primeiroItem: string, papel: "comprador" | "vendedor") =>
+  `https://wa.me/${telefone}?text=${encodeURIComponent(
+    papel === "comprador"
+      ? `Olá, comprei ${primeiroItem} no SkillHub e quero combinar a entrega.`
+      : `Olá, vendi ${primeiroItem} para você no SkillHub e quero combinar a entrega.`
+  )}`;
+
 export const linkWhatsapp = (telefone: string, nomeProduto: string) =>
   `https://wa.me/${telefone}?text=${encodeURIComponent(`Olá, vi seu produto ${nomeProduto} no SkillHub e tenho interesse.`)}`;

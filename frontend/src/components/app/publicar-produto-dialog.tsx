@@ -120,7 +120,11 @@ export function PublicarProdutoDialog({ open, onOpenChange, produto }: Props) {
         // as fotos só vão (multipart) se mudaram: a ordem ou o conjunto
         const mudou = fotos.length !== produto.imagens.length || fotos.some((f, i) => !("id" in f) || f.id !== produto.imagens[i].id);
         const lista: FotoProduto[] = fotos.map((f) => ("id" in f ? { id: f.id } : { arquivo: f.arquivo }));
-        await atualizarProduto(produto.id, parsed.data, mudou ? lista : undefined);
+        // Fase 18B (decisão D6): o estoque só vai se mudou, com o valor lido ao abrir; se houve venda nesse meio-tempo,
+        // o servidor responde 409 e nada é gravado
+        const { estoque, ...campos } = parsed.data;
+        const comEstoque = estoque !== produto.estoque ? { estoque, estoqueLido: produto.estoque } : {};
+        await atualizarProduto(produto.id, { ...campos, ...comEstoque }, mudou ? lista : undefined);
         await revalidarProdutos();
         toast.success("Produto atualizado");
       } else {

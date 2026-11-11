@@ -24,6 +24,8 @@ export type ProdutoComCapa = Prisma.ProdutoGetPayload<{ include: typeof comCapa 
 export type ProdutoCompleto = Prisma.ProdutoGetPayload<{ include: typeof completo }>;
 export type ImagemNova = { id: string; url: string; publicId: string };
 
+type Tx = Prisma.TransactionClient;
+
 type FiltroLista = {
   usuarioId: string;
   categoria?: Prisma.ProdutoWhereInput["categoria"];
@@ -80,14 +82,21 @@ const produtoRepository = {
     id: string,
     vendedorId: string,
     dados: Prisma.ProdutoUncheckedUpdateManyInput,
-    fotos?: { final: ({ existente: string } | { nova: ImagemNova })[] }
+    fotos?: { final: ({ existente: string } | { nova: ImagemNova })[] },
+    estoqueLido?: number // Fase 18B (D6): com o estoque no corpo, só grava se ele ainda é o que o vendedor viu
   ) =>
     prisma.$transaction(async (tx) => {
+      const onde = { id, vendedorId, status: { in: ["ATIVO", "PAUSADO"] } } satisfies Prisma.ProdutoWhereInput;
       const { count } = await tx.produto.updateMany({
-        where: { id, vendedorId, status: { in: ["ATIVO", "PAUSADO"] } },
+        where: { ...onde, ...(estoqueLido !== undefined && { estoque: estoqueLido }) },
         data: { ...dados, updatedAt: new Date() }, // updatedAt sempre: garante o UPDATE (e a trava) mesmo sem campos
       });
-      if (count === 0) throw new AppError("Produto não encontrado", 404);
+      if (count === 0) {
+        // o produto continua lá: o que mudou foi o estoque (houve uma venda entre a leitura e o salvar)
+        if (estoqueLido !== undefined && (await tx.produto.count({ where: onde })) > 0)
+          throw new AppError("O estoque mudou (houve uma venda). Confira e salve de novo.", 409, { code: "ESTOQUE_ALTERADO" });
+        throw new AppError("Produto não encontrado", 404);
+      }
 
       let removidas: (string | null)[] = [];
       if (fotos) {
@@ -105,6 +114,36 @@ const produtoRepository = {
       }
       return { produto: await tx.produto.findUniqueOrThrow({ where: { id }, include: completo }), removidas };
     }),
+
+  // --- Fase 18B: o estoque do checkout e do cancelamento. Continua sendo o único lugar que escreve em Produto.estoque.
+  // Quem chama trava as linhas em ordem crescente de id (PLANO_18B, Seção 3.4).
+
+  // leitura do checkout, sem trava: status, dono, preço e o snapshot (nome, capa, digital)
+  paraCheckout: (tx: Tx, ids: string[]) =>
+    tx.produto.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true, nome: true, preco: true, estoque: true, status: true, digital: true, vendedorId: true,
+        imagens: { select: { url: true }, orderBy: { ordem: "asc" }, take: 1 },
+      },
+    }),
+
+  // Baixa condicional: só se ainda está ATIVO, com o preço que a pessoa viu e estoque suficiente. Devolve se baixou.
+  // O UPDATE trava a linha: na corrida pela última unidade, o segundo espera e não encontra estoque.
+  baixarEstoque: async (tx: Tx, id: string, quantidade: number, precoEsperado: number) =>
+    (
+      await tx.produto.updateMany({
+        where: { id, status: "ATIVO", preco: precoEsperado, estoque: { gte: quantidade } },
+        data: { estoque: { decrement: quantidade } },
+      })
+    ).count === 1,
+
+  // depois de a baixa não pegar, para dizer por quê (INDISPONIVEL, PRECO_ALTERADO ou ESGOTADO)
+  estadoParaCheckout: (tx: Tx, id: string) => tx.produto.findUnique({ where: { id }, select: { status: true, preco: true, estoque: true } }),
+
+  // cancelamento: o estoque volta, qualquer que seja o status (um produto removido continua fora da loja)
+  devolverEstoque: (tx: Tx, id: string, quantidade: number) =>
+    tx.produto.updateMany({ where: { id }, data: { estoque: { increment: quantidade } } }),
 
   // exclusão lógica: só se ainda não foi removido (condição no UPDATE); as linhas das fotos ficam
   remover: async (id: string, vendedorId: string) =>

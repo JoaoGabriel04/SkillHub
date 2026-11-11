@@ -40,6 +40,9 @@ cleanup() {
       Promise.all(process.argv.slice(1).map((id) => c.uploader.destroy(id, { resource_type: "image", invalidate: true })))
         .catch((e) => console.error("[e2e] limpeza das fotos de produto falhou:", e.message));' $fotos || true
   fi
+  # pedidos de produto (Fase 18B): as partes são SetNull, então eles não caem com as contas; saem antes, pelas partes
+  sql "delete from \"PedidoProduto\" p where exists (select 1 from \"User\" u where u.email like 'e2e.%@example.com'
+    and u.id in (p.\"compradorId\", p.\"vendedorId\"))" >/dev/null || true
   sql "delete from \"User\" where email like 'e2e.%@example.com'" >/dev/null || true
   # e-mails de teste (recuperação de senha) na caixa do Mailpit
   curl -s -o /dev/null -X DELETE "http://localhost:8025/api/v1/search?query=to%3Aexample.com" || true

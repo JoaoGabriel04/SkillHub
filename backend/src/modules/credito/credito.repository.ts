@@ -18,8 +18,14 @@ const creditoRepository = {
 
   saldo: (tx: Tx, userId: string) => tx.user.findUniqueOrThrow({ where: { id: userId }, select: { credits: true } }),
 
-  registrar: (tx: Tx, data: { userId: string; tipo: TipoTransacao; valor: number; saldoApos: number; servicoId: string | null }) =>
-    tx.transacaoCredito.create({ data }),
+  registrar: (
+    tx: Tx,
+    data: { userId: string; tipo: TipoTransacao; valor: number; saldoApos: number; servicoId: string | null; pedidoId: string | null }
+  ) => tx.transacaoCredito.create({ data }),
+
+  // Fase 18B: as reservas de um pedido (o pagamento e o estorno conferem que há exatamente uma, de -total)
+  reservasDoPedido: (tx: Tx, pedidoId: string) =>
+    tx.transacaoCredito.findMany({ where: { pedidoId, tipo: "RESERVA" }, select: { userId: true, valor: true } }),
 
   transacaoDoServico: (tx: Tx, servicoId: string, tipo: TipoTransacao) => tx.transacaoCredito.findFirst({ where: { servicoId, tipo } }),
 
@@ -35,6 +41,13 @@ const creditoRepository = {
 
   titulosDosServicos: (ids: string[]) =>
     prisma.servico.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true } }),
+
+  // Fase 18B: o nome dos itens de cada pedido, para o "Pedido: nome do primeiro item (+N)" do extrato (só leitura)
+  itensDosPedidos: (ids: string[]) =>
+    prisma.pedidoProduto.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, itens: { select: { nome: true }, orderBy: [{ nome: "asc" }, { id: "asc" }] } },
+    }),
 
   // fora de transação, para o teste da taxa (scripts/verificar-taxa.ts). A soma é a invariante: reservar, pagar e
   // estornar só movem saldo entre contas

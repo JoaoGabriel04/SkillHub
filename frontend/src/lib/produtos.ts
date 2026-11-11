@@ -45,7 +45,8 @@ export const criarProduto = (campos: CamposProduto, arquivos: File[]) => {
 };
 
 // sem fotos, vai como JSON; com fotos, multipart
-export const atualizarProduto = (id: string, campos: Partial<CamposProduto> & { status?: StatusProduto }, fotos?: FotoProduto[]) =>
+// estoqueLido (Fase 18B, decisão D6): vai junto com o estoque, só quando ele muda
+export const atualizarProduto = (id: string, campos: Partial<CamposProduto> & { status?: StatusProduto; estoqueLido?: number }, fotos?: FotoProduto[]) =>
   api.patch<{ produto: ProdutoDetalhe }>(`/produtos/${id}`, fotos ? formulario(campos, fotos) : campos).then((r) => r.data.produto);
 
 export const removerProduto = (id: string) => api.delete(`/produtos/${id}`);

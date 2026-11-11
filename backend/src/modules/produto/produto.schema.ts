@@ -49,10 +49,21 @@ const imagens = z.preprocess(
   z.array(z.string({ message: "Lista de fotos inválida" }), { message: "Lista de fotos inválida" }).min(1, "Envie de 1 a 4 fotos").max(4, "Envie no máximo 4 fotos")
 );
 
-// vendedorId (ou qualquer outro campo) no corpo é descartado: o dono nunca muda
+// vendedorId (ou qualquer outro campo) no corpo é descartado: o dono nunca muda.
+// Fase 18B (D6): quem muda o estoque manda também o estoqueLido (o valor que viu ao abrir); se houve uma venda
+// nesse meio-tempo, o PATCH dá 409 e não grava. Sem estoque no corpo, o estoqueLido não é pedido.
 export const atualizarProdutoSchema = z
-  .object({ ...campos, status: z.enum(["Ativo", "Pausado"], { message: "Status inválido" }), imagens })
-  .partial();
+  .object({
+    ...campos,
+    status: z.enum(["Ativo", "Pausado"], { message: "Status inválido" }),
+    imagens,
+    estoqueLido: inteiro("O estoque lido precisa ser um número inteiro").pipe(z.number().min(0, "O estoque lido não pode ser negativo")),
+  })
+  .partial()
+  .superRefine((dados, ctx) => {
+    if (dados.estoque !== undefined && dados.estoqueLido === undefined)
+      ctx.addIssue({ code: "custom", path: ["estoqueLido"], message: "Informe o estoque que você viu (estoqueLido) para alterar o estoque" });
+  });
 
 export const listarProdutosSchema = z.object({
   categoria: z.enum(ROTULOS_CATEGORIA_PRODUTO, { message: "Categoria inválida" }).optional(),

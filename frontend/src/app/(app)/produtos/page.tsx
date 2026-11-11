@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLaptop, faPlus, faUserTie } from "@fortawesome/free-solid-svg-icons";
+import { BotaoCarrinho } from "@/components/app/botao-carrinho";
 import { ChipRow } from "@/components/app/chip-row";
 import { PageTitle } from "@/components/app/page-title";
+import { PedidoCard } from "@/components/app/pedido-card";
 import { ProdutoCard } from "@/components/app/produto-card";
 import { ProdutoCardEsqueleto } from "@/components/app/produto-card-esqueleto";
 import { PublicarProdutoDialog } from "@/components/app/publicar-produto-dialog";
@@ -16,6 +18,7 @@ import { ContentCard } from "@/components/ui/content-card";
 import { CtaButton, ctaButtonClass } from "@/components/ui/cta-button";
 import { emBreve } from "@/lib/em-breve";
 import { getDestaques, type Destaque } from "@/lib/mock/produtos";
+import { CHAVE_COMPRAS, CHAVE_VENDAS, getCompras, getVendas } from "@/lib/pedidos";
 import { CHAVE_MEUS_PRODUTOS, chaveProdutos, getMeusProdutos, getProdutos, type FiltrosProdutos } from "@/lib/produtos";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -80,10 +83,10 @@ function LinhaEsqueleto() {
   );
 }
 
-function ErroAoCarregar({ onTentar }: { onTentar: () => void }) {
+function ErroAoCarregar({ onTentar, oQue = "os produtos", className = "mt-12" }: { onTentar: () => void; oQue?: string; className?: string }) {
   return (
-    <div role="alert" className="mt-12 flex flex-col items-center gap-3 text-center">
-      <p className="font-secondary text-[13px] text-muted-foreground sm:text-[15px]">Não foi possível carregar os produtos.</p>
+    <div role="alert" className={cn("flex flex-col items-center gap-3 text-center", className)}>
+      <p className="font-secondary text-[13px] text-muted-foreground sm:text-[15px]">Não foi possível carregar {oQue}.</p>
       <CtaButton onClick={onTentar} className="h-8 px-4">
         Tentar de novo
       </CtaButton>
@@ -108,27 +111,36 @@ export default function ProdutosPage() {
   const resultados = useSWR(filtrando ? chaveProdutos(filtros) : null, buscarProdutos, { keepPreviousData: true });
   const porCategoria = useSWR(filtrando ? null : CHAVE_LINHAS, buscarLinhas);
   const meus = useSWR(vende ? CHAVE_MEUS_PRODUTOS : null, getMeusProdutos);
+  // Fase 18B: compras (todos compram) e vendas (só quem vende); as linhas só aparecem com ao menos 1 (decisão D10)
+  const compras = useSWR(CHAVE_COMPRAS, getCompras);
+  const vendas = useSWR(vende ? CHAVE_VENDAS : null, getVendas);
   const lista = filtrando ? resultados : porCategoria;
 
   const linhas = CATEGORIAS_PRODUTO.map((c, i) => ({ categoria: c, itens: porCategoria.data?.[i] ?? [] })).filter((linha) => linha.itens.length > 0);
-  // fotos sem lazy nas 2 primeiras linhas com cards (Seus produtos e/ou categorias), até 6 por linha: é o que cabe
-  // na primeira tela (2 linhas no celular, até 6 cards a 1920px), e qualquer uma dessas fotos pode ser o LCP
-  const linhasNaDobra = [...(vende && meus.data?.length ? ["Seus produtos"] : []), ...linhas.map((l) => l.categoria)].slice(0, 2);
+  // fotos sem lazy nas 2 primeiras linhas com cards (compras, vendas, Seus produtos e/ou categorias), até 6 por linha:
+  // é o que cabe na primeira tela (2 linhas no celular, até 6 cards a 1920px), e qualquer uma dessas fotos pode ser o LCP
+  const linhasNaDobra = [
+    ...(compras.data?.length ? ["Suas compras"] : []),
+    ...(vende && vendas.data?.length ? ["Suas vendas"] : []),
+    ...(vende && meus.data?.length ? ["Seus produtos"] : []),
+    ...linhas.map((l) => l.categoria),
+  ].slice(0, 2);
   const naDobra = (linha: string, i: number) => linhasNaDobra.includes(linha) && i < 6;
 
   return (
     <main className="pb-4">
-      {vende ? (
-        <div className="flex items-end justify-between gap-3">
-          <PageTitle>Produtos</PageTitle>
-          <CtaButton onClick={() => setPublicando(true)} className="flex h-8 shrink-0 items-center gap-2 px-3 sm:h-9 sm:px-4">
-            <FontAwesomeIcon icon={faPlus} className="text-[11px] sm:text-[12px]" />
-            Publicar
-          </CtaButton>
-        </div>
-      ) : (
+      <div className="flex items-end justify-between gap-3">
         <PageTitle>Produtos</PageTitle>
-      )}
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <BotaoCarrinho />
+          {vende && (
+            <CtaButton onClick={() => setPublicando(true)} className="flex h-8 shrink-0 items-center gap-2 px-3 sm:h-9 sm:px-4">
+              <FontAwesomeIcon icon={faPlus} className="text-[11px] sm:text-[12px]" />
+              Publicar
+            </CtaButton>
+          )}
+        </div>
+      </div>
 
       <ChipRow label="Categorias" className="mt-[20px] justify-between gap-2 sm:mt-6 sm:justify-start sm:gap-8">
         {CATEGORIAS_PRODUTO.map((c) => (
@@ -199,6 +211,28 @@ export default function ProdutosPage() {
                 <DestaqueBanner key={d.id} destaque={d} />
               ))}
             </ScrollRow>
+          )}
+          {[
+            { titulo: "Suas compras", r: compras },
+            { titulo: "Suas vendas", r: vendas },
+          ].map(({ titulo, r }) =>
+            r.error ? (
+              <section key={titulo} className="mt-[20px] sm:mt-10">
+                <SectionHeader title={titulo} />
+                <ErroAoCarregar onTentar={() => r.mutate()} oQue={titulo === "Suas compras" ? "suas compras" : "suas vendas"} className="mt-4" />
+              </section>
+            ) : r.isLoading ? (
+              <LinhaEsqueleto key={titulo} />
+            ) : r.data?.length ? (
+              <section key={titulo} className="mt-[20px] sm:mt-10">
+                <SectionHeader title={titulo} />
+                <ScrollRow label={titulo} className="mt-[10px] sm:mt-4">
+                  {r.data.map((p, i) => (
+                    <PedidoCard key={p.id} pedido={p} acimaDaDobra={naDobra(titulo, i)} />
+                  ))}
+                </ScrollRow>
+              </section>
+            ) : null
           )}
           {/* "Seus produtos" sem produtos: o lugar fica visível, com o convite para publicar o primeiro */}
           {vende && meus.data?.length === 0 && (
