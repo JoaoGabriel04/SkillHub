@@ -60,18 +60,29 @@ O e2e caiu com `socket hang up` na 18A (PR #18) e com `other side closed` no PR 
 | backend do compose, **pausa inteira travada** (como as `sql()` seguidas do e2e) | 6,2 a 6,8s | 0 de 10 (0,0%) | 0 de 10 (0,0%) |
 | backend do compose, **pausa inteira travada** | 5,8 a 7,0s | 0 de 60 (0,0%) | 0 de 60 (0,0%) |
 
-- **Taxa de falha antes: 0% (0 de 940).** Como a causa não se confirmou, **a correção não entrou** (D14), e não há medida "depois". O `backend/src/index.ts` não mudou.
+- **Taxa de falha antes: 0% (0 de 940).** Como a causa não se confirmou, **a correção não entrou** (D14), e não há medida "depois". O `backend/src/index.ts` não mudou nesta etapa. A causa se confirmou depois, e a correção veio num commit próprio (ver "Causa confirmada", abaixo).
 - **Achado no caminho:** o Node 24.22 do container anuncia `Keep-Alive: timeout=5`, mas só fecha o socket ocioso aos **6s** (`keepAliveTimeoutBuffer` de 1000ms). Essa folga já é a proteção contra a corrida que a hipótese descrevia. A primeira bateria (pausas até 5,2s) nem chegava à janela; a segunda mirou nela e também não falhou. Contra o servidor local, cerca de 20 dos 82 pedidos reaproveitaram o socket, sem nenhuma falha.
 - **Descartados:**
   - reinício do container: `RestartCount=0` e nenhum "Restarting" no log;
   - memória: 88 MiB, sem `OOMKilled`;
   - pool do Prisma: 1 conexão ativa num `max_connections` de 100, e nenhum `P2024` no log (um pool esgotado daria 500 com log, não um socket cortado);
   - a corrida de keep-alive, pelas medidas acima.
-- **Nova ocorrência, depois do diagnóstico:** numa rodada de verificação dos modais (abaixo), o e2e caiu com `POST /pedidos: other side closed` (undici), na 15j. Era um socket reaproveitado (3.070 bytes escritos e 5.614 lidos antes), sem reinício do backend, logo depois de uma sequência de chamadas `sql()` síncronas (o `prodSql`), sem nenhum `await` entre elas. Isso aponta para a mesma família (um socket ocioso reaproveitado logo depois de o processo de teste ficar travado), mas as duas baterias com a pausa inteira travada também deram 0 de 140. A janela é mais estreita do que a reprodução alcança, e **a causa continua não confirmada**. Por isso a correção do keep-alive continua fora (D14).
+- **Nova ocorrência, depois do diagnóstico:** numa rodada de verificação dos modais (abaixo), o e2e caiu com `POST /pedidos: other side closed` (undici), na 15j. Era um socket reaproveitado (3.070 bytes escritos e 5.614 lidos antes), sem reinício do backend, logo depois de uma sequência de chamadas `sql()` síncronas (o `prodSql`), sem nenhum `await` entre elas. Isso aponta para a mesma família (um socket ocioso reaproveitado logo depois de o processo de teste ficar travado), mas as duas baterias com a pausa inteira travada também deram 0 de 140. A janela é mais estreita do que a reprodução alcança, e **a causa continua não confirmada**. Por isso a correção do keep-alive continua fora (D14). A causa se confirmou depois, com o e2e instrumentado (abaixo).
   - Depois disso, a queda se repetiu em mais 2 rodadas, sempre no `POST /pedidos` da 15j (duas vezes na mesma linha, logo depois de seis `sql()` síncronas). Ao todo, foram 3 de 6 rodadas.
   - Achado da investigação: a reprodução usava `GET /health`, e o undici repete sozinho uma requisição idempotente (GET) quando o socket reaproveitado cai, o que esconderia o erro. Refiz com `POST` (sem token, 401): de novo 0 de 60, com a pausa inteira travada.
   - Não houve reinício do `tsx watch` nem erro no log do backend ou do Postgres no minuto das quedas, e o pool estava folgado (1 conexão ativa e 6 ociosas).
-- **O que fica:** a regra de 5 rodadas seguidas continua, sem retry no teste. Durante o desenvolvimento da 18B, duas das rodadas de depuração caíram fora da 18B, as duas logo depois de um login, esperando o `/inicio`. Nenhuma foi `socket hang up` (Achados fora de escopo).
+- **O que fica:** a regra de 5 rodadas seguidas continua, sem retry no teste. Durante o desenvolvimento da 18B, duas das rodadas de depuração caíram fora da 18B, as duas logo depois de um login, esperando o `/inicio`. Nenhuma foi `socket hang up` (corrigidas depois, abaixo).
+
+### Causa confirmada e correção do keep-alive (`7471ac2`)
+
+- **Captura:** com o e2e instrumentado, uma queda foi pega no ato. O socket estava ocioso havia **7.539 ms**, dos quais **7.535 ms** com o processo de teste travado em 3 chamadas síncronas (`execFileSync`), e o `POST /pedidos` saiu 1 ms depois da última. O Node fecha o socket ocioso aos 6s (`keepAliveTimeout` de 5s mais 1s de folga). Travado, o processo de teste não chega a processar o fechamento e reaproveita o socket morto. A reprodução isolada não alcançava a janela porque as pausas dela não passavam de 7s com o processo travado do começo ao fim, e porque usava `GET`, que o undici repete sozinho.
+- **Correção:** `backend/src/index.ts` passa a guardar o servidor do `app.listen` e define `keepAliveTimeout = 65_000` e `headersTimeout = 66_000` (o segundo precisa ser maior que o primeiro). Assim, o servidor tolera uma ociosidade maior que a de qualquer cliente. Pelo D14, a correção entrou num commit próprio, porque a causa se confirmou.
+- **Antes e depois:** antes, 3 quedas em 6 rodadas e 1 em 6. Depois, 0 quedas em 10 rodadas seguidas, com 109 reusos bem-sucedidos de sockets ociosos há mais de 6s.
+
+### Transição sem `[data-page-exit]` e logins do e2e (`66e81fb`)
+
+- **`frontend/src/components/motion/page-transition.tsx`:** a saída e a revelação só animam os `[data-page-exit]` quando existe algum na tela. Sem nenhum (o layout ainda não montou, ou uma tela fora dos layouts), o GSAP avisava `target not found` no console. Era a falha da rodada 3 da correção dos modais.
+- **`e2e/fluxos.mjs`:** os dois logins do passo 8 (com e sem "Lembre de mim") e o login da 15a2 esperam a colmeia parar (`transicaoParada()`) antes do clique em Entrar e depois da chegada ao `/inicio`, como o passo 16 faz desde a faxina. Antes, o clique podia cair na colmeia do Sair, do redirecionamento ou do splash, e o login não acontecia. Sem timeout maior nem retry.
 
 ### Arquivos
 
@@ -154,6 +165,7 @@ Por que a rolagem só liga quando precisa, e por que a caixa não tem `overflow-
   - Rodada 3: 345/346. A falha foi um aviso `GSAP target  not found` no console de `/produtos`, que vem da transição de página (`page-transition.tsx`, Fase 16), quando ela roda sem nenhum `[data-page-exit]` na tela (fora da Fase 18).
   - Rodadas 4 e 5: pararam com `POST /pedidos: other side closed` na 15j (Etapa 0).
   - O item novo da altura dos modais passou em todas as rodadas que chegaram até ele (1, 2 e 3). As quedas não têm relação com a correção, que só muda o frontend.
+- **Rodadas finais, com o keep-alive e a transição corrigidos (11/11): 5 de 5 seguidas, todas com 346/346** (de 6 a 7,5 min cada), sem nenhum `other side closed`, `socket hang up` ou aviso no console. A bateria começou com 2 contas `e2e.*` sobrando de uma rodada interrompida, e a limpeza do `run.sh` as apagou. No fim, nenhuma conta de teste ficou no banco.
 - **Visual, byte a byte:** Serviços, Perfil, Configurações, Comunidade, Início, login, cadastro, o detalhe de um pedido de serviço, o popover de créditos (abaixo de `lg`) e o extrato vazio, a 375 e 1440px, nos dois temas: **38 de 38 idênticas à base**.
   - **Método:** o mesmo da 18A. A base foi capturada com o frontend de `1948361` (os 16 arquivos da 18B tirados de lado e restaurados, conferidos por hash), contra o mesmo backend e o mesmo banco, com duas capturas de cada lado.
   - **Ruído:** 4 telas variam entre duas capturas da própria base (`cadastro_1440` nos dois temas, `creditos-popover_375_claro` e `inicio_1440_escuro`), e cada uma tem um par antes x depois idêntico.
@@ -182,7 +194,8 @@ Por que a rolagem só liga quando precisa, e por que a caixa não tem `overflow-
   - **15a2:** `page.waitForURL("**/inicio")` esgotou os 30s depois do clique em Entrar (`e2e/fluxos.mjs:335`).
   - **Passo 8:** o login com "Lembre de mim" espera o `/inicio` por só 5s e engole o erro (`.catch(() => {})`). O clique seguinte, em Configurações, não navegou.
   - As duas são login seguido da transição de entrada (a colmeia, que bloqueia cliques até voltar ao repouso). É o mesmo mecanismo que a A5 da faxina corrigiu no passo 16, com o `transicaoParada()`, e que não foi aplicado nesses dois pontos.
-  - Coincidiram com o `next dev` do container em 1 GB de memória depois de um dia de hot reload. Depois de reiniciar o container, não voltaram. **Não mexi nesses testes** (fora da 18B); a correção seria o `transicaoParada()` depois desses dois logins, sem aumentar timeout.
+  - Coincidiram com o `next dev` do container em 1 GB de memória depois de um dia de hot reload. Depois de reiniciar o container, não voltaram.
+  - **Resolvido em `66e81fb`** (acima): os dois logins ganharam o `transicaoParada()`, sem aumentar timeout.
 - **`next/image` e a mesma foto em vários lugares:** o Next guarda o `loading` de cada imagem pela URL otimizada. Com a mesma foto em duas linhas (uma acima da dobra, sem lazy, e outra abaixo, com lazy), o aviso de LCP com lazy aparece mesmo com a imagem certa sem lazy. O aviso só existe em desenvolvimento. Aconteceu no e2e porque todos os produtos da 15j usavam a mesma URL; agora cada um tem a sua.
 - **Migrations antigas com dono `root`** (as da 17 e a da 18A): `sudo chown -R $USER backend/prisma/migrations`. A da 18B foi criada no host e não tem o problema.
 - **Devolução e disputa (D15):** não há mediação. Se o vendedor marca como enviado e não entrega, o comprador não tem como cancelar nem contestar pela plataforma (a reserva fica presa até o vendedor cancelar). Fica como risco.
